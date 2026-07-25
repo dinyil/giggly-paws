@@ -181,6 +181,7 @@ const mapSettingsPayload = (s: StoreSettings) => ({
     address: s.address,
     "contactNumber": s.contactNumber, // Quoted CamelCase
     "vatRate": s.vatRate,             // Quoted CamelCase
+    hotel_vat_enabled: s.hotelVatEnabled ?? false,
     "gcashNumber": s.gcashNumber,     // Quoted CamelCase
     "gcashQr": s.gcashQr,             // Quoted CamelCase
     "receiptHeader": s.receiptHeader, // Quoted CamelCase
@@ -234,6 +235,7 @@ const mapSettingsFromDb = (s: any): Partial<StoreSettings> => ({
     address: s.address,
     contactNumber: s.contactNumber, // CamelCase from DB
     vatRate: s.vatRate,             // CamelCase from DB
+    hotelVatEnabled: s.hotel_vat_enabled ?? false,
     gcashNumber: s.gcashNumber,     // CamelCase from DB
     gcashQr: s.gcashQr,             // CamelCase from DB
     receiptHeader: s.receiptHeader, // CamelCase from DB
@@ -1312,9 +1314,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const addonItems = addonProducts.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
     const allItems = [nightlyItem, ...addonItems];
     const subtotal = allItems.reduce((s, i) => s + i.price * i.quantity, 0);
-    // Hotel room rates are VAT-inclusive (final price) — do NOT add VAT on top
-    const vat = 0;
-    const total = parseFloat(subtotal.toFixed(2));
+    // VAT is only applied to hotel stays if explicitly enabled in Settings > Hotel VAT
+    const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) : 0;
+    const vat = parseFloat((subtotal * vatRate / 100).toFixed(2));
+    const total = parseFloat((subtotal + vat).toFixed(2));
     const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
     setTransactions(prev => [tx, ...prev]);
     await upsertData('transactions', mapTransactionPayload(tx));

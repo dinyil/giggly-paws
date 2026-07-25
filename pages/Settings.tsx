@@ -78,6 +78,7 @@ const Settings: React.FC = () => {
         address: formData.address,
         contactNumber: formData.contactNumber,
         vatRate: formData.vatRate,
+        hotelVatEnabled: formData.hotelVatEnabled,
         gcashNumber: formData.gcashNumber,
         receiptHeader: formData.receiptHeader,
         receiptFooter: formData.receiptFooter
@@ -444,6 +445,29 @@ const Settings: React.FC = () => {
                             <label className="text-sm font-bold text-gray-700">VAT Rate (%)</label>
                             <input disabled={!isEditingGeneral} type="number" className={inputClass(isEditingGeneral)} value={formData.vatRate || ''} onChange={e => setFormData({...formData, vatRate: Number(e.target.value)})} />
                         </div>
+                    </div>
+
+                    {/* Hotel VAT Toggle */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl border border-purple-100" style={{background: '#FAF7FF'}}>
+                        <div>
+                            <p className="font-bold text-sm" style={{color: '#4A2D7A'}}>Apply VAT to Hotel Stays</p>
+                            <p className="text-xs text-purple-300 mt-0.5">
+                                {formData.hotelVatEnabled
+                                    ? `Hotel checkout will add ${formData.vatRate || 0}% VAT — e.g. ₱1,500 room → ₱${(1500 * (1 + (formData.vatRate || 0) / 100)).toFixed(0)} total`
+                                    : 'Hotel checkout uses room rate as final price — no VAT added'}
+                            </p>
+                        </div>
+                        <button
+                            disabled={!isEditingGeneral}
+                            onClick={() => setFormData({...formData, hotelVatEnabled: !formData.hotelVatEnabled})}
+                            className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                                formData.hotelVatEnabled ? 'bg-purple-600' : 'bg-gray-200'
+                            }`}
+                        >
+                            <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                                formData.hotelVatEnabled ? 'translate-x-5' : 'translate-x-0'
+                            }`} />
+                        </button>
                     </div>
 
                     <div className="pt-4 border-t border-zinc-100 mt-4">

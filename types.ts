@@ -161,6 +161,7 @@ export interface StoreSettings {
   address: string;
   contactNumber: string;
   vatRate: number; // Percentage, e.g., 12
+  hotelVatEnabled: boolean; // Whether to apply VAT to hotel stays
   gcashNumber: string;
   gcashQr?: string; // Base64 string for QR Code image
   receiptHeader: string;

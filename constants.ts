@@ -29,6 +29,7 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   address: '123 Dogwood Lane, Manila',
   contactNumber: '0917-000-0000',
   vatRate: 12,
+  hotelVatEnabled: false,
   gcashNumber: '0917-123-4567',
   gcashQr: '',
   receiptHeader: 'Thank you for choosing GigglyPaws!',
