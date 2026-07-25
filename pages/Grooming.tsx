@@ -748,7 +748,7 @@ const Grooming: React.FC = () => {
                             <button
                                 key={range}
                                 onClick={() => setHistoryTimeRange(range)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${historyTimeRange === range ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${historyTimeRange === range ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
                             >
                                 {range}
                             </button>
@@ -776,13 +776,13 @@ const Grooming: React.FC = () => {
                        return (
                            <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                                <div className="flex justify-between items-start mb-3 relative z-10">
-                                   <div className={`text-xs font-bold px-3 py-1 rounded-full border ${apt.date === today ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
+                                   <div className={`text-xs font-bold px-3 py-1 rounded-full border ${apt.date === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
                                        {apt.date === today ? 'TODAY' : new Date(apt.date).toLocaleDateString()} • {formatTime(apt.time)}
                                    </div>
                                    <div className="flex items-center gap-2">
                                      {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
                                        <div className="flex items-center bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
-                                          <button onClick={() => openEditModal(apt)} className="p-1.5 text-gray-500 hover:text-black hover:bg-white rounded-md transition-all" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                                          <button onClick={() => openEditModal(apt)} className="p-1.5 text-gray-500 hover:text-purple-900 hover:bg-white rounded-md transition-all" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                                           <div className="w-px h-3 bg-gray-200 mx-0.5"></div>
                                           <button onClick={() => handleCancelClick(apt.id, apt.petName)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-white rounded-md transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                                        </div>
@@ -808,7 +808,7 @@ const Grooming: React.FC = () => {
                                    {apt.status === 'SCHEDULED' && (
                                        apt.date === today ? (
                                            <button 
-                                                className="w-full bg-black text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-zinc-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" 
+                                                className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" 
                                                 onClick={() => updateAppointmentStatus(apt.id, 'ONGOING')}
                                             >
                                                 Start Session <ArrowRight className="w-4 h-4" />
@@ -882,7 +882,7 @@ const Grooming: React.FC = () => {
 
        {/* --- PAYMENT MODAL (WITH DISCOUNT) --- */}
        <Dialog open={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
             
@@ -936,7 +936,7 @@ const Grooming: React.FC = () => {
                             onClick={() => setSelectedDiscount(selectedDiscount?.id === discount.id ? null : discount)}
                             className={`p-2.5 rounded-xl border text-left transition-all ${
                                 selectedDiscount?.id === discount.id 
-                                ? 'bg-black text-white border-black shadow-md scale-[0.98]' 
+                                ? 'bg-purple-700 text-white border-purple-700 shadow-md scale-[0.98]' 
                                 : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400'
                             }`}
                         >
@@ -1086,10 +1086,10 @@ const Grooming: React.FC = () => {
 
        {/* COMPLETION MODAL */}
        <Dialog open={completionModal.isOpen} onClose={() => setCompletionModal({isOpen: false, apt: null})} className="relative z-50">
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+            <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
             <div className="fixed inset-0 flex items-center justify-center p-4">
                 <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl relative">
-                    <button onClick={() => setCompletionModal({isOpen: false, apt: null})} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X className="w-5 h-5"/></button>
+                    <button onClick={() => setCompletionModal({isOpen: false, apt: null})} className="absolute top-4 right-4 text-gray-400 hover:text-purple-900"><X className="w-5 h-5"/></button>
                     
                     <div className="text-center mb-6">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
@@ -1118,7 +1118,7 @@ const Grooming: React.FC = () => {
                         </button>
                         <button 
                             onClick={() => processCompletion('BOTH')}
-                            className="w-full p-4 rounded-xl border-2 border-zinc-900 bg-zinc-900 text-white font-bold hover:bg-zinc-800 transition-all flex items-center gap-3 active:scale-95 shadow-lg"
+                            className="w-full p-4 rounded-xl border-2 border-zinc-900 bg-purple-900 text-white font-bold hover:bg-purple-800 transition-all flex items-center gap-3 active:scale-95 shadow-lg"
                         >
                             <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center"><CheckCircle className="w-4 h-4" /></div>
                             Both (SMS + Email)
@@ -1139,7 +1139,7 @@ const Grooming: React.FC = () => {
 
        {/* ADD/EDIT MODAL */}
        <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh] animate-slide-up">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2">
@@ -1177,13 +1177,13 @@ const Grooming: React.FC = () => {
                                           className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
                                       >
                                           <div>
-                                              <p className="text-sm font-bold text-zinc-900 group-hover:text-black">{client.name}</p>
+                                              <p className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{client.name}</p>
                                               <p className="text-xs text-gray-500 group-hover:text-gray-700 flex items-center gap-2 mt-0.5">
                                                   {client.contactNumber && <span>{client.contactNumber}</span>}
                                                   {client.pets && client.pets.length > 0 && <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{client.pets.length} Pet(s)</span>}
                                               </p>
                                           </div>
-                                          <ChevronDown className="-rotate-90 w-4 h-4 text-gray-300 group-hover:text-black transition-colors" />
+                                          <ChevronDown className="-rotate-90 w-4 h-4 text-gray-300 group-hover:text-purple-900 transition-colors" />
                                       </div>
                                   ))}
                               </div>
@@ -1319,7 +1319,7 @@ const Grooming: React.FC = () => {
                                             }}
                                             className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
                                         >
-                                            <span className="text-sm font-bold text-zinc-900 group-hover:text-black">{s.name}</span>
+                                            <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
                                             <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
                                         </div>
                                     ))}
@@ -1445,7 +1445,7 @@ const Grooming: React.FC = () => {
                                                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
                                                       {p.isService ? 'SERVICE' : 'PRODUCT'}
                                                   </span>
-                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-black">{p.name}</span>
+                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
                                               </div>
                                               <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
                                           </div>
@@ -1494,7 +1494,7 @@ const Grooming: React.FC = () => {
       </Dialog>
 
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">
@@ -1522,9 +1522,9 @@ const Grooming: React.FC = () => {
 
       {/* Receipt Preview Modal */}
       <Dialog open={showReceiptPreview} onClose={() => setShowReceiptPreview(false)} className="relative z-[70]">
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/80 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md bg-zinc-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
+          <Dialog.Panel className="w-full max-w-md bg-purple-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
              <div className="flex justify-between items-center mb-4 text-white">
                  <h3 className="font-bold text-lg flex items-center gap-2"><Printer className="w-5 h-5" /> Receipt Preview</h3>
                  <button onClick={() => setShowReceiptPreview(false)} className="p-2 hover:bg-zinc-700 rounded-full">
@@ -1538,9 +1538,9 @@ const Grooming: React.FC = () => {
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-zinc-900 rounded-lg p-1">
-                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>58mm</button>
-                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>80mm</button>
+                <div className="flex bg-purple-900 rounded-lg p-1">
+                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
+                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
                 </div>
              </div>
 

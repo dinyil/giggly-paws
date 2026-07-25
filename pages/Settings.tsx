@@ -658,13 +658,13 @@ const Settings: React.FC = () => {
                 <div className="flex bg-zinc-100 p-1 rounded-xl mb-4">
                     <button 
                         onClick={() => setActiveTemplateCategory('GROOMING')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTemplateCategory === 'GROOMING' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTemplateCategory === 'GROOMING' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
                     >
                         <Scissors className="w-4 h-4" /> Grooming Completion
                     </button>
                     <button 
                         onClick={() => setActiveTemplateCategory('PROMO')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTemplateCategory === 'PROMO' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTemplateCategory === 'PROMO' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
                     >
                         <Tag className="w-4 h-4" /> Discount / Promos
                     </button>
@@ -676,7 +676,7 @@ const Settings: React.FC = () => {
                         onClick={() => setActiveChannel('SMS')}
                         className={`flex-1 py-4 rounded-2xl border-2 font-bold text-sm flex flex-col items-center gap-2 transition-all ${
                             activeChannel === 'SMS' 
-                            ? 'border-black bg-zinc-900 text-white shadow-xl scale-105' 
+                            ? 'border-purple-700 bg-purple-900 text-white shadow-xl scale-105' 
                             : 'border-zinc-100 bg-white text-gray-400 hover:border-zinc-300 hover:text-gray-600'
                         }`}
                     >
@@ -896,7 +896,7 @@ const Settings: React.FC = () => {
                     )}
                 </div>
                 <div className="flex flex-col gap-2 w-full">
-                    <label className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-200 select-none">
+                    <label className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-700 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-purple-800 transition-colors shadow-lg shadow-zinc-200 select-none">
                         <Upload className="w-4 h-4" /> 
                         {storeSettings.logo ? 'Change Logo' : 'Upload Logo'}
                         <input 
@@ -959,7 +959,7 @@ const Settings: React.FC = () => {
 
       {/* History Modal (Same as before) */}
       <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
@@ -1011,7 +1011,7 @@ const Settings: React.FC = () => {
 
       {/* Delete Confirmation Modal for History */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({isOpen: false, id: null})} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">

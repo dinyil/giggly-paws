@@ -314,7 +314,7 @@ const Transactions: React.FC = () => {
                     <div className="flex justify-end gap-1">
                         <button 
                             onClick={() => handleViewReceipt(t)}
-                            className="p-2 text-gray-400 hover:text-black hover:bg-zinc-200 rounded-lg transition-all"
+                            className="p-2 text-gray-400 hover:text-purple-900 hover:bg-zinc-200 rounded-lg transition-all"
                             title="View Receipt"
                         >
                             <Printer className="w-4 h-4" />
@@ -379,7 +379,7 @@ const Transactions: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({isOpen: false, id: null})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">
@@ -405,7 +405,7 @@ const Transactions: React.FC = () => {
 
       {/* Edit Transaction Modal (Mini POS) */}
       <Dialog open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2">
@@ -528,9 +528,9 @@ const Transactions: React.FC = () => {
 
       {/* View Receipt Modal */}
       <Dialog open={isReceiptModalOpen} onClose={() => setIsReceiptModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/80 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md bg-zinc-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
+          <Dialog.Panel className="w-full max-w-md bg-purple-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
              
              <div className="flex justify-between items-center mb-4 text-white">
                  <h3 className="font-bold text-lg flex items-center gap-2"><Printer className="w-5 h-5" /> Receipt Preview</h3>
@@ -545,16 +545,16 @@ const Transactions: React.FC = () => {
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-zinc-900 rounded-lg p-1">
+                <div className="flex bg-purple-900 rounded-lg p-1">
                     <button 
                         onClick={() => setPaperSize('58mm')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}
                     >
                         58mm
                     </button>
                     <button 
                         onClick={() => setPaperSize('80mm')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}
                     >
                         80mm
                     </button>

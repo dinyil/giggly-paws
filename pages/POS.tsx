@@ -119,10 +119,10 @@ const CartPanel: React.FC<CartPanelProps> = ({
                                                 
                                                 {/* Custom Hover Tooltip - Positioned DOWN (top-full) to avoid being covered by header */}
                                                 <div className="absolute top-full left-0 mt-2 w-56 hidden group-hover/tooltip:block z-[9999] animate-fade-in origin-top-left">
-                                                    <div className="bg-zinc-900 text-white text-xs rounded-xl p-3 shadow-2xl border border-zinc-700 relative">
+                                                    <div className="bg-purple-900 text-white text-xs rounded-xl p-3 shadow-2xl border border-zinc-700 relative">
                                                         <div className="flex justify-between items-center mb-2 border-b border-zinc-700 pb-1">
                                                             <span className="font-bold text-zinc-300">Active Promos</span>
-                                                            <span className="text-[10px] bg-zinc-800 px-1.5 rounded">
+                                                            <span className="text-[10px] bg-purple-800 px-1.5 rounded">
                                                                 Max 100%
                                                             </span>
                                                         </div>
@@ -185,11 +185,12 @@ const CartPanel: React.FC<CartPanelProps> = ({
                 )}
             </div>
 
-            <div className="p-5 bg-zinc-900 text-white lg:rounded-b-3xl mt-auto shadow-inner z-20 relative">
+            <div className="p-5 text-white lg:rounded-b-3xl mt-auto shadow-inner z-20 relative" style={{background: 'linear-gradient(135deg, #3D2468, #6B4FA0)'}}>
                 <div className="mb-4 space-y-2">
                     <button 
                         onClick={openDiscountModal}
-                        className="w-full bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white rounded-xl p-3 text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                        className="w-full border border-white/20 hover:bg-white/10 text-white rounded-xl p-3 text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                        style={{background: 'rgba(255,255,255,0.1)'}}
                         disabled={cart.length === 0}
                     >
                         <Percent className="w-4 h-4" /> Apply Discount / Promo
@@ -199,38 +200,38 @@ const CartPanel: React.FC<CartPanelProps> = ({
                     {discountAmount > 0 && (
                         <button
                             onClick={onRemoveAllDiscountsClick}
-                            className="w-full bg-red-900/30 border border-red-900/50 hover:bg-red-900/50 text-red-400 rounded-xl p-2 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                            className="w-full bg-red-900/30 border border-red-900/50 hover:bg-red-900/50 text-red-300 rounded-xl p-2 text-xs font-bold flex items-center justify-center gap-2 transition-all"
                         >
                             <Trash2 className="w-3 h-3" /> Remove All Discounts
                         </button>
                     )}
                 </div>
 
-                <div className="space-y-2 text-sm mb-4 border-t border-zinc-800 pt-4">
-                    <div className="flex justify-between text-gray-400"><span>Subtotal</span><span>₱{subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-gray-400">
+                <div className="space-y-2 text-sm mb-4 border-t border-white/20 pt-4">
+                    <div className="flex justify-between text-purple-200"><span>Subtotal</span><span>₱{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-purple-200">
                         <span>Total Discount</span>
                         <div className="text-right">
-                            <span className="text-green-400 block">-₱{discountAmount.toFixed(2)}</span>
+                            <span className="text-yellow-300 block">-₱{discountAmount.toFixed(2)}</span>
                             {discountAmount > 0 && (
-                                <span className="text-[10px] text-zinc-500 font-mono">({discountPercentage.toFixed(1)}%)</span>
+                                <span className="text-[10px] text-purple-300 font-mono">({discountPercentage.toFixed(1)}%)</span>
                             )}
                         </div>
                     </div>
-                    <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-zinc-700">
+                    <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-white/20">
                         <span>Total</span>
-                        <span>₱{total.toFixed(2)}</span>
+                        <span style={{color: '#F5D657'}}>₱{total.toFixed(2)}</span>
                     </div>
                 </div>
                 
-                <Button
-                    variant="secondary"
-                    className="w-full font-bold text-lg py-3 border-none hover:bg-zinc-200"
+                <button
+                    className="w-full font-bold text-lg py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                    style={{background: '#F5D657', color: '#4A2D7A'}}
                     disabled={cart.length === 0}
                     onClick={onCheckout}
                 >
                     Checkout
-                </Button>
+                </button>
             </div>
         </div>
     );
@@ -679,10 +680,10 @@ const POS: React.FC = () => {
         {/* Header */}
         <div className="p-4 border-b border-zinc-100 space-y-4">
           <div className="flex gap-4">
-             <button onClick={() => handleTabChange('PRODUCTS')} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'PRODUCTS' ? 'bg-black text-white shadow-lg' : 'bg-zinc-50 text-gray-500 hover:bg-zinc-100 border border-zinc-200'}`}>
+             <button onClick={() => handleTabChange('PRODUCTS')} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'PRODUCTS' ? 'bg-purple-700 text-white shadow-lg' : 'bg-zinc-50 text-gray-500 hover:bg-zinc-100 border border-zinc-200'}`}>
                 <Bone className="w-5 h-5" /> Products
              </button>
-             <button onClick={() => handleTabChange('SERVICES')} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SERVICES' ? 'bg-black text-white shadow-lg' : 'bg-zinc-50 text-gray-500 hover:bg-zinc-100 border border-zinc-200'}`}>
+             <button onClick={() => handleTabChange('SERVICES')} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SERVICES' ? 'bg-purple-700 text-white shadow-lg' : 'bg-zinc-50 text-gray-500 hover:bg-zinc-100 border border-zinc-200'}`}>
                 <Scissors className="w-5 h-5" /> Services
              </button>
           </div>
@@ -703,11 +704,11 @@ const POS: React.FC = () => {
           {filteredProducts.map(product => {
             const isOutOfStock = !product.isService && product.stock <= 0;
             return (
-            <button key={product.id} onClick={() => !isOutOfStock && addToCart(product)} disabled={isOutOfStock} className={`group flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-200 ${isOutOfStock ? 'border-zinc-100 bg-zinc-50 opacity-60 cursor-not-allowed' : 'border-zinc-100 hover:border-black hover:shadow-lg bg-zinc-50/50'}`}>
+            <button key={product.id} onClick={() => !isOutOfStock && addToCart(product)} disabled={isOutOfStock} className={`group flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-200 ${isOutOfStock ? 'border-zinc-100 bg-zinc-50 opacity-60 cursor-not-allowed' : 'border-zinc-100 hover:border-purple-700 hover:shadow-lg bg-zinc-50/50'}`}>
               <div className={`w-16 h-16 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm transition-transform ${!isOutOfStock && 'group-hover:scale-110'}`}>
-                {product.isService ? <Scissors className="w-8 h-8 text-black" /> : <ShoppingBag className="w-8 h-8 text-black" />}
+                {product.isService ? <Scissors className="w-8 h-8 text-purple-900" /> : <ShoppingBag className="w-8 h-8 text-purple-900" />}
               </div>
-              <h3 className="font-bold text-zinc-900 text-sm line-clamp-1 group-hover:text-black">{product.name}</h3>
+              <h3 className="font-bold text-zinc-900 text-sm line-clamp-1 group-hover:text-purple-900">{product.name}</h3>
               <p className="text-zinc-500 text-xs font-bold mt-1">₱{product.price}</p>
               {!product.isService && (
                  <span className={`text-[10px] mt-2 px-2 py-0.5 rounded-full font-bold ${product.stock > 10 ? 'bg-green-100 text-green-700' : isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -740,10 +741,10 @@ const POS: React.FC = () => {
       <div className="lg:hidden fixed bottom-4 right-4 left-4 z-40">
           <button 
             onClick={() => setIsMobileCartOpen(true)}
-            className="w-full bg-black text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center font-bold"
+            className="w-full text-white p-4 rounded-2xl" style={{background: "linear-gradient(135deg, #4A2D7A, #7B55A8)" shadow-2xl flex justify-between items-center font-bold"
           >
               <div className="flex items-center gap-3">
-                  <div className="bg-zinc-800 w-8 h-8 rounded-full flex items-center justify-center text-sm">{totalItems}</div>
+                  <div className="bg-purple-800 w-8 h-8 rounded-full flex items-center justify-center text-sm">{totalItems}</div>
                   <span>View Cart</span>
               </div>
               <span>₱{total.toFixed(2)}</span>
@@ -771,7 +772,7 @@ const POS: React.FC = () => {
 
       {/* Grooming Modal */}
       <Dialog open={showGroomingModal} onClose={() => setShowGroomingModal(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2">
@@ -885,7 +886,7 @@ const POS: React.FC = () => {
 
       {/* Checkout Modal */}
       <Dialog open={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
             
@@ -963,7 +964,7 @@ const POS: React.FC = () => {
                                 <div className="mb-4 flex justify-center">
                                     <div className="relative cursor-pointer transition-transform duration-300 hover:scale-105" onClick={() => setIsQrZoomed(true)}>
                                         <img src={storeSettings.gcashQr} alt="GCash QR" className="w-32 h-32 object-contain rounded-lg bg-white border border-blue-200" />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-lg opacity-0 hover:opacity-100 transition-opacity"><Search className="w-6 h-6 text-white"/></div>
+                                        <div className="absolute inset-0 flex items-center justify-center bg-purple-700/10 rounded-lg opacity-0 hover:opacity-100 transition-opacity"><Search className="w-6 h-6 text-white"/></div>
                                     </div>
                                 </div>
                             ) : (
@@ -1060,9 +1061,9 @@ const POS: React.FC = () => {
 
       {/* Success / Receipt Modal */}
       <Dialog open={receiptSuccessOpen} onClose={() => setReceiptSuccessOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/80 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-sm bg-zinc-900 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
+          <Dialog.Panel className="w-full max-w-sm bg-purple-900 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-blue-500"></div>
              
              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/20">
@@ -1073,7 +1074,7 @@ const POS: React.FC = () => {
              <p className="text-zinc-400 mb-8">Transaction has been recorded.</p>
              
              <div className="flex flex-col gap-3">
-                 <Button onClick={handleActualPrint} className="w-full bg-white text-black hover:bg-zinc-200 font-bold shadow-lg">
+                 <Button onClick={handleActualPrint} className="w-full bg-white text-purple-900 hover:bg-zinc-200 font-bold shadow-lg">
                      <Printer className="w-4 h-4 mr-2" /> Print Receipt
                  </Button>
                  <Button onClick={handleOpenPreview} className="w-full bg-blue-600 text-white border border-blue-500 hover:bg-blue-500 shadow-blue-900/30">
@@ -1089,7 +1090,7 @@ const POS: React.FC = () => {
 
       {/* Discount Manager Modal */}
       <Dialog open={isDiscountManagerOpen} onClose={() => setIsDiscountManagerOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-2xl bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
@@ -1111,7 +1112,7 @@ const POS: React.FC = () => {
                                 }}
                                 className={`p-3 rounded-xl border text-left transition-all relative ${
                                     selectedDiscountToApply?.id === discount.id 
-                                    ? 'bg-black text-white border-black shadow-lg ring-2 ring-zinc-300 ring-offset-2' 
+                                    ? 'bg-purple-700 text-white border-purple-700 shadow-lg ring-2 ring-purple-300 ring-offset-2' 
                                     : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400'
                                 }`}
                             >
@@ -1199,7 +1200,7 @@ const POS: React.FC = () => {
 
       {/* Remove All Discounts Confirmation Modal */}
       <Dialog open={isRemoveDiscountModalOpen} onClose={() => setIsRemoveDiscountModalOpen(false)} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="text-center mb-6">
@@ -1225,7 +1226,7 @@ const POS: React.FC = () => {
 
       {/* Item Breakdown Modal */}
       <Dialog open={!!breakdownItem} onClose={() => setBreakdownItem(null)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
                 <div className="flex justify-between items-start mb-4">
@@ -1265,9 +1266,9 @@ const POS: React.FC = () => {
 
       {/* Preview Modal (Full Receipt) */}
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/80 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md bg-zinc-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
+          <Dialog.Panel className="w-full max-w-md bg-purple-800 rounded-2xl p-4 shadow-2xl relative flex flex-col h-[90vh]">
              <div className="flex justify-between items-center mb-4 text-white">
                  <h3 className="font-bold text-lg flex items-center gap-2"><Printer className="w-5 h-5" /> Receipt Preview</h3>
                  <button onClick={() => setPreviewOpen(false)} className="p-2 hover:bg-zinc-700 rounded-full">
@@ -1281,9 +1282,9 @@ const POS: React.FC = () => {
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-zinc-900 rounded-lg p-1">
-                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>58mm</button>
-                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>80mm</button>
+                <div className="flex bg-purple-900 rounded-lg p-1">
+                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
+                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
                 </div>
              </div>
 
@@ -1304,7 +1305,7 @@ const POS: React.FC = () => {
 
       {/* QR Code Full Screen Overlay as a Dialog to handle stacking properly */}
       <Dialog open={isQrZoomed} onClose={() => setIsQrZoomed(false)} className="relative z-[100]">
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/90 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-8" onClick={() => setIsQrZoomed(false)}>
             <Dialog.Panel className="relative max-w-full max-h-full flex flex-col items-center animate-fade-in">
                 <img 
@@ -1312,7 +1313,7 @@ const POS: React.FC = () => {
                     alt="Large GCash QR" 
                     className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl bg-white p-2" 
                 />
-                <p className="mt-6 text-white font-bold text-lg animate-pulse tracking-wide bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+                <p className="mt-6 text-white font-bold text-lg animate-pulse tracking-wide bg-purple-700/50 px-4 py-2 rounded-full backdrop-blur-md">
                     Tap anywhere to close
                 </p>
             </Dialog.Panel>

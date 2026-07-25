@@ -303,13 +303,13 @@ const Users: React.FC = () => {
         <div className="flex bg-zinc-200 p-1 rounded-xl">
             <button 
                 onClick={() => setActiveTab('USERS')}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
             >
                 <UserIcon className="w-4 h-4" /> Users
             </button>
             <button 
                 onClick={() => setActiveTab('DEVICES')}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'DEVICES' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'DEVICES' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
             >
                 <Smartphone className="w-4 h-4" /> Devices 
                 {devices.filter(d => d.status === 'PENDING').length > 0 && (
@@ -339,7 +339,7 @@ const Users: React.FC = () => {
                 <td className="p-4 font-bold text-zinc-900">{user.name}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                    user.role === Role.ADMIN ? 'bg-black text-white' : 
+                    user.role === Role.ADMIN ? 'bg-purple-700 text-white' : 
                     user.role === Role.GROOMER ? 'bg-pink-100 text-pink-800' :
                     user.role === Role.CASHIER ? 'bg-blue-100 text-blue-800' : 
                     'bg-gray-200 text-gray-800'
@@ -357,7 +357,7 @@ const Users: React.FC = () => {
                         {/* Show PIN Button (Triggers Auth) */}
                         <button 
                             onClick={() => handleShowPinRequest(user)}
-                            className="p-1.5 hover:bg-zinc-200 rounded-md text-gray-400 hover:text-black transition-colors"
+                            className="p-1.5 hover:bg-zinc-200 rounded-md text-gray-400 hover:text-purple-900 transition-colors"
                             title="Verify PIN Status (Requires Admin)"
                         >
                             <Eye className="w-4 h-4" />
@@ -481,7 +481,7 @@ const Users: React.FC = () => {
                             {device.status === 'APPROVED' && (
                                 <button
                                     onClick={() => handleApproveClick(device)}
-                                    className="p-2 text-gray-400 hover:text-black hover:bg-zinc-200 rounded-lg transition-colors"
+                                    className="p-2 text-gray-400 hover:text-purple-900 hover:bg-zinc-200 rounded-lg transition-colors"
                                     title="Edit Label"
                                 >
                                     <Tag className="w-4 h-4" />
@@ -514,7 +514,7 @@ const Users: React.FC = () => {
 
       {/* APPROVE DEVICE MODAL */}
       <Dialog open={deviceApprovalOpen} onClose={() => setDeviceApprovalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
             <div className="text-center mb-6">
@@ -564,7 +564,7 @@ const Users: React.FC = () => {
 
       {/* User Form Modal */}
       <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900">
@@ -668,11 +668,11 @@ const Users: React.FC = () => {
       
       {/* Super Admin Auth Modal */}
       <Dialog open={isAdminAuthOpen} onClose={() => setIsAdminAuthOpen(false)} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in border-2 border-zinc-900">
              <div className="flex flex-col items-center text-center mb-6">
-                 <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center mb-4">
+                 <div className="w-12 h-12 bg-purple-900 rounded-full flex items-center justify-center mb-4">
                      <ShieldCheck className="w-6 h-6 text-white" />
                  </div>
                  <Dialog.Title className="text-xl font-bold text-zinc-900">Admin Authorization</Dialog.Title>
@@ -692,7 +692,7 @@ const Users: React.FC = () => {
                         pattern="[0-9]*"
                         maxLength={4}
                         placeholder="Super Admin PIN"
-                        className="w-full text-center text-2xl font-bold tracking-[0.5em] py-3 border-b-2 border-zinc-200 focus:border-black focus:outline-none bg-transparent"
+                        className="w-full text-center text-2xl font-bold tracking-[0.5em] py-3 border-b-2 border-zinc-200 focus:border-purple-700 focus:outline-none bg-transparent"
                         value={adminAuthPin}
                         onChange={e => setAdminAuthPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
                      />
@@ -712,7 +712,7 @@ const Users: React.FC = () => {
 
       {/* REVEAL / VERIFY PIN MODAL */}
       <Dialog open={isRevealModalOpen} onClose={() => setIsRevealModalOpen(false)} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl animate-fade-in border border-zinc-200">
              
@@ -731,7 +731,7 @@ const Users: React.FC = () => {
              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mb-6">
                  <div className="flex justify-between items-center mb-2">
                      <p className="text-xs font-bold text-zinc-500 uppercase">Stored Secure Hash</p>
-                     <button onClick={() => userToReveal?.pin && copyToClipboard(userToReveal.pin)} className="text-zinc-400 hover:text-black">
+                     <button onClick={() => userToReveal?.pin && copyToClipboard(userToReveal.pin)} className="text-zinc-400 hover:text-purple-900">
                          <Copy className="w-4 h-4" />
                      </button>
                  </div>
@@ -782,7 +782,7 @@ const Users: React.FC = () => {
              <div className="mt-6 pt-4 border-t border-zinc-100 flex gap-3">
                  <Button 
                     variant="primary" 
-                    className="flex-1 bg-zinc-900 text-white" 
+                    className="flex-1 bg-purple-900 text-white" 
                     onClick={() => {
                         if (userToReveal) {
                             setIsRevealModalOpen(false);
@@ -801,7 +801,7 @@ const Users: React.FC = () => {
 
       {/* User Delete Confirmation Modal */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">
@@ -827,7 +827,7 @@ const Users: React.FC = () => {
 
       {/* Device Delete Confirmation Modal */}
       <Dialog open={deviceDeleteConfirmation.isOpen} onClose={() => setDeviceDeleteConfirmation({...deviceDeleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">

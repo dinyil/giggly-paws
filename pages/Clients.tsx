@@ -465,7 +465,7 @@ const Clients: React.FC = () => {
 
       {/* Edit/Add Client Modal */}
       <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2">
@@ -649,7 +649,7 @@ const Clients: React.FC = () => {
 
       {/* Pet Edit Confirmation Modal */}
       <Dialog open={petUpdateModal.isOpen} onClose={() => setPetUpdateModal({isOpen: false, changes: []})} className="relative z-[60]">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="text-center mb-4">
@@ -683,7 +683,7 @@ const Clients: React.FC = () => {
 
       {/* COMPREHENSIVE PET PROFILE MODAL */}
       <Dialog open={isPetModalOpen} onClose={() => setIsPetModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-[85vh]">
              
@@ -700,11 +700,11 @@ const Clients: React.FC = () => {
                             onClick={() => setActivePetId(pet.id)}
                             className={`p-4 rounded-2xl cursor-pointer transition-all border flex items-center gap-3 ${
                                 activePetId === pet.id 
-                                ? 'bg-white border-black shadow-md' 
+                                ? 'bg-white border-purple-700 shadow-md' 
                                 : 'bg-white border-transparent hover:border-zinc-300'
                             }`}
                          >
-                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activePetId === pet.id ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-400'}`}>
+                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activePetId === pet.id ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
                                  <Dog className="w-5 h-5" />
                              </div>
                              <div>
@@ -809,7 +809,7 @@ const Clients: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">

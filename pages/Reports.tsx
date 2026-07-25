@@ -340,7 +340,7 @@ const Reports: React.FC = () => {
                <FileText className="w-6 h-6" /> Analytics & Reports
             </h1>
             <p className="text-sm text-gray-500">
-               Viewing data for: <span className="font-bold text-black">{timeRange === 'CUSTOM' ? 'Custom Range' : timeRange}</span>
+               Viewing data for: <span className="font-bold text-purple-900">{timeRange === 'CUSTOM' ? 'Custom Range' : timeRange}</span>
             </p>
           </div>
           
@@ -350,7 +350,7 @@ const Reports: React.FC = () => {
                    <button 
                      key={r} 
                      onClick={() => setTimeRange(r)}
-                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${timeRange === r ? 'bg-black text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-200'}`}
+                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${timeRange === r ? 'bg-purple-700 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-200'}`}
                    >
                      {r}
                    </button>
@@ -380,16 +380,16 @@ const Reports: React.FC = () => {
 
        {/* Tabs */}
        <div className="flex gap-4 border-b border-zinc-200 pb-1">
-          <button onClick={() => setActiveTab('SALES')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'SALES' ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Sales & Profit</button>
-          <button onClick={() => setActiveTab('INVENTORY')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'INVENTORY' ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Inventory Movement</button>
-          <button onClick={() => setActiveTab('GROOMING')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'GROOMING' ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Grooming</button>
+          <button onClick={() => setActiveTab('SALES')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'SALES' ? 'border-purple-700 text-purple-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Sales & Profit</button>
+          <button onClick={() => setActiveTab('INVENTORY')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'INVENTORY' ? 'border-purple-700 text-purple-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Inventory Movement</button>
+          <button onClick={() => setActiveTab('GROOMING')} className={`pb-3 px-2 font-bold text-sm transition-colors border-b-2 ${activeTab === 'GROOMING' ? 'border-purple-700 text-purple-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Grooming</button>
        </div>
 
        {/* CONTENT: SALES */}
        {activeTab === 'SALES' && (
          <div className="flex-1 overflow-auto space-y-6">
             
-            <div className="bg-zinc-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+            <div className="bg-purple-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
                  <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
                      <div>
                          <h3 className="text-zinc-400 font-bold uppercase text-xs tracking-wider mb-2">Financial Breakdown</h3>
@@ -410,14 +410,14 @@ const Reports: React.FC = () => {
                              </div>
                          </div>
                      </div>
-                     <div className="bg-zinc-800 p-4 rounded-xl min-w-[200px]">
+                     <div className="bg-purple-800 p-4 rounded-xl min-w-[200px]">
                          <p className="text-xs text-zinc-400 mb-1">Profit Margin</p>
                          <p className="text-2xl font-bold text-white">
                              {totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}%
                          </p>
                      </div>
                  </div>
-                 <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-800 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -569,7 +569,7 @@ const Reports: React.FC = () => {
        {activeTab === 'GROOMING' && (
           <div className="flex-1 overflow-auto space-y-6">
              
-             <div className="bg-zinc-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+             <div className="bg-purple-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
                  <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
                      <div>
                          <h3 className="text-zinc-400 font-bold uppercase text-xs tracking-wider mb-2">Grooming Financials</h3>
@@ -590,7 +590,7 @@ const Reports: React.FC = () => {
                              </div>
                          </div>
                      </div>
-                     <div className="bg-zinc-800 p-4 rounded-xl min-w-[200px]">
+                     <div className="bg-purple-800 p-4 rounded-xl min-w-[200px]">
                          <p className="text-xs text-zinc-400 mb-1">Profit Margin</p>
                          <p className="text-2xl font-bold text-white">
                              {groomingDetailedStats.totalRevenue > 0 
@@ -619,7 +619,7 @@ const Reports: React.FC = () => {
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex items-center justify-between">
                    <div>
-                       <h3 className="text-3xl font-bold text-black mb-1">{groomingDetailedStats.topGroomers.length}</h3>
+                       <h3 className="text-3xl font-bold text-purple-900 mb-1">{groomingDetailedStats.topGroomers.length}</h3>
                        <p className="text-xs font-bold text-gray-400 uppercase">Active Groomers</p>
                    </div>
                    <Scissors className="w-8 h-8 text-zinc-400 opacity-50" />

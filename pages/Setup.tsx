@@ -71,10 +71,10 @@ const Setup: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-purple-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
             <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-20 h-20 bg-black text-white rounded-full flex items-center justify-center mb-4">
+                <div className="w-20 h-20 bg-purple-700 text-white rounded-full flex items-center justify-center mb-4">
                     <Dog className="w-10 h-10" />
                 </div>
                 <h1 className="text-2xl font-bold text-zinc-900">Welcome to GigglyPaws</h1>

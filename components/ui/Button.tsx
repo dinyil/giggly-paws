@@ -10,15 +10,16 @@ const Button: React.FC<ButtonProps> = ({
   variant = 'primary', 
   size = 'md', 
   className = '', 
+  style,
   ...props 
 }) => {
   const baseStyle = "rounded-xl font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
   
-  const variants = {
-    primary: "bg-black text-white hover:bg-zinc-800 shadow-lg shadow-zinc-200",
-    secondary: "bg-white text-black border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 shadow-sm",
-    danger: "bg-red-500 text-white hover:bg-red-600 shadow-red-200 shadow-lg",
-    ghost: "bg-transparent text-gray-500 hover:bg-zinc-100"
+  const variantStyles: Record<string, React.CSSProperties> = {
+    primary: { background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)', color: 'white' },
+    secondary: { background: 'white', color: '#4A2D7A', border: '1.5px solid #E0D0F5' },
+    danger: { background: '#ef4444', color: 'white' },
+    ghost: { background: 'transparent', color: '#7B55A8' },
   };
 
   const sizes = {
@@ -29,7 +30,8 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button 
-      className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${baseStyle} ${sizes[size]} ${className}`}
+      style={{ ...variantStyles[variant], ...style }}
       {...props}
     >
       {children}

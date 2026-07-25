@@ -233,13 +233,13 @@ const Discounts: React.FC = () => {
           <div className="flex bg-zinc-100 p-1 rounded-xl">
               <button 
                 onClick={() => setActiveTab('LIST')} 
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'LIST' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'LIST' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
               >
                   Active Promos
               </button>
               <button 
                 onClick={() => setActiveTab('CREATE')} 
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'CREATE' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-black'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'CREATE' ? 'bg-purple-700 text-white shadow-md' : 'text-gray-500 hover:text-purple-900'}`}
               >
                   <Plus className="w-4 h-4" /> Create New
               </button>
@@ -392,7 +392,7 @@ const Discounts: React.FC = () => {
 
                    <div className="pt-4 flex gap-3">
                        <Button type="button" variant="ghost" className="flex-1" onClick={() => setActiveTab('LIST')}>Cancel</Button>
-                       <Button type="submit" className="flex-1 bg-black text-white shadow-lg">Save & Notify</Button>
+                       <Button type="submit" className="flex-1 bg-purple-700 text-white shadow-lg">Save & Notify</Button>
                    </div>
                </form>
            </div>
@@ -416,7 +416,7 @@ const Discounts: React.FC = () => {
 
                            <div>
                                <h3 className="font-bold text-lg text-zinc-900 truncate pr-16">{discount.name}</h3>
-                               <p className="text-2xl font-bold text-black mt-1">
+                               <p className="text-2xl font-bold text-purple-900 mt-1">
                                    {discount.type === 'PERCENTAGE' ? `${discount.value}% OFF` : `₱${discount.value} OFF`}
                                 </p>
                                
@@ -470,7 +470,7 @@ const Discounts: React.FC = () => {
 
        {/* BROADCAST MODAL */}
        <Dialog open={broadcastModalOpen} onClose={() => setBroadcastModalOpen(false)} className="relative z-50">
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+            <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
             <div className="fixed inset-0 flex items-center justify-center p-4">
                 <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
                     
@@ -604,7 +604,7 @@ const Discounts: React.FC = () => {
                             <div className="mt-4 flex gap-3">
                                 <Button variant="ghost" onClick={() => setBroadcastStep('CHOICE')} className="flex-1">Back</Button>
                                 <Button 
-                                    className="flex-1 bg-black hover:bg-zinc-800"
+                                    className="flex-1 bg-purple-700 hover:bg-purple-800"
                                     disabled={selectedClientIds.length === 0}
                                     onClick={handleProceedToConfigure}
                                 >
@@ -653,7 +653,7 @@ const Discounts: React.FC = () => {
                                     onClick={() => setSelectedChannel('BOTH')}
                                     className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${
                                         selectedChannel === 'BOTH' 
-                                        ? 'border-black bg-zinc-900 text-white' 
+                                        ? 'border-purple-700 bg-purple-900 text-white' 
                                         : 'border-zinc-100 bg-white text-gray-400 hover:border-zinc-300'
                                     }`}
                                 >
@@ -717,7 +717,7 @@ const Discounts: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">

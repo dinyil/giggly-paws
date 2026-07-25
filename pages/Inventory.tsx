@@ -256,7 +256,7 @@ const Inventory: React.FC = () => {
              onClick={() => { setActiveTab('PRODUCTS'); setFilterCategory('ALL'); setShowLowStockOnly(false); }}
              className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                activeTab === 'PRODUCTS' 
-               ? 'bg-black text-white shadow-lg' 
+               ? 'bg-purple-700 text-white shadow-lg' 
                : 'bg-white text-gray-500 hover:bg-gray-100 border border-zinc-200'
              }`}
            >
@@ -266,7 +266,7 @@ const Inventory: React.FC = () => {
              onClick={() => { setActiveTab('SERVICES'); setFilterCategory('ALL'); setShowLowStockOnly(false); }}
              className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                activeTab === 'SERVICES' 
-               ? 'bg-black text-white shadow-lg' 
+               ? 'bg-purple-700 text-white shadow-lg' 
                : 'bg-white text-gray-500 hover:bg-gray-100 border border-zinc-200'
              }`}
            >
@@ -313,7 +313,7 @@ const Inventory: React.FC = () => {
            <button 
              onClick={() => setFilterCategory('ALL')}
              className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${
-               filterCategory === 'ALL' ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+               filterCategory === 'ALL' ? 'bg-purple-800 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
              }`}
            >
              ALL
@@ -323,7 +323,7 @@ const Inventory: React.FC = () => {
                 <button 
                     onClick={() => setFilterCategory(cat)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-colors flex items-center gap-2 ${
-                    filterCategory === cat ? 'bg-zinc-800 text-white pr-16' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                    filterCategory === cat ? 'bg-purple-800 text-white pr-16' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                     }`}
                 >
                     {cat}
@@ -442,7 +442,7 @@ const Inventory: React.FC = () => {
 
       {/* Add/Edit Product Modal */}
       <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900">
@@ -491,7 +491,7 @@ const Inventory: React.FC = () => {
 
       {/* Log History Modal */}
       <Dialog open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh]">
             <Dialog.Title className="text-xl font-bold mb-1 text-zinc-900 flex items-center gap-2">
@@ -530,7 +530,7 @@ const Inventory: React.FC = () => {
 
       {/* Add/Edit Category Modal */}
       <Dialog open={isCatModalOpen} onClose={() => setIsCatModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
             <Dialog.Title className="text-lg font-bold mb-4 text-zinc-900">
@@ -557,7 +557,7 @@ const Inventory: React.FC = () => {
 
       {/* Delete Product Confirmation Modal */}
       <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">
@@ -583,7 +583,7 @@ const Inventory: React.FC = () => {
 
       {/* Delete Category Confirmation Modal */}
       <Dialog open={catDeleteConfirmation.isOpen} onClose={() => setCatDeleteConfirmation({...catDeleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
                 <div className="flex flex-col items-center text-center mb-6">

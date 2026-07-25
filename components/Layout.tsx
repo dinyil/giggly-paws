@@ -191,11 +191,11 @@ const Layout: React.FC = () => {
           </button>
 
           {isSmsDropdownOpen && (
-              <div className="absolute top-12 right-0 w-64 bg-zinc-900 text-white rounded-2xl shadow-2xl overflow-hidden animate-slide-down origin-top-right border border-zinc-700">
+              <div className="absolute top-12 right-0 w-64 bg-purple-900 text-white rounded-2xl shadow-2xl overflow-hidden animate-slide-down origin-top-right border border-zinc-700">
                   <div className="p-4">
                       <div className="flex justify-between items-center mb-2">
                           <h4 className="text-sm font-bold">SMS Limit (Hourly)</h4>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${smsCount >= smsLimit ? 'bg-red-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${smsCount >= smsLimit ? 'bg-red-500 text-white' : 'bg-purple-800 text-zinc-400'}`}>
                               {smsCount} / {smsLimit}
                           </span>
                       </div>
@@ -208,7 +208,7 @@ const Layout: React.FC = () => {
                           Resets automatically every hour to prevent SIM blocking.
                       </p>
                       
-                      <div className="bg-zinc-800 p-2 rounded-lg text-center mt-2 border border-zinc-700">
+                      <div className="bg-purple-800 p-2 rounded-lg text-center mt-2 border border-zinc-700">
                           <p className="text-xs text-zinc-500 font-bold uppercase">Resets in</p>
                           <p className="font-mono text-lg font-bold text-white">{minsUntilReset} mins</p>
                       </div>

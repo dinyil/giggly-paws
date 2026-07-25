@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;900&family=Bubblegum+Sans&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-purple: #7B55A8;
+  --brand-purple-dark: #4A2D7A;
+  --brand-purple-light: #C9A8E0;
+  --brand-yellow: #F5D657;
+  --brand-bg: #FAF7FF;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--brand-bg);
+  color: #2d1b4e;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Thermal print */
+@media print {
+  @page { margin: 0; size: auto; }
+  body { margin: 0; padding: 0; background-color: white; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+@keyframes slide-down {
+  from { opacity: 0; transform: scaleY(0.95) translateY(-4px); }
+  to { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+.animate-slide-down { animation: slide-down 0.2s ease-out; }
