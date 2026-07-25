@@ -168,12 +168,12 @@ const Dashboard: React.FC = () => {
   const hotelVacant = hotelRooms.filter(r => r.is_active).length - hotelOccupied;
 
   const StatCard = ({ title, value, icon: Icon, color, subValue }: any) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 flex items-center justify-between relative overflow-hidden transition-all duration-300 h-32">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-50 flex items-center justify-between relative overflow-hidden transition-all duration-300 h-32 hover:shadow-md hover:-translate-y-0.5">
       <div className="flex flex-col justify-center">
-        <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-        <p className={`text-3xl font-bold ${viewMetric === 'PROFIT' && title.includes('Profit') ? 'text-green-600' : 'text-zinc-900'}`}>{value}</p>
+        <p className="text-purple-400 text-sm font-medium mb-1">{title}</p>
+        <p className={`text-3xl font-bold font-black ${color === 'bg-green-600' ? 'text-green-600' : 'text-purple-900'}`} style={{fontFamily: 'Poppins, sans-serif'}}>{value}</p>
         {/* Always render this p tag to maintain height, use invisible to hide if no subValue */}
-        <p className={`text-xs font-bold text-gray-400 mt-1 ${!subValue ? 'invisible' : ''}`}>
+        <p className={`text-xs font-bold text-purple-300 mt-1 ${!subValue ? 'invisible' : ''}`}>
            {subValue || 'Placeholder'}
         </p>
       </div>
@@ -184,26 +184,30 @@ const Dashboard: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in text-zinc-900">
+    <div className="space-y-6 animate-fade-in" style={{color: '#2d1b4e'}}>
       
       {/* Top Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-3xl border border-zinc-100 shadow-sm">
-          <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-3xl border border-purple-50 shadow-sm">
+          <div className="flex items-center gap-3">
+            {/* Grooming asset decoration */}
+            <img src="/Assets/Asset 3.png" alt="" className="w-10 h-10 object-contain" />
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{fontFamily: 'Poppins, sans-serif', color: '#4A2D7A'}}>
                   Dashboard Overview
               </h2>
-              <p className="text-xs text-gray-400">Select time range to update data</p>
+              <p className="text-xs text-purple-300">Select time range to update data</p>
+            </div>
           </div>
           
-          <div className="flex bg-zinc-100 p-1 rounded-xl">
+          <div className="flex" style={{background: '#EDE0F7', borderRadius: '12px', padding: '4px'}}>
              {(['TODAY', 'WEEK', 'MONTH', 'YEAR'] as TimeRange[]).map(r => (
                  <button
                     key={r}
                     onClick={() => setTimeRange(r)}
                     className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                        timeRange === r ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'
+                        timeRange === r ? 'bg-white shadow-sm' : 'hover:bg-white/50'
                     }`}
+                    style={timeRange === r ? {color: '#6B4FA0'} : {color: '#9B75C8'}}
                  >
                     {r === 'WEEK' ? '7 DAYS' : r}
                  </button>
@@ -219,7 +223,7 @@ const Dashboard: React.FC = () => {
                 title={`${timeRange === 'WEEK' ? '7 Day' : timeRange} Sales`} 
                 value={`₱${totals.revenue.toLocaleString()}`} 
                 icon={Wallet} 
-                color="bg-black" 
+                color="bg-purple-700" 
             />
         ) : (
             <StatCard 
@@ -235,14 +239,14 @@ const Dashboard: React.FC = () => {
           title="Transactions" 
           value={totals.count} 
           icon={ShoppingBag} 
-          color="bg-zinc-800" 
-          subValue={null} // Explicitly null to trigger invisible placeholder
+          color="bg-purple-500" 
+          subValue={null}
         />
         <StatCard 
           title="Grooming Queue" 
           value={pendingGrooming} 
           icon={Scissors} 
-          color="bg-zinc-500" 
+          color="bg-yellow-400" 
           subValue={null}
         />
         <StatCard 
@@ -256,14 +260,19 @@ const Dashboard: React.FC = () => {
 
       {/* Hotel Stats */}
       {hotelRooms.length > 0 && (
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-zinc-100">
-          <h3 className="font-bold text-zinc-900 flex items-center gap-2 mb-4"><BedDouble className="w-5 h-5" />Pet Hotel — Today</h3>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-purple-50 relative overflow-hidden">
+          {/* Towel decoration */}
+          <img src="/Assets/Asset 10.png" alt="" className="absolute right-4 top-3 w-12 opacity-20 pointer-events-none" />
+          <h3 className="font-bold flex items-center gap-2 mb-4" style={{color: '#4A2D7A'}}>
+            <BedDouble className="w-5 h-5" style={{color: '#7B55A8'}} />
+            Pet Hotel — Today
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[{label:'Occupied', val:hotelOccupied, col:'bg-red-500'},{label:"Today's Arrivals", val:hotelArrivals, col:'bg-amber-500'},{label:"Today's Departures", val:hotelDepartures, col:'bg-blue-500'},{label:'Available', val:hotelVacant, col:'bg-green-500'}].map(s=>
-              <div key={s.label} className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+              <div key={s.label} className="rounded-xl p-4 border border-purple-50" style={{background: '#FAF7FF'}}>
                 <div className={`w-2 h-2 rounded-full ${s.col} mb-2`}/>
-                <p className="text-2xl font-black text-zinc-900">{s.val}</p>
-                <p className="text-xs text-zinc-400 font-medium">{s.label}</p>
+                <p className="text-2xl font-black" style={{color: '#4A2D7A', fontFamily: 'Poppins, sans-serif'}}>{s.val}</p>
+                <p className="text-xs text-purple-300 font-medium">{s.label}</p>
               </div>
             )}
           </div>
@@ -272,30 +281,34 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-purple-50 relative overflow-hidden">
+          {/* Asset decoration */}
+          <img src="/Assets/Asset 4.png" alt="" className="absolute right-3 top-3 w-10 opacity-10 pointer-events-none" />
           <div className="flex justify-between items-center mb-6">
               <div>
-                  <h2 className="text-lg font-bold text-zinc-900">
+                  <h2 className="text-lg font-bold" style={{color: '#4A2D7A', fontFamily: 'Poppins, sans-serif'}}>
                       {viewMetric === 'REVENUE' ? 'Revenue' : 'Profit'} Trend
                   </h2>
-                  <p className="text-xs text-gray-400 font-bold">{timeRange === 'WEEK' ? 'Last 7 Days' : `This ${timeRange}`}</p>
+                  <p className="text-xs text-purple-300 font-bold">{timeRange === 'WEEK' ? 'Last 7 Days' : `This ${timeRange}`}</p>
               </div>
               
               {/* Metric Toggle Button */}
-              <div className="flex bg-zinc-100 p-1 rounded-xl">
+              <div className="flex p-1 rounded-xl" style={{background: '#EDE0F7'}}>
                   <button 
                     onClick={() => setViewMetric('REVENUE')}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        viewMetric === 'REVENUE' ? 'bg-white shadow text-black' : 'text-gray-400'
+                        viewMetric === 'REVENUE' ? 'bg-white shadow' : ''
                     }`}
+                    style={viewMetric === 'REVENUE' ? {color: '#6B4FA0'} : {color: '#9B75C8'}}
                   >
                     <Wallet className="w-3 h-3" /> Revenue
                   </button>
                   <button 
                     onClick={() => setViewMetric('PROFIT')}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        viewMetric === 'PROFIT' ? 'bg-green-100 text-green-700 shadow-sm' : 'text-gray-400'
+                        viewMetric === 'PROFIT' ? 'bg-green-100 text-green-700 shadow-sm' : ''
                     }`}
+                    style={viewMetric === 'PROFIT' ? {} : {color: '#9B75C8'}}
                   >
                      <TrendingUp className="w-3 h-3" /> Profit
                   </button>
@@ -331,13 +344,13 @@ const Dashboard: React.FC = () => {
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#fff', color: '#000' }}
                       formatter={(value: number) => [`₱${value.toLocaleString()}`, viewMetric === 'REVENUE' ? 'Revenue' : 'Profit']}
                     />
-                    <Bar 
-                        dataKey="value" 
-                        fill={viewMetric === 'REVENUE' ? '#000000' : '#16a34a'} 
-                        radius={[4, 4, 0, 0]} 
-                        barSize={timeRange === 'MONTH' || timeRange === 'YEAR' ? 12 : 30} 
-                        animationDuration={500}
-                    />
+                     <Bar 
+                         dataKey="value" 
+                         fill={viewMetric === 'REVENUE' ? '#7B55A8' : '#16a34a'} 
+                         radius={[4, 4, 0, 0]} 
+                         barSize={timeRange === 'MONTH' || timeRange === 'YEAR' ? 12 : 30} 
+                         animationDuration={500}
+                     />
                   </BarChart>
                 </ResponsiveContainer>
              )}
@@ -345,8 +358,10 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Low Stock Side Panel */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 flex flex-col">
-          <h2 className="text-lg font-bold mb-4 text-zinc-900">Low Stock Alerts</h2>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-50 flex flex-col relative overflow-hidden">
+          {/* Asset decoration */}
+          <img src="/Assets/Asset 6.png" alt="" className="absolute right-3 top-3 w-10 opacity-15 pointer-events-none" />
+          <h2 className="text-lg font-bold mb-4" style={{color: '#4A2D7A', fontFamily: 'Poppins, sans-serif'}}>Low Stock Alerts</h2>
           <div className="space-y-3 flex-1 overflow-auto max-h-[300px] pr-2 custom-scrollbar">
             {lowStock.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 py-10">

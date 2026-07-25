@@ -52,9 +52,10 @@ const Layout: React.FC = () => {
 
   if (isLoading) {
       return (
-          <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center gap-4">
-              <div className="w-16 h-16 border-4 border-zinc-200 border-t-black rounded-full animate-spin"></div>
-              <p className="font-bold text-zinc-500 animate-pulse">Connecting to Cloud...</p>
+          <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{background: '#FAF7FF'}}>
+              <img src="/Assets/bathtub with pets.png" alt="Loading" className="w-32 h-32 object-contain animate-bounce" />
+              <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+              <p className="font-bold text-purple-400 animate-pulse" style={{fontFamily: 'Poppins, sans-serif'}}>Connecting to Cloud...</p>
           </div>
       );
   }
@@ -87,41 +88,48 @@ const Layout: React.FC = () => {
 
   const NavContent = () => (
     <>
-      <div className="hidden lg:flex items-center gap-3 px-6 py-8">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-          {storeSettings.logo ? (
-            <img src={storeSettings.logo} alt="Logo" className="w-full h-full object-cover" />
-          ) : (
-            <Dog className="w-6 h-6 text-black" />
-          )}
+      {/* Sidebar Logo / Brand Area */}
+      <div className="hidden lg:block px-4 pt-6 pb-4">
+        {/* Roof decoration */}
+        <div className="flex justify-center mb-2">
+          <img src="/Assets/roof.png" alt="" className="w-24 object-contain opacity-90" />
         </div>
-        <div className="overflow-hidden">
-          <h1 className="text-lg font-bold tracking-tight text-white truncate">{storeSettings.name}</h1>
-          <p className="text-xs text-gray-400 flex items-center gap-1">
-             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online
-          </p>
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-white/30">
+            {storeSettings.logo ? (
+              <img src={storeSettings.logo} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <Dog className="w-6 h-6 text-white" />
+            )}
+          </div>
+          <div className="overflow-hidden">
+            <h1 className="font-display text-xl text-white truncate" style={{fontFamily: 'Bubblegum Sans, cursive'}}>{storeSettings.name}</h1>
+            <p className="text-xs text-purple-200 flex items-center gap-1">
+               <span className="w-2 h-2 bg-yellow-300 rounded-full animate-pulse"></span> Online
+            </p>
+          </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2 overflow-y-auto no-scrollbar py-4 lg:py-0">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar py-4 lg:py-0">
         {allowedLinks.map(link => (
           <NavLink
             key={link.to}
             to={link.to}
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group flex-shrink-0 ${
+              `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group flex-shrink-0 ${
                 isActive
-                  ? 'bg-white text-black shadow-lg font-semibold transform scale-105'
-                  : 'text-gray-400 hover:bg-zinc-900 hover:text-white'
+                  ? 'bg-white/20 text-white shadow-md font-semibold border border-white/30'
+                  : 'text-purple-200 hover:bg-white/10 hover:text-white'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <link.icon className={`w-5 h-5 ${isActive ? 'text-black' : 'text-gray-500 group-hover:text-white'}`} />
-                <span>{link.label}</span>
-                {isActive && <Dog className="w-4 h-4 ml-auto opacity-50" />}
+                <link.icon className={`w-5 h-5 ${isActive ? 'text-yellow-300' : 'text-purple-300 group-hover:text-white'}`} />
+                <span className="text-sm font-medium">{link.label}</span>
+                {isActive && <span className="ml-auto text-yellow-300 text-lg">✦</span>}
               </>
             )}
           </NavLink>
@@ -129,16 +137,16 @@ const Layout: React.FC = () => {
       </nav>
 
       <div className="p-4 mt-auto">
-        <div className="bg-zinc-900 rounded-xl p-4 mb-4 border border-zinc-800">
-          <p className="text-xs text-gray-500 mb-1">Logged in as</p>
-          <p className="font-semibold text-white">{currentUser.name}</p>
-          <p className="text-xs text-zinc-500 uppercase">{currentUser.role}</p>
+        <div className="rounded-xl p-3 mb-3 border border-white/20" style={{background: 'rgba(255,255,255,0.1)'}}>
+          <p className="text-xs text-purple-200 mb-0.5">Logged in as</p>
+          <p className="font-bold text-white text-sm">{currentUser.name}</p>
+          <p className="text-xs text-yellow-300 uppercase font-semibold">{currentUser.role}</p>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 w-full rounded-xl transition-colors"
+          className="flex items-center gap-3 px-4 py-2.5 text-red-300 hover:bg-red-500/20 hover:text-red-200 w-full rounded-xl transition-colors text-sm"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4" />
           <span>Logout</span>
         </button>
       </div>
@@ -154,16 +162,16 @@ const Layout: React.FC = () => {
   if (smsPercent > 90) smsColor = 'bg-red-500';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50 text-zinc-900">
+    <div className="flex h-screen overflow-hidden text-zinc-900" style={{background: '#FAF7FF'}}>
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 w-full h-16 bg-black text-white flex items-center justify-between px-4 z-50 shadow-md">
+      <div className="lg:hidden fixed top-0 w-full h-16 text-white flex items-center justify-between px-4 z-50 shadow-md" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
          <div className="flex items-center gap-2">
             {storeSettings.logo ? (
               <img src={storeSettings.logo} alt="Logo" className="w-6 h-6 object-contain" />
             ) : (
               <Dog className="w-6 h-6" />
             )}
-            <span className="font-bold truncate max-w-[200px]">{storeSettings.name}</span>
+            <span className="font-bold truncate max-w-[200px]" style={{fontFamily: 'Bubblegum Sans, cursive'}}>{storeSettings.name}</span>
          </div>
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
            {isMobileMenuOpen ? <X /> : <Menu />}
@@ -211,18 +219,18 @@ const Layout: React.FC = () => {
 
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black z-40 pt-16 lg:hidden flex flex-col">
+        <div className="fixed inset-0 z-40 pt-16 lg:hidden flex flex-col" style={{background: 'linear-gradient(160deg, #4A2D7A 0%, #7B55A8 60%, #9B75C8 100)'}}>
           <NavContent />
         </div>
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-72 bg-black text-white flex-col h-full shadow-2xl z-20">
+      <aside className="hidden lg:flex w-64 text-white flex-col h-full shadow-2xl z-20" style={{background: 'linear-gradient(160deg, #3D2468 0%, #6B4FA0 60%, #8B6AB8 100%)'}}>
         <NavContent />
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pt-16 lg:pt-0 relative bg-zinc-50 text-zinc-900">
+      <main className="flex-1 overflow-auto pt-16 lg:pt-0 relative text-zinc-900" style={{background: '#FAF7FF'}}>
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full">
           <Outlet />
         </div>

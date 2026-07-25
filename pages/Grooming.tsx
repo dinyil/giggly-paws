@@ -676,24 +676,30 @@ const Grooming: React.FC = () => {
   const paymentDetails = getPaymentServiceDetails();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] gap-6 text-zinc-900">
+    <div className="flex flex-col h-[calc(100vh-100px)] gap-6" style={{color: '#2d1b4e'}}>
        
-       <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
+       <div className="bg-white p-6 rounded-3xl shadow-sm border border-purple-50 relative overflow-hidden">
+         {/* Decorative asset illustrations */}
+         <img src="/Assets/Asset 11.png" alt="" className="absolute right-32 top-2 w-12 opacity-15 pointer-events-none rotate-12" />
+         <img src="/Assets/Asset 4.png" alt="" className="absolute right-16 top-1 w-12 opacity-15 pointer-events-none -rotate-6" />
+         <img src="/Assets/Asset 8.png" alt="" className="absolute right-2 top-1 w-14 opacity-15 pointer-events-none" />
+         <img src="/Assets/bathtub.png" alt="" className="absolute right-48 bottom-0 w-24 opacity-10 pointer-events-none" />
+         
          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
              <div className="flex-1">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
-                        <Scissors className="w-6 h-6" /> Grooming Salon
+                    <h1 className="text-xl font-bold flex items-center gap-2" style={{color: '#4A2D7A', fontFamily: 'Poppins, sans-serif'}}>
+                        <Scissors className="w-6 h-6" style={{color: '#7B55A8'}} /> Grooming Salon
                     </h1>
                     {/* LIVE CLOCK DISPLAY - FORCES PH TIME */}
-                    <div className="bg-black text-white px-3 py-1 rounded-lg text-sm font-mono flex items-center gap-2 shadow-lg">
+                    <div className="text-white px-3 py-1 rounded-lg text-sm font-mono flex items-center gap-2 shadow-lg" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
                         <Clock className="w-3 h-3" />
                         <span>{displayTime}</span>
-                        <span className="text-zinc-500">|</span>
-                        <span className="text-xs text-zinc-300 uppercase font-bold">{displayDate}</span>
+                        <span className="text-purple-300">|</span>
+                        <span className="text-xs text-purple-200 uppercase font-bold">{displayDate}</span>
                     </div>
                 </div>
-                <p className="text-gray-500 text-sm mt-1">Manage appointments and workflow</p>
+                <p className="text-purple-300 text-sm mt-1">Manage appointments and workflow</p>
              </div>
              
              <div className="flex gap-2">

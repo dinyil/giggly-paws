@@ -585,21 +585,27 @@ const Hotel: React.FC = () => {
   const totalActive = hotelRooms.filter(r => r.is_active).length;
 
   return (
-    <div className="h-[calc(100vh-2rem)] flex flex-col gap-4 overflow-hidden">
+    <div className="h-[calc(100vh-2rem)] flex flex-col gap-4 overflow-hidden" style={{color: '#2d1b4e'}}>
       {/* Header */}
-      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 flex flex-col md:flex-row justify-between gap-4">
+      <div className="bg-white rounded-3xl border border-purple-50 shadow-sm p-4 flex flex-col md:flex-row justify-between gap-4 relative overflow-hidden">
+        {/* Asset decorations */}
+        <img src="/Assets/roof.png" alt="" className="absolute right-60 top-0 w-20 opacity-10 pointer-events-none" />
+        <img src="/Assets/Asset 10.png" alt="" className="absolute right-36 top-2 w-14 opacity-15 pointer-events-none" />
+        <img src="/Assets/bathtub with pets.png" alt="" className="absolute right-2 -bottom-4 w-24 opacity-15 pointer-events-none" />
         <div>
-          <h1 className="text-2xl font-black text-zinc-900 flex items-center gap-2"><BedDouble className="w-7 h-7" />Pet Hotel</h1>
-          <p className="text-sm text-zinc-400 font-medium mt-0.5">{displayDate}</p>
-          <p className="text-xs text-zinc-400 font-mono">{displayTime}</p>
+          <h1 className="text-2xl font-black flex items-center gap-2" style={{color: '#4A2D7A', fontFamily: 'Poppins, sans-serif'}}>
+            <BedDouble className="w-7 h-7" style={{color: '#7B55A8'}} />Pet Hotel
+          </h1>
+          <p className="text-sm text-purple-300 font-medium mt-0.5">{displayDate}</p>
+          <p className="text-xs text-purple-300 font-mono">{displayTime}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
-            <button onClick={() => { setEditRoom(null); setShowRoomForm(true); }} className="flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors">
+            <button onClick={() => { setEditRoom(null); setShowRoomForm(true); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors" style={{background: '#EDE0F7', color: '#6B4FA0'}}>
               <Building2 className="w-4 h-4" />Manage Rooms
             </button>
           )}
-          <button onClick={() => openNewBooking()} className="flex items-center gap-2 bg-black hover:bg-zinc-800 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-black/10 transition-colors">
+          <button onClick={() => openNewBooking()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-colors text-white" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
             <Plus className="w-4 h-4" />Book Room
           </button>
         </div>
@@ -608,14 +614,14 @@ const Hotel: React.FC = () => {
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Total Rooms', val: totalActive, bg: 'bg-zinc-900', dot: '' },
-          { label: 'Occupied Now', val: occupied, bg: 'bg-red-600', dot: '' },
-          { label: 'Arriving Today', val: arriving, bg: 'bg-amber-500', dot: '' },
-          { label: 'Reserved', val: reserved, bg: 'bg-blue-600', dot: '' },
+          { label: 'Total Rooms', val: totalActive, style: {background: 'linear-gradient(135deg, #4A2D7A, #6B4FA0)'} },
+          { label: 'Occupied Now', val: occupied, style: {background: 'linear-gradient(135deg, #dc2626, #ef4444)'} },
+          { label: 'Arriving Today', val: arriving, style: {background: 'linear-gradient(135deg, #d97706, #f59e0b)'} },
+          { label: 'Reserved', val: reserved, style: {background: 'linear-gradient(135deg, #2563eb, #3b82f6)'} },
         ].map(s => (
-          <div key={s.label} className={`${s.bg} text-white rounded-2xl p-4`}>
-            <p className="text-3xl font-black">{s.val}</p>
-            <p className="text-xs font-medium opacity-75 mt-0.5">{s.label}</p>
+          <div key={s.label} className="text-white rounded-2xl p-4 shadow-md" style={s.style}>
+            <p className="text-3xl font-black" style={{fontFamily: 'Poppins, sans-serif'}}>{s.val}</p>
+            <p className="text-xs font-medium opacity-80 mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>

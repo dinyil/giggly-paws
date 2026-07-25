@@ -38,83 +38,131 @@ const Login: React.FC = () => {
       setError('Please enter a PIN code.');
       return;
     }
-
     setIsProcessing(true);
-    // Async Login (Hashing happens here)
     const success = await login(pin);
     setIsProcessing(false);
-
-    if (success) {
-      // Redirect handled by useEffect
-    } else {
+    if (!success) {
       setError('Invalid PIN. Please try again.');
       setPin('');
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border border-zinc-100">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-24 h-24 flex items-center justify-center mb-4 overflow-hidden">
-             {storeSettings.logo ? (
-                <img src={storeSettings.logo} alt="Logo" className="w-full h-full object-contain" />
-             ) : (
-                <Dog className="w-16 h-16 text-zinc-900" />
-             )}
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-center">{storeSettings.name}</h1>
-          <p className="text-gray-400 mt-1">Enter your PIN to access system</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #FAF7FF 0%, #EDE0F7 50%, #FAF7FF 100%)'}}>
+      
+      {/* Floating decorative assets - corners */}
+      <img src="/Assets/Asset 1.png" alt="" className="absolute top-6 left-6 w-20 opacity-40 rotate-[-15deg] pointer-events-none select-none" />
+      <img src="/Assets/Asset 4.png" alt="" className="absolute top-6 right-8 w-20 opacity-40 rotate-[15deg] pointer-events-none select-none" />
+      <img src="/Assets/Asset 7.png" alt="" className="absolute bottom-8 left-8 w-16 opacity-35 rotate-[-10deg] pointer-events-none select-none" />
+      <img src="/Assets/Asset 9.png" alt="" className="absolute bottom-8 right-8 w-16 opacity-35 rotate-[10deg] pointer-events-none select-none" />
+      <img src="/Assets/Asset 11.png" alt="" className="absolute top-1/3 left-4 w-14 opacity-30 pointer-events-none select-none" />
+      <img src="/Assets/Asset 13.png" alt="" className="absolute top-1/3 right-4 w-14 opacity-30 pointer-events-none select-none" />
 
-        {/* PIN Display */}
-        <div className="flex justify-center gap-4 mb-8">
-          {[0, 1, 2, 3].map((i) => (
-            <div 
-              key={i}
-              className={`w-4 h-4 rounded-full transition-all duration-200 ${
-                pin.length > i ? 'bg-black scale-110' : 'bg-zinc-200'
-              }`}
+      {/* Main Card */}
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm relative overflow-hidden border border-purple-100">
+        
+        {/* Purple top banner with bathtub illustration */}
+        <div className="relative flex flex-col items-center pt-6 pb-4" style={{background: 'linear-gradient(135deg, #6B4FA0, #9B75C8)'}}>
+          {/* Roof decoration */}
+          <img src="/Assets/roof.png" alt="" className="absolute -top-2 left-1/2 -translate-x-1/2 w-28 opacity-60 pointer-events-none" />
+          
+          {/* Bathtub with pets - main hero */}
+          <div className="relative z-10 mt-6">
+            <img 
+              src="/Assets/bathtub with pets.png" 
+              alt="GigglyPaws" 
+              className="w-40 h-auto object-contain drop-shadow-lg"
             />
-          ))}
+          </div>
+          
+          {/* Store name */}
+          <h1 
+            className="text-2xl text-white mt-1 mb-1 relative z-10"
+            style={{fontFamily: 'Bubblegum Sans, cursive'}}
+          >
+            {storeSettings.name || 'GigglyPaws'}
+          </h1>
+          <p className="text-purple-200 text-xs mb-4 relative z-10" style={{fontFamily: 'Poppins, sans-serif'}}>
+            Enter your PIN to access the system
+          </p>
         </div>
 
-        {error && (
-          <div className="text-red-500 text-center mb-4 text-sm font-medium animate-pulse">
-            {error}
+        {/* Login Form */}
+        <div className="p-6">
+          {/* PIN Display */}
+          <div className="flex justify-center gap-4 mb-6">
+            {[0, 1, 2, 3].map((i) => (
+              <div 
+                key={i}
+                className={`w-4 h-4 rounded-full transition-all duration-200 ${
+                  pin.length > i 
+                    ? 'scale-125 shadow-md' 
+                    : 'border-2 border-purple-200'
+                }`}
+                style={pin.length > i ? {background: '#F5D657', boxShadow: '0 0 8px rgba(245,214,87,0.5)'} : {}}
+              />
+            ))}
           </div>
-        )}
 
-        {/* Keypad */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          {error && (
+            <div className="text-red-500 text-center mb-4 text-sm font-medium animate-pulse bg-red-50 rounded-xl py-2">
+              {error}
+            </div>
+          )}
+
+          {/* Keypad */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+              <button
+                key={num}
+                onClick={() => handleNumClick(num.toString())}
+                className="h-14 rounded-2xl text-xl font-bold transition-all active:scale-95 font-medium"
+                style={{background: '#FAF7FF', color: '#4A2D7A', border: '1.5px solid #E0D0F5'}}
+                onMouseEnter={e => (e.currentTarget.style.background = '#EDE0F7')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#FAF7FF')}
+              >
+                {num}
+              </button>
+            ))}
             <button
-              key={num}
-              onClick={() => handleNumClick(num.toString())}
-              className="h-16 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-xl font-bold transition-all active:scale-95 text-zinc-800"
+              onClick={handleClear}
+              className="h-14 rounded-2xl font-bold transition-all active:scale-95 text-sm"
+              style={{background: '#FFF0F0', color: '#E05555', border: '1.5px solid #FDD'}}
+              onMouseEnter={e => (e.currentTarget.style.background = '#FFE0E0')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#FFF0F0')}
             >
-              {num}
+              CLR
             </button>
-          ))}
-          <button
-            onClick={handleClear}
-            className="h-16 rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 font-semibold transition-all active:scale-95"
-          >
-            CLR
-          </button>
-          <button
-            onClick={() => handleNumClick('0')}
-            className="h-16 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-xl font-bold transition-all active:scale-95 text-zinc-800"
-          >
-            0
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isProcessing}
-            className="h-16 rounded-2xl bg-black text-white hover:bg-zinc-800 flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isProcessing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Bone className="w-6 h-6" />}
-          </button>
+            <button
+              onClick={() => handleNumClick('0')}
+              className="h-14 rounded-2xl text-xl font-bold transition-all active:scale-95"
+              style={{background: '#FAF7FF', color: '#4A2D7A', border: '1.5px solid #E0D0F5'}}
+              onMouseEnter={e => (e.currentTarget.style.background = '#EDE0F7')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#FAF7FF')}
+            >
+              0
+            </button>
+            {/* Submit */}
+            <button
+              onClick={handleSubmit}
+              disabled={isProcessing}
+              className="h-14 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 shadow-md"
+              style={{background: 'linear-gradient(135deg, #6B4FA0, #9B75C8)', color: 'white'}}
+            >
+              {isProcessing 
+                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> 
+                : <span className="text-xl">🐾</span>
+              }
+            </button>
+          </div>
+
+          {/* Small decorative tools row */}
+          <div className="flex justify-center gap-4 opacity-30 mt-2">
+            <img src="/Assets/Asset 2.png" alt="" className="w-6 h-6 object-contain" />
+            <img src="/Assets/Asset 5.png" alt="" className="w-6 h-6 object-contain" />
+            <img src="/Assets/Asset 8.png" alt="" className="w-6 h-6 object-contain" />
+            <img src="/Assets/Asset 12.png" alt="" className="w-6 h-6 object-contain" />
+          </div>
         </div>
       </div>
     </div>

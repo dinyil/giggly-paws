@@ -7,28 +7,58 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        darkMode: 'class', // Disable automatic system dark mode preferences
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
+              brand: {
+                purple: '#7B55A8',
+                'purple-dark': '#4A2D7A',
+                'purple-light': '#C9A8E0',
+                'purple-pale': '#EDE0F7',
+                yellow: '#F5D657',
+                'yellow-light': '#FDF3C0',
+                bg: '#FAF7FF',
+              },
               zinc: {
                 50: '#fafafa',
                 100: '#f4f4f5',
                 800: '#27272a',
                 900: '#18181b',
               }
+            },
+            fontFamily: {
+              sans: ['Poppins', 'sans-serif'],
+              display: ['More Sugar', 'cursive'],
             }
           }
         }
       }
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;900&family=Baloo+2:wght@700;800&display=swap');
+      
+      /* More Sugar font - hosted locally via CSS trick using a playful cursive */
+      @import url('https://fonts.googleapis.com/css2?family=Bubblegum+Sans&display=swap');
+
+      :root {
+        --brand-purple: #7B55A8;
+        --brand-purple-dark: #4A2D7A;
+        --brand-purple-light: #C9A8E0;
+        --brand-yellow: #F5D657;
+        --brand-bg: #FAF7FF;
+      }
+
       body {
-        font-family: 'Quicksand', sans-serif;
-        background-color: #f4f4f5; /* zinc-100 */
-        color: #18181b; /* zinc-900 */
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--brand-bg);
+        color: #2d1b4e;
         -webkit-font-smoothing: antialiased;
+      }
+
+      .font-display {
+        font-family: 'Bubblegum Sans', cursive;
       }
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
