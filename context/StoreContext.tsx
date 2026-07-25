@@ -1312,9 +1312,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const addonItems = addonProducts.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
     const allItems = [nightlyItem, ...addonItems];
     const subtotal = allItems.reduce((s, i) => s + i.price * i.quantity, 0);
-    const vatRate = storeSettings.vatRate || 0;
-    const vat = parseFloat((subtotal * vatRate / 100).toFixed(2));
-    const total = parseFloat((subtotal + vat).toFixed(2));
+    // Hotel room rates are VAT-inclusive (final price) — do NOT add VAT on top
+    const vat = 0;
+    const total = parseFloat(subtotal.toFixed(2));
     const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
     setTransactions(prev => [tx, ...prev]);
     await upsertData('transactions', mapTransactionPayload(tx));
