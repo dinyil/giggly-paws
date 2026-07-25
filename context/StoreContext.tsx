@@ -421,7 +421,7 @@ interface StoreContextType {
   updateHotelBooking: (booking: HotelBooking) => Promise<void>;
   deleteHotelBooking: (id: string) => Promise<void>;
   checkInGuest: (bookingId: string) => Promise<void>;
-  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string) => Promise<void>;
+  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -1295,7 +1295,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckin), replace(storeSettings.emailBodyHotelCheckin), 'Checked In'); }
   };
 
-  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string) => {
+  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number) => {
     const booking = hotelBookings.find(b => b.id === bookingId);
     if (!booking) return;
     // Build addon items for receipt
@@ -1303,8 +1303,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const room = hotelRooms.find(r => r.id === booking.room_id);
     // Create a Transaction (receipt)
     const txId = 'HTL-' + Date.now().toString();
-    const nightlyItem = { id: 'hotel-stay-' + bookingId, name: `Hotel Stay – ${room?.room_name || 'Room'} (${booking.total_nights} night${booking.total_nights !== 1 ? 's' : ''})`, price: booking.total_amount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
-    const addonItems = addonProducts.map(p => ({ ...p, quantity: 1, appliedDiscounts: [] }));
+    // FIX: Use recalcTotal from checkout modal (daily_rate × nights) if provided
+    // Fall back to recalculating here if called without UI (e.g. programmatically)
+    const stayAmount = recalcTotal !== undefined
+      ? recalcTotal - addonProducts.reduce((s, p: any) => s + p.price, 0)
+      : (booking.daily_rate * booking.total_nights);
+    const nightlyItem = { id: 'hotel-stay-' + bookingId, name: `Hotel Stay – ${room?.room_name || 'Room'} (${booking.total_nights} night${booking.total_nights !== 1 ? 's' : ''} × ₱${booking.daily_rate.toLocaleString()})`, price: stayAmount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
+    const addonItems = addonProducts.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
     const allItems = [nightlyItem, ...addonItems];
     const subtotal = allItems.reduce((s, i) => s + i.price * i.quantity, 0);
     const vatRate = storeSettings.vatRate || 0;

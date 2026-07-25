@@ -350,14 +350,18 @@ const BookingForm: React.FC<{
 
 const CheckoutModal: React.FC<{
   booking: HotelBooking;
-  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string) => void;
+  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
   onClose: () => void;
 }> = ({ booking, onConfirm, onClose }) => {
   const { hotelRooms, products } = useStore();
   const room = hotelRooms.find(r => r.id === booking.room_id);
   const addons = (booking.addon_ids || []).map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
   const addonTotal = addons.reduce((s, p) => s + p.price, 0);
-  const grandTotal = booking.total_amount + addonTotal;
+  
+  // FIX: Always recalculate from source-of-truth fields (daily_rate × total_nights)
+  // Never use stored total_amount which may be stale from old room prices
+  const stayAmount = booking.daily_rate * booking.total_nights;
+  const grandTotal = stayAmount + addonTotal;
 
   const [method, setMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
   const [cash, setCash] = useState(grandTotal);
@@ -373,7 +377,11 @@ const CheckoutModal: React.FC<{
         <div className="p-6 space-y-4">
           <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 space-y-2 text-sm">
             <div className="flex justify-between font-bold text-base"><span>🐾 {booking.pet_name}</span><span className="text-zinc-500">Room {room?.room_number}</span></div>
-            <div className="flex justify-between text-zinc-500"><span>Stay ({booking.total_nights} night{booking.total_nights !== 1 ? 's' : ''})</span><span>₱{booking.total_amount.toLocaleString()}</span></div>
+            {/* Rate breakdown - always show recalculated rate, never stale total_amount */}
+            <div className="flex justify-between text-zinc-500">
+              <span>Stay ({booking.total_nights} night{booking.total_nights !== 1 ? 's' : ''} × ₱{booking.daily_rate.toLocaleString()})</span>
+              <span>₱{stayAmount.toLocaleString()}</span>
+            </div>
             {addons.map(p => <div key={p.id} className="flex justify-between text-zinc-500"><span>{p.name}</span><span>₱{p.price.toLocaleString()}</span></div>)}
             <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2"><span>TOTAL</span><span className="text-green-700">₱{grandTotal.toLocaleString()}</span></div>
           </div>
@@ -401,7 +409,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button onClick={() => onConfirm(method, cash, ref, grandTotal)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>
@@ -832,7 +840,7 @@ const Hotel: React.FC = () => {
       {checkoutBooking && (
         <CheckoutModal
           booking={checkoutBooking}
-          onConfirm={async (method, cash, ref) => { await checkOutGuest(checkoutBooking.id, method, cash, ref); setCheckoutBooking(null); }}
+          onConfirm={async (method, cash, ref, recalcTotal) => { await checkOutGuest(checkoutBooking.id, method, cash, ref, recalcTotal); setCheckoutBooking(null); }}
           onClose={() => setCheckoutBooking(null)}
         />
       )}
