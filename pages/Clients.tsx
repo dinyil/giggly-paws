@@ -24,7 +24,7 @@ const sanitizeContactNumber = (num: string) => {
 };
 
 const Clients: React.FC = () => {
-  const { clients, addClient, updateClient, deleteClient, appointments, products } = useStore();
+  const { clients, addClient, updateClient, deleteClient, appointments, products, hotelBookings } = useStore();
   const [search, setSearch] = useState('');
   
   // Pagination
@@ -73,18 +73,35 @@ const Clients: React.FC = () => {
   // Calculate stats and filter
   const enrichedClients = useMemo(() => {
       return clients.map(client => {
+          // --- Grooming appointments for this client ---
           const clientApts = appointments.filter(a => a.ownerName.toLowerCase() === client.name.toLowerCase());
           clientApts.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          const lastVisit = clientApts.length > 0 ? clientApts[0].date : null;
-          
-          // Count unique visit DAYS (not individual services/appointments)
-          const uniqueVisitDays = new Set(
-            clientApts.map(a => new Date(a.date).toDateString())
-          ).size;
+
+          // --- Hotel bookings for this client (match by client_id or owner_name) ---
+          const clientHotelBookings = hotelBookings.filter(b =>
+            b.status !== 'CANCELLED' && (
+              (client.id && b.client_id === client.id) ||
+              b.owner_name.toLowerCase() === client.name.toLowerCase()
+            )
+          );
+
+          // --- Merge all unique VISIT DAYS ---
+          // Grooming: use appointment date
+          // Hotel: use check_in date — multiple dogs same day = 1 visit
+          const allVisitDays = new Set<string>([
+            ...clientApts.map(a => new Date(a.date).toDateString()),
+            ...clientHotelBookings.map(b => new Date(b.check_in).toDateString()),
+          ]);
+
+          // --- Last visit: latest across both grooming and hotel ---
+          const aptDates = clientApts.map(a => a.date);
+          const hotelDates = clientHotelBookings.map(b => b.check_in);
+          const allDates = [...aptDates, ...hotelDates].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+          const lastVisit = allDates.length > 0 ? allDates[0] : null;
 
           return {
               ...client,
-              totalVisits: uniqueVisitDays,
+              totalVisits: allVisitDays.size,
               lastVisit
           };
       }).filter(c => 
@@ -102,7 +119,7 @@ const Clients: React.FC = () => {
           if (dateB !== dateA) return dateB - dateA;
           return a.name.localeCompare(b.name);
       });
-  }, [clients, appointments, search]);
+  }, [clients, appointments, hotelBookings, search]);
 
   // Pagination Data
   const totalPages = Math.ceil(enrichedClients.length / itemsPerPage);
