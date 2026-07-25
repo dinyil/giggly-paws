@@ -316,15 +316,34 @@ const Clients: React.FC = () => {
 
   // --- Derived Data for Pet Modal ---
   const activePet = viewingClient?.pets.find(p => p.id === activePetId);
+
   const activePetHistory = useMemo(() => {
       if (!viewingClient || !activePet) return [];
-      
-      // Filter appointments for this specific pet name
       return appointments.filter(a => 
           a.ownerName.toLowerCase() === viewingClient.name.toLowerCase() &&
           a.petName.toLowerCase() === activePet.name.toLowerCase()
       ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [appointments, viewingClient, activePet]);
+
+  // Hotel bookings for this specific pet
+  const activePetHotelHistory = useMemo(() => {
+      if (!viewingClient || !activePet) return [];
+      return hotelBookings.filter(b =>
+          b.status !== 'CANCELLED' &&
+          (
+            (viewingClient.id && b.client_id === viewingClient.id) ||
+            b.owner_name.toLowerCase() === viewingClient.name.toLowerCase()
+          ) &&
+          b.pet_name.toLowerCase() === activePet.name.toLowerCase()
+      ).sort((a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime());
+  }, [hotelBookings, viewingClient, activePet]);
+
+  // Combined timeline: grooming + hotel, sorted newest first
+  const combinedHistory = useMemo(() => {
+      const groomingItems = activePetHistory.map(a => ({ type: 'GROOMING' as const, date: a.date, data: a }));
+      const hotelItems = activePetHotelHistory.map(b => ({ type: 'HOTEL' as const, date: b.check_in, data: b }));
+      return [...groomingItems, ...hotelItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [activePetHistory, activePetHotelHistory]);
 
   const inputClass = "w-full border border-zinc-300 rounded-xl p-3 mt-1 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent placeholder-zinc-400 font-medium text-sm";
   const labelClass = "text-xs font-bold text-gray-500 uppercase";
@@ -757,55 +776,104 @@ const Clients: React.FC = () => {
                                     <span>⚖️ {activePet.weightSize || 'N/A'}</span>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className="text-3xl font-bold text-zinc-900">{activePetHistory.length}</div>
-                                <div className="text-xs font-bold text-gray-400 uppercase">Total Grooms</div>
-                            </div>
+                             <div className="text-right">
+                                <div className="text-3xl font-bold text-zinc-900">{combinedHistory.length}</div>
+                                <div className="text-xs font-bold text-gray-400 uppercase">Total Visits</div>
+                                <div className="flex gap-1 mt-1 justify-end">
+                                    {activePetHistory.length > 0 && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">✂️ {activePetHistory.length}</span>}
+                                    {activePetHotelHistory.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'#EDE0F7',color:'#4A2D7A'}}>🏨 {activePetHotelHistory.length}</span>}
+                                </div>
+                             </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6">
                             <h4 className="font-bold text-sm text-gray-400 uppercase mb-4 flex items-center gap-2">
-                                <History className="w-4 h-4" /> Grooming Logs
+                                <History className="w-4 h-4" /> Visit History
                             </h4>
                             
-                            {activePetHistory.length === 0 ? (
+                            {combinedHistory.length === 0 ? (
                                 <div className="border-2 border-dashed border-zinc-100 rounded-2xl p-8 text-center text-gray-400">
-                                    <p>No grooming history recorded for {activePet.name}.</p>
+                                    <p>No visit history recorded for {activePet.name}.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
-                                    {activePetHistory.map(apt => {
-                                        const service = products.find(p => p.id === apt.serviceId);
-                                        return (
-                                            <div key={apt.id} className="bg-zinc-50 rounded-xl p-4 border border-zinc-100 flex flex-col gap-3">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <span className="font-bold text-zinc-900 block">{new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                                                        <span className="text-xs text-gray-500">{apt.time}</span>
+                                <div className="space-y-3">
+                                    {combinedHistory.map((item, idx) => {
+                                        if (item.type === 'GROOMING') {
+                                            const apt = item.data as typeof activePetHistory[0];
+                                            const service = products.find(p => p.id === apt.serviceId);
+                                            return (
+                                                <div key={apt.id} className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="font-bold text-zinc-900 block text-sm">
+                                                                {new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                                            </span>
+                                                            <span className="text-xs text-gray-500">{apt.time}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-700">✂️ Grooming</span>
+                                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                                                                apt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                                                            }`}>{apt.status}</span>
+                                                        </div>
                                                     </div>
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${apt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                                                        {apt.status}
-                                                    </span>
+                                                    <div className="grid grid-cols-2 gap-3 text-xs border-t border-zinc-200 pt-2">
+                                                        <div>
+                                                            <p className="text-gray-400 uppercase font-bold mb-0.5">Service</p>
+                                                            <p className="font-medium">{service?.name || 'Unknown'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-400 uppercase font-bold mb-0.5">Groomer</p>
+                                                            <p className="font-medium">{apt.groomerId}</p>
+                                                        </div>
+                                                    </div>
+                                                    {apt.hairCut && (
+                                                        <div className="mt-2 bg-white p-2 rounded-lg text-xs italic text-gray-600 border border-zinc-200">
+                                                            <span className="font-bold not-italic">Note:</span> {apt.hairCut}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                
-                                                <div className="grid grid-cols-2 gap-4 text-sm border-t border-zinc-200 pt-3">
-                                                    <div>
-                                                        <p className="text-xs text-gray-400 uppercase font-bold">Service</p>
-                                                        <p className="font-medium">{service?.name || 'Unknown'}</p>
+                                            );
+                                        } else {
+                                            const booking = item.data as typeof activePetHotelHistory[0];
+                                            return (
+                                                <div key={booking.id} className="rounded-xl p-4 border" style={{background: '#FAF7FF', borderColor: '#C9A8E0'}}>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="font-bold block text-sm" style={{color: '#4A2D7A'}}>
+                                                                {new Date(booking.check_in).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                                            </span>
+                                                            <span className="text-xs" style={{color: '#7B55A8'}}>
+                                                                Check-out: {new Date(booking.check_out).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background: '#EDE0F7', color: '#4A2D7A'}}>🏨 Hotel</span>
+                                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                                                                booking.status === 'CHECKED_OUT' ? 'bg-green-100 text-green-700' :
+                                                                booking.status === 'CHECKED_IN' ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-yellow-100 text-yellow-700'
+                                                            }`}>{booking.status.replace('_', ' ')}</span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs text-gray-400 uppercase font-bold">Groomer</p>
-                                                        <p className="font-medium">{apt.groomerId}</p>
+                                                    <div className="grid grid-cols-2 gap-3 text-xs border-t pt-2" style={{borderColor: '#C9A8E0'}}>
+                                                        <div>
+                                                            <p className="uppercase font-bold mb-0.5" style={{color: '#9B72C8'}}>Duration</p>
+                                                            <p className="font-medium" style={{color: '#4A2D7A'}}>{booking.total_nights} night{booking.total_nights !== 1 ? 's' : ''}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="uppercase font-bold mb-0.5" style={{color: '#9B72C8'}}>Rate</p>
+                                                            <p className="font-medium" style={{color: '#4A2D7A'}}>₱{booking.daily_rate.toLocaleString()}/night</p>
+                                                        </div>
                                                     </div>
+                                                    {booking.notes && (
+                                                        <div className="mt-2 bg-white p-2 rounded-lg text-xs italic border" style={{color: '#7B55A8', borderColor: '#C9A8E0'}}>
+                                                            <span className="font-bold not-italic">Note:</span> {booking.notes}
+                                                        </div>
+                                                    )}
                                                 </div>
-
-                                                {apt.hairCut && (
-                                                    <div className="bg-white p-2 rounded-lg text-xs italic text-gray-600 border border-zinc-200">
-                                                        <span className="font-bold not-italic">Note:</span> {apt.hairCut}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
+                                            );
+                                        }
                                     })}
                                 </div>
                             )}
