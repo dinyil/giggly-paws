@@ -741,7 +741,8 @@ const POS: React.FC = () => {
       <div className="lg:hidden fixed bottom-4 right-4 left-4 z-40">
           <button 
             onClick={() => setIsMobileCartOpen(true)}
-            className="w-full text-white p-4 rounded-2xl" style={{background: "linear-gradient(135deg, #4A2D7A, #7B55A8)" shadow-2xl flex justify-between items-center font-bold"
+            className="w-full text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center font-bold"
+            style={{background: "linear-gradient(135deg, #4A2D7A, #7B55A8)"}}
           >
               <div className="flex items-center gap-3">
                   <div className="bg-purple-800 w-8 h-8 rounded-full flex items-center justify-center text-sm">{totalItems}</div>
