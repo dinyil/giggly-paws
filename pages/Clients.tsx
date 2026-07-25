@@ -345,6 +345,19 @@ const Clients: React.FC = () => {
       return [...groomingItems, ...hotelItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [activePetHistory, activePetHotelHistory]);
 
+  // Unique visit days (deduped by date string) — matches client list counter
+  const uniqueVisitDays = useMemo(() => {
+      const days = new Set<string>([
+          ...activePetHistory.map(a => new Date(a.date).toDateString()),
+          ...activePetHotelHistory.map(b => new Date(b.check_in).toDateString()),
+      ]);
+      return days.size;
+  }, [activePetHistory, activePetHotelHistory]);
+
+  // Unique grooming days and hotel days for breakdown badges
+  const uniqueGroomDays = new Set(activePetHistory.map(a => new Date(a.date).toDateString())).size;
+  const uniqueHotelDays = new Set(activePetHotelHistory.map(b => new Date(b.check_in).toDateString())).size;
+
   const inputClass = "w-full border border-zinc-300 rounded-xl p-3 mt-1 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent placeholder-zinc-400 font-medium text-sm";
   const labelClass = "text-xs font-bold text-gray-500 uppercase";
 
@@ -777,11 +790,11 @@ const Clients: React.FC = () => {
                                 </div>
                             </div>
                              <div className="text-right">
-                                <div className="text-3xl font-bold text-zinc-900">{combinedHistory.length}</div>
-                                <div className="text-xs font-bold text-gray-400 uppercase">Total Visits</div>
+                                <div className="text-3xl font-bold text-zinc-900">{uniqueVisitDays}</div>
+                                <div className="text-xs font-bold text-gray-400 uppercase">Unique Visit Days</div>
                                 <div className="flex gap-1 mt-1 justify-end">
-                                    {activePetHistory.length > 0 && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">✂️ {activePetHistory.length}</span>}
-                                    {activePetHotelHistory.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'#EDE0F7',color:'#4A2D7A'}}>🏨 {activePetHotelHistory.length}</span>}
+                                    {uniqueGroomDays > 0 && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">✂️ {uniqueGroomDays}d</span>}
+                                    {uniqueHotelDays > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'#EDE0F7',color:'#4A2D7A'}}>🏨 {uniqueHotelDays}d</span>}
                                 </div>
                              </div>
                         </div>
