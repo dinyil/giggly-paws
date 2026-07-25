@@ -61,28 +61,19 @@ const Login: React.FC = () => {
       {/* Main Card */}
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm relative overflow-hidden border border-purple-100">
         
-        {/* Purple top banner with bathtub illustration */}
-        <div className="relative flex flex-col items-center pt-6 pb-4" style={{background: 'linear-gradient(135deg, #6B4FA0, #9B75C8)'}}>
-          {/* Roof decoration */}
-          <img src="/Assets/roof.png" alt="" className="absolute -top-2 left-1/2 -translate-x-1/2 w-28 opacity-60 pointer-events-none" />
+        {/* Purple top banner with Primary Logo */}
+        <div className="relative flex flex-col items-center pt-8 pb-4" style={{background: 'linear-gradient(135deg, #6B4FA0, #9B75C8)'}}>
           
-          {/* Bathtub with pets - main hero */}
-          <div className="relative z-10 mt-6">
+          {/* Primary Logo 2 - main brand logo */}
+          <div className="relative z-10">
             <img 
-              src="/Assets/bathtub with pets.png" 
+              src="/Assets/Primary Logo 2 - without PET SALON & PET HOTEL.png" 
               alt="GigglyPaws" 
-              className="w-40 h-auto object-contain drop-shadow-lg"
+              className="w-52 h-auto object-contain drop-shadow-2xl"
             />
           </div>
           
-          {/* Store name */}
-          <h1 
-            className="text-2xl text-white mt-1 mb-1 relative z-10"
-            style={{fontFamily: 'Bubblegum Sans, cursive'}}
-          >
-            {storeSettings.name || 'GigglyPaws'}
-          </h1>
-          <p className="text-purple-200 text-xs mb-4 relative z-10" style={{fontFamily: 'Poppins, sans-serif'}}>
+          <p className="text-purple-200 text-xs mb-4 relative z-10 mt-2" style={{fontFamily: 'Poppins, sans-serif'}}>
             Enter your PIN to access the system
           </p>
         </div>

@@ -90,24 +90,17 @@ const Layout: React.FC = () => {
     <>
       {/* Sidebar Logo / Brand Area */}
       <div className="hidden lg:block px-4 pt-6 pb-4">
-        {/* Roof decoration */}
-        <div className="flex justify-center mb-2">
-          <img src="/Assets/roof.png" alt="" className="w-24 object-contain opacity-90" />
+        <div className="flex justify-center">
+          <img
+            src="/Assets/Primary Logo 2 - without PET SALON & PET HOTEL.png"
+            alt="GigglyPaws"
+            className="w-36 h-auto object-contain drop-shadow-lg"
+          />
         </div>
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-white/30">
-            {storeSettings.logo ? (
-              <img src={storeSettings.logo} alt="Logo" className="w-full h-full object-cover" />
-            ) : (
-              <Dog className="w-6 h-6 text-white" />
-            )}
-          </div>
-          <div className="overflow-hidden">
-            <h1 className="font-display text-xl text-white truncate" style={{fontFamily: 'Bubblegum Sans, cursive'}}>{storeSettings.name}</h1>
-            <p className="text-xs text-purple-200 flex items-center gap-1">
-               <span className="w-2 h-2 bg-yellow-300 rounded-full animate-pulse"></span> Online
-            </p>
-          </div>
+        <div className="flex justify-center mt-1">
+          <span className="flex items-center gap-1 text-xs text-purple-200">
+            <span className="w-2 h-2 bg-yellow-300 rounded-full animate-pulse"></span> Online
+          </span>
         </div>
       </div>
 
@@ -166,12 +159,11 @@ const Layout: React.FC = () => {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 w-full h-16 text-white flex items-center justify-between px-4 z-50 shadow-md" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
          <div className="flex items-center gap-2">
-            {storeSettings.logo ? (
-              <img src={storeSettings.logo} alt="Logo" className="w-6 h-6 object-contain" />
-            ) : (
-              <Dog className="w-6 h-6" />
-            )}
-            <span className="font-bold truncate max-w-[200px]" style={{fontFamily: 'Bubblegum Sans, cursive'}}>{storeSettings.name}</span>
+            <img
+              src="/Assets/Primary Logo 2 - without PET SALON & PET HOTEL.png"
+              alt="GigglyPaws"
+              className="h-10 w-auto object-contain"
+            />
          </div>
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
            {isMobileMenuOpen ? <X /> : <Menu />}
