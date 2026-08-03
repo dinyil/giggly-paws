@@ -263,7 +263,8 @@ const POS: React.FC = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
   const [gcashRef, setGcashRef] = useState('');
-  const [splitCashAmount, setSplitCashAmount] = useState<string>(''); 
+  const [splitCashAmount, setSplitCashAmount] = useState<string>('');
+  const [cashReceived, setCashReceived] = useState<string>(''); // For CASH payment change calc
   
   // Input Refs for Auto-Scroll Validation
   const cashInputRef = useRef<HTMLInputElement>(null);
@@ -554,6 +555,24 @@ const POS: React.FC = () => {
   };
 
   const handleFinalizeTransaction = () => {
+    if (paymentMethod === 'CASH') {
+        const received = Number(cashReceived);
+        if (!cashReceived || isNaN(received) || received <= 0) {
+            alert('Please enter the cash amount received.');
+            if (cashInputRef.current) {
+                cashInputRef.current.focus();
+                cashInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+        if (received < total) {
+            alert(`Insufficient cash. Total is ₱${total.toFixed(2)} but received ₱${received.toFixed(2)}.`);
+            if (cashInputRef.current) {
+                cashInputRef.current.focus();
+            }
+            return;
+        }
+    }
     if (paymentMethod === 'GCASH' && !gcashRef) {
       alert('Please enter GCash Reference Number');
       if (gcashRefInputRef.current) {
@@ -599,7 +618,7 @@ const POS: React.FC = () => {
       discount: discountAmount,
       paymentMethod,
       gcashRef: (paymentMethod === 'GCASH' || paymentMethod === 'SPLIT') ? gcashRef : undefined,
-      cashReceived: paymentMethod === 'SPLIT' ? Number(splitCashAmount) : undefined,
+      cashReceived: paymentMethod === 'CASH' ? Number(cashReceived) : paymentMethod === 'SPLIT' ? Number(splitCashAmount) : undefined,
       date: new Date().toISOString(),
       cashierId: currentUser?.id || 'unknown',
     };
@@ -646,6 +665,7 @@ const POS: React.FC = () => {
     setIsMobileCartOpen(false); 
     setGcashRef('');
     setSplitCashAmount('');
+    setCashReceived('');
     setGroomingFormData({ ownerName: '', contactNumber: '', email: '', petName: '', petBreed: '', petColor: '', weightSize: '', groomerId: '', hairCut: '' });
     setSelectedClient(null);
 
@@ -959,6 +979,69 @@ const POS: React.FC = () => {
 
                 {/* Payment Details Inputs */}
                 <div className="space-y-4 mb-2">
+                    {paymentMethod === 'CASH' && (
+                        <div className="bg-green-50 p-4 rounded-xl border border-green-100 animate-fade-in space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-green-800 uppercase ml-1 block mb-1">Cash Received</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400">₱</span>
+                                    <input
+                                        autoFocus
+                                        type="number"
+                                        ref={cashInputRef}
+                                        className="w-full pl-8 border border-green-200 rounded-lg p-3 font-mono text-xl focus:ring-2 focus:ring-green-500 outline-none bg-white text-zinc-900"
+                                        placeholder="0.00"
+                                        value={cashReceived}
+                                        onChange={e => setCashReceived(e.target.value)}
+                                        min={0}
+                                        step="0.01"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Quick amount buttons */}
+                            <div className="grid grid-cols-4 gap-2">
+                                {[20, 50, 100, 200, 500, 1000].filter(v => v >= total).slice(0, 4).concat(
+                                    [20, 50, 100, 200, 500, 1000].filter(v => v < total).slice(-2)
+                                ).slice(0, 4).map(amt => (
+                                    <button
+                                        key={amt}
+                                        type="button"
+                                        onClick={() => setCashReceived(String(amt))}
+                                        className="py-2 text-xs font-bold border border-green-200 rounded-lg bg-white hover:bg-green-100 text-green-800 transition-colors"
+                                    >
+                                        ₱{amt}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Change Display */}
+                            <div className={`rounded-xl p-3 text-center border-2 transition-all ${
+                                Number(cashReceived) >= total
+                                    ? 'bg-white border-green-400'
+                                    : Number(cashReceived) > 0
+                                    ? 'bg-red-50 border-red-200'
+                                    : 'bg-white border-green-100'
+                            }`}>
+                                {Number(cashReceived) > 0 && Number(cashReceived) < total ? (
+                                    <>
+                                        <p className="text-[10px] font-bold text-red-400 uppercase">Short By</p>
+                                        <p className="text-2xl font-bold text-red-500">₱{(total - Number(cashReceived)).toFixed(2)}</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-[10px] font-bold text-green-600 uppercase">Change</p>
+                                        <p className={`text-3xl font-bold ${
+                                            Number(cashReceived) >= total ? 'text-green-600' : 'text-gray-300'
+                                        }`}>
+                                            ₱{Math.max(0, Number(cashReceived) - total).toFixed(2)}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {paymentMethod === 'GCASH' && (
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
                             {storeSettings.gcashQr ? (

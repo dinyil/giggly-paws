@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useNavigate } from 'react-router-dom';
 import { Dog, ShieldCheck, CheckCircle } from '../components/ui/Icons';
@@ -16,10 +16,11 @@ const Setup: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // If system is already setup, redirect to login
-  if (isSystemSetup) {
-      navigate('/');
-      return null;
-  }
+  useEffect(() => {
+      if (isSystemSetup) {
+          navigate('/');
+      }
+  }, [isSystemSetup, navigate]);
 
   const handleSetup = async (e: React.FormEvent) => {
       e.preventDefault();

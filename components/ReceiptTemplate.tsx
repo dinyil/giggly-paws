@@ -95,7 +95,18 @@ const ReceiptTemplate: React.FC<ReceiptTemplateProps> = ({ transaction, settings
       </div>
 
       <div className="border-t border-black border-dashed pt-1 mt-2 space-y-1">
-          {transaction.paymentMethod === 'CASH' && <div className="flex justify-between"><span>Paid via Cash</span><span>₱{transaction.total.toFixed(2)}</span></div>}
+          {transaction.paymentMethod === 'CASH' && (
+              <>
+                <div className="flex justify-between"><span>Paid via Cash</span><span>₱{transaction.total.toFixed(2)}</span></div>
+                {transaction.cashReceived != null && (
+                    <div className="flex justify-between"><span>Cash Received</span><span>₱{transaction.cashReceived.toFixed(2)}</span></div>
+                )}
+                {transaction.cashReceived != null && (
+                    <div className="flex justify-between font-bold"><span>Change</span><span>₱{Math.max(0, transaction.cashReceived - transaction.total).toFixed(2)}</span></div>
+                )}
+              </>
+          )}
+
           {transaction.paymentMethod === 'GCASH' && (
               <>
                 <div className="flex justify-between"><span>Paid via GCash</span><span>₱{transaction.total.toFixed(2)}</span></div>

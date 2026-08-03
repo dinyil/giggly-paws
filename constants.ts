@@ -21,8 +21,8 @@ export const INITIAL_PRODUCT_CATEGORIES: string[] = ['FOOD', 'TOYS', 'ACCESSORIE
 export const INITIAL_SERVICE_CATEGORIES: string[] = ['GROOMING', 'SPA', 'CONSULTATION'];
 
 // Defined Credentials
-export const SUPABASE_URL = 'https://hqgynxrsutnbldznmnlo.supabase.co';
-export const SUPABASE_KEY = 'sb_publishable_R2GMdtA0eTSM0tn8mf_2sQ_3pavv_61';
+export const SUPABASE_URL = 'https://gsrnetpmsnvxykrleicr.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_Iw_O7mQxUvWEI-fgSqR4ZA_PeNnDwQK';
 
 export const INITIAL_STORE_SETTINGS: StoreSettings = {
   name: 'GigglyPaws Pet Shop',
@@ -65,7 +65,7 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   emailBodyCompleted: "Good news! <b>{petName}</b> is looking fresh, clean, and amazing. They are ready to be picked up at your convenience.",
 
   // Promo Templates
-  smsTemplatePromo: "GIGGLYPAWS PROMO: {promoName}! Get {discountValue}. {rules} Valid until {endDate}. Visit us at {shopName}!",
+  smsTemplatePromo: "{shopName} PROMO: {promoName}! Get {discountValue}. {rules} Valid until {endDate}. Visit us at {shopName}!",
   emailSubjectPromo: "Special Promo: {promoName} 🎉",
   emailBodyPromo: "Hello Fur Parent!\n\nWe have a special treat for you: {promoName}\n\nGet {discountValue}\n{rules}\n\nValid until: {endDate}\n\nVisit us at {shopName}, {address}",
 
