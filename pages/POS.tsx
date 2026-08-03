@@ -728,7 +728,7 @@ const POS: React.FC = () => {
               <div className={`w-16 h-16 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm transition-transform ${!isOutOfStock && 'group-hover:scale-110'}`}>
                 {product.isService ? <Scissors className="w-8 h-8 text-purple-900" /> : <ShoppingBag className="w-8 h-8 text-purple-900" />}
               </div>
-              <h3 className="font-bold text-zinc-900 text-sm line-clamp-2 group-hover:text-purple-900 leading-tight">{product.name}</h3>
+              <h3 className="font-bold text-zinc-900 text-sm group-hover:text-purple-900 leading-tight break-words w-full">{product.name}</h3>
               <p className="text-zinc-500 text-xs font-bold mt-1">₱{product.price}</p>
               {!product.isService && (
                  <span className={`text-[10px] mt-2 px-2 py-0.5 rounded-full font-bold ${product.stock > 10 ? 'bg-green-100 text-green-700' : isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
