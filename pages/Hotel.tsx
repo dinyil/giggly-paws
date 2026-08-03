@@ -49,7 +49,7 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
     room_number: room?.room_number || '',
     room_name: room?.room_name || '',
     room_type: room?.room_type || 'Standard',
-    daily_rate: room?.daily_rate || 0,
+    daily_rate: room?.daily_rate ? String(room.daily_rate) : '',
     capacity: room?.capacity || 1,
     description: room?.description || '',
     is_active: room?.is_active ?? true,
@@ -86,7 +86,15 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
           </div>
           <div>
             <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Daily Rate (₱) *</label>
-            <input type="number" min={0} value={form.daily_rate} onChange={e => set('daily_rate', parseFloat(e.target.value) || 0)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+            <input
+              type="number"
+              min={0}
+              value={form.daily_rate}
+              onChange={e => set('daily_rate', e.target.value)}
+              onFocus={e => { if (form.daily_rate === '0') set('daily_rate', ''); }}
+              placeholder="0"
+              className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none"
+            />
           </div>
           <div>
             <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Description</label>
@@ -102,8 +110,12 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
           <button
-            onClick={() => { if (!form.room_number || !form.room_name || form.daily_rate <= 0) return; onSave({ id: room?.id || crypto.randomUUID(), ...form }); }}
-            disabled={!form.room_number || !form.room_name || form.daily_rate <= 0}
+            onClick={() => {
+              const rate = parseFloat(String(form.daily_rate));
+              if (!form.room_number || !form.room_name || !rate || rate <= 0) return;
+              onSave({ id: room?.id || crypto.randomUUID(), ...form, daily_rate: rate });
+            }}
+            disabled={!form.room_number || !form.room_name || !parseFloat(String(form.daily_rate)) || parseFloat(String(form.daily_rate)) <= 0}
             className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40"
           >Save Room</button>
         </div>
