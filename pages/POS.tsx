@@ -669,11 +669,8 @@ const POS: React.FC = () => {
     setGroomingFormData({ ownerName: '', contactNumber: '', email: '', petName: '', petBreed: '', petColor: '', weightSize: '', groomerId: '', hairCut: '' });
     setSelectedClient(null);
 
-    if (hasServices) {
-        navigate('/grooming'); 
-    } else {
-        setReceiptSuccessOpen(true); 
-    }
+    // Always show receipt — if services were included, offer a shortcut to Grooming page
+    setReceiptSuccessOpen(true);
   };
 
   const handleActualPrint = () => {
@@ -896,9 +893,19 @@ const POS: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-3 pt-4 border-t border-zinc-100">
-                    <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowGroomingModal(false)}>Cancel</Button>
-                    <Button type="submit" className="flex-1">Proceed to Payment</Button>
+                <div className="pt-3 border-t border-zinc-100">
+                    {/* Skip option */}
+                    <button
+                        type="button"
+                        onClick={() => { setShowGroomingModal(false); setIsCheckoutOpen(true); }}
+                        className="w-full text-xs text-zinc-400 hover:text-zinc-600 py-2 transition-colors underline underline-offset-2 mb-2"
+                    >
+                        Skip details → Go straight to payment
+                    </button>
+                    <div className="flex gap-3">
+                        <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowGroomingModal(false)}>Cancel</Button>
+                        <Button type="submit" className="flex-1">Proceed to Payment</Button>
+                    </div>
                 </div>
             </form>
           </Dialog.Panel>
@@ -1144,7 +1151,14 @@ const POS: React.FC = () => {
       </Dialog>
 
       {/* Success / Receipt Modal */}
-      <Dialog open={receiptSuccessOpen} onClose={() => setReceiptSuccessOpen(false)} className="relative z-50">
+      <Dialog
+        open={receiptSuccessOpen}
+        onClose={() => {
+          setReceiptSuccessOpen(false);
+          if (lastTransaction?.items?.some((i: any) => i.isService)) navigate('/grooming');
+        }}
+        className="relative z-50"
+      >
         <div className="fixed inset-0 bg-purple-700/80 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-sm bg-purple-900 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
@@ -1164,8 +1178,15 @@ const POS: React.FC = () => {
                  <Button onClick={handleOpenPreview} className="w-full bg-blue-600 text-white border border-blue-500 hover:bg-blue-500 shadow-blue-900/30">
                      Preview Receipt
                  </Button>
-                 <Button variant="ghost" onClick={() => setReceiptSuccessOpen(false)} className="w-full text-zinc-500 hover:text-white hover:bg-transparent">
-                     Close
+                 <Button
+                     variant="ghost"
+                     onClick={() => {
+                         setReceiptSuccessOpen(false);
+                         if (lastTransaction?.items?.some((i: any) => i.isService)) navigate('/grooming');
+                     }}
+                     className="w-full text-zinc-500 hover:text-white hover:bg-transparent"
+                 >
+                     {lastTransaction?.items?.some((i: any) => i.isService) ? '✂️ Close & Go to Grooming' : 'Close'}
                  </Button>
              </div>
           </Dialog.Panel>
