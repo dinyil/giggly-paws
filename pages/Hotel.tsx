@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { HotelRoom, HotelBooking, HotelBookingStatus, Role, Client, Pet } from '../types';
+import { HotelRoom, HotelBooking, HotelBookingStatus, Role, Client, Pet, Transaction } from '../types';
+import ReceiptTemplate from '../components/ReceiptTemplate';
 import {
   BedDouble, Plus, X, Pencil, Trash2, Search, Calendar, CalendarDays,
   CheckCircle, Clock, Ban, Building2, ConciergeBell, LogIn, ChevronLeft,
@@ -517,7 +518,7 @@ const Hotel: React.FC = () => {
     addHotelRoom, updateHotelRoom, deleteHotelRoom,
     addHotelBooking, updateHotelBooking, deleteHotelBooking,
     checkInGuest, checkOutGuest,
-    currentUser, products
+    currentUser, products, transactions, storeSettings
   } = useStore();
 
   const isAdmin = currentUser?.role === Role.ADMIN;
@@ -532,6 +533,9 @@ const Hotel: React.FC = () => {
   const [preselectedDate, setPreselectedDate] = useState('');
   const [checkoutBooking, setCheckoutBooking] = useState<HotelBooking | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
+  const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
+  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('80mm');
+  const [isQrZoomed, setIsQrZoomed] = useState(false);
 
   // History filters
   const [historySearch, setHistorySearch] = useState('');
@@ -852,9 +856,69 @@ const Hotel: React.FC = () => {
       {checkoutBooking && (
         <CheckoutModal
           booking={checkoutBooking}
-          onConfirm={async (method, cash, ref, recalcTotal) => { await checkOutGuest(checkoutBooking.id, method, cash, ref, recalcTotal); setCheckoutBooking(null); }}
+          onConfirm={async (method, cash, ref, recalcTotal) => {
+            const bk = checkoutBooking; // capture before clearing
+            await checkOutGuest(bk.id, method, cash, ref, recalcTotal);
+            setCheckoutBooking(null);
+            // Build the receipt from booking data (mirrors checkOutGuest logic)
+            const room = hotelRooms.find(r => r.id === bk.room_id);
+            const addonProds = (bk.addon_ids || []).map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
+            const addonTotal = addonProds.reduce((s: number, p: any) => s + p.price, 0);
+            const stayAmt = recalcTotal !== undefined ? recalcTotal - addonTotal : bk.daily_rate * bk.total_nights;
+            const nightlyItem = { id: `hotel-stay-${bk.id}`, name: `Hotel Stay – ${room?.room_name || 'Room'} (${bk.total_nights} night${bk.total_nights !== 1 ? 's' : ''} × ₱${bk.daily_rate.toLocaleString()})`, price: stayAmt, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
+            const addonItems = addonProds.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
+            const allItems = [nightlyItem, ...addonItems];
+            const subtotal = allItems.reduce((s, i) => s + i.price, 0);
+            const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) / 100 : 0;
+            const vat = parseFloat((subtotal * vatRate).toFixed(2));
+            const total = parseFloat((subtotal + vat).toFixed(2));
+            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: 0, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
+          }}
           onClose={() => setCheckoutBooking(null)}
         />
+      )}
+
+      {/* Receipt Preview Modal */}
+      {receiptTransaction && (
+        <div className="fixed inset-0 bg-purple-900/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-purple-800 rounded-2xl p-4 shadow-2xl relative flex flex-col max-h-[90vh] w-full max-w-md">
+            <div className="flex justify-between items-center mb-4 text-white">
+              <h3 className="font-bold text-lg flex items-center gap-2"><Printer className="w-5 h-5" /> Print Receipt?</h3>
+              <button onClick={() => setReceiptTransaction(null)} className="p-2 hover:bg-white/10 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Paper size toggle */}
+            <div className="bg-purple-900/50 p-3 rounded-xl mb-4 flex items-center justify-between">
+              <span className="text-white text-sm font-bold">Paper Size</span>
+              <div className="flex bg-purple-900 rounded-lg p-1">
+                <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
+                <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-purple-900/30 rounded-xl p-4 flex justify-center items-start">
+              <div className="shadow-2xl shadow-black/50">
+                <ReceiptTemplate transaction={receiptTransaction} settings={storeSettings} paperSize={paperSize} isPreview={true} />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button onClick={() => setReceiptTransaction(null)} className="flex-1 border border-white/20 text-white py-2.5 rounded-xl font-semibold hover:bg-white/10">Skip</button>
+              <button
+                onClick={() => { setTimeout(() => window.print(), 300); }}
+                className="flex-[2] bg-white text-purple-900 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-50"
+              >
+                <Printer className="w-4 h-4" /> Print Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Print Layout */}
+      {receiptTransaction && (
+        <div id="printable-content" className="hidden print:block fixed inset-0 bg-white z-[9999] p-2">
+          <ReceiptTemplate transaction={receiptTransaction} settings={storeSettings} paperSize={paperSize} />
+        </div>
       )}
 
       {/* Delete confirmation */}
