@@ -596,28 +596,39 @@ const Grooming: React.FC = () => {
 
   // --- PRINT RECEIPT LOGIC ---
   const handlePrintReceipt = (apt: GroomingAppointment) => {
-      // 2. Fallback: Construct a Mock Transaction for Printing
-      // This ensures printing ALWAYS works even if the transaction record is missing or hard to find
       const service = products.find(p => p.id === apt.serviceId);
       const price = service ? service.price : 0;
+      
+      // Build add-on cart items
+      const addonCartItems = (apt.addonIds || []).flatMap(id => {
+          const p = products.find(prod => prod.id === id);
+          if (!p) return [];
+          return [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }];
+      });
+      const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price, 0);
+      const combinedPrice = price + addonTotal;
+
       const vatRate = storeSettings.vatRate / 100;
-      const total = price;
+      const total = combinedPrice;
       const vat = (total / (1 + vatRate)) * vatRate;
       const subtotal = total - vat;
 
       const mockTransaction: Transaction = {
-          id: `A-${apt.id.slice(-6)}`, // Fake ID for display
-          items: [{
-              ...service!,
-              quantity: 1,
-              appliedDiscounts: []
-          }],
+          id: `A-${apt.id.slice(-6)}`,
+          items: [
+              {
+                  ...service!,
+                  quantity: 1,
+                  appliedDiscounts: []
+              },
+              ...addonCartItems
+          ],
           subtotal,
           vat,
           total,
           discount: 0,
-          paymentMethod: 'CASH', // Default display if unknown
-          date: new Date().toISOString(), // Current time for reprint
+          paymentMethod: 'CASH',
+          date: new Date().toISOString(),
           cashierId: 'REPRINT'
       };
 
@@ -773,6 +784,15 @@ const Grooming: React.FC = () => {
                        const serviceName = groomingServices.find(s => s.id === apt.serviceId)?.name || 'Unknown Service';
                        const isWalkIn = (apt.hairCut || '').includes('Paid at POS');
                        
+                       // Compute card total: base service + add-ons
+                       const serviceProduct = products.find(p => p.id === apt.serviceId);
+                       const baseServicePrice = serviceProduct?.price || 0;
+                       const aptAddonTotal = (apt.addonIds || []).reduce((sum, id) => {
+                           const p = products.find(prod => prod.id === id);
+                           return sum + (p ? p.price : 0);
+                       }, 0);
+                       const aptTotal = baseServicePrice + aptAddonTotal;
+                       
                        return (
                            <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                                <div className="flex justify-between items-start mb-3 relative z-10">
@@ -801,9 +821,21 @@ const Grooming: React.FC = () => {
                                    {apt.hairCut && <div className="mt-2 text-xs bg-yellow-50 text-yellow-800 p-2 rounded-lg border border-yellow-100 italic"><span className="font-bold not-italic">✄ Style:</span> {apt.hairCut}</div>}
                                </div>
                                <div className="space-y-2 mb-6 relative z-10">
-                                    <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3"><span className="text-gray-400">Service</span><span className="font-bold text-zinc-800 text-right max-w-[60%] truncate">{serviceName}</span></div>
-                                    <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
-                               </div>
+                                     <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3"><span className="text-gray-400">Service</span><span className="font-bold text-zinc-800 text-right max-w-[60%] truncate">{serviceName}</span></div>
+                                     <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
+                                     {(apt.addonIds || []).length > 0 && (
+                                         <div className="flex justify-between items-center text-sm">
+                                             <span className="text-gray-400">Add-ons</span>
+                                             <span className="text-xs text-zinc-500">{(apt.addonIds || []).length} item{(apt.addonIds || []).length > 1 ? 's' : ''} (+₱{aptAddonTotal.toFixed(2)})</span>
+                                         </div>
+                                     )}
+                                     {!isWalkIn && (
+                                         <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2 mt-1">
+                                             <span className="font-bold text-zinc-700">Total</span>
+                                             <span className="font-bold text-purple-700">₱{aptTotal.toFixed(2)}</span>
+                                         </div>
+                                     )}
+                                </div>
                                <div className="mt-auto relative z-10">
                                    {apt.status === 'SCHEDULED' && (
                                        apt.date === today ? (
