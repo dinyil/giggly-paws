@@ -52,7 +52,8 @@ const Clients: React.FC = () => {
     petName: '',
     petBreed: '',
     petColor: '',
-    weightSize: ''
+    weightSize: '',
+    species: '' as '' | 'DOG' | 'CAT' | 'OTHER'
   });
 
   // Pet Update Confirmation State
@@ -197,13 +198,14 @@ const Clients: React.FC = () => {
           petName: pet.name,
           petBreed: pet.breed || '',
           petColor: pet.color || '',
-          weightSize: pet.weightSize || ''
+          weightSize: pet.weightSize || '',
+          species: pet.species || ''
       });
   };
 
   const cancelPetEdit = () => {
       setEditingPetIndex(null);
-      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '' });
+      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '' });
   };
 
   const handleAddPet = () => {
@@ -211,12 +213,13 @@ const Clients: React.FC = () => {
       const newPet: Pet = {
           id: Date.now().toString() + Math.random().toString().slice(2,5),
           name: petInput.petName,
+          species: petInput.species || undefined,
           breed: petInput.petBreed,
           color: petInput.petColor,
           weightSize: petInput.weightSize
       };
       setTempPets(prev => [...prev, newPet]);
-      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '' });
+      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '' });
   };
 
   const handlePrepareUpdatePet = () => {
@@ -229,6 +232,7 @@ const Clients: React.FC = () => {
       if (originalPet.breed !== petInput.petBreed) newChanges.push(`Breed: "${originalPet.breed || 'N/A'}" → "${petInput.petBreed}"`);
       if (originalPet.color !== petInput.petColor) newChanges.push(`Color: "${originalPet.color || 'N/A'}" → "${petInput.petColor}"`);
       if (originalPet.weightSize !== petInput.weightSize) newChanges.push(`Size: "${originalPet.weightSize || 'N/A'}" → "${petInput.weightSize}"`);
+      if ((originalPet.species || '') !== petInput.species) newChanges.push(`Species: "${originalPet.species || 'N/A'}" → "${petInput.species || 'N/A'}"`);
 
       if (newChanges.length === 0) {
           // No changes, just close edit mode
@@ -245,6 +249,7 @@ const Clients: React.FC = () => {
       const updatedPet = {
           ...tempPets[editingPetIndex],
           name: petInput.petName,
+          species: petInput.species || undefined,
           breed: petInput.petBreed,
           color: petInput.petColor,
           weightSize: petInput.weightSize
@@ -284,6 +289,7 @@ const Clients: React.FC = () => {
         finalPets.push({
             id: Date.now().toString() + Math.random().toString().slice(2,5),
             name: petInput.petName,
+            species: petInput.species || undefined,
             breed: petInput.petBreed,
             color: petInput.petColor,
             weightSize: petInput.weightSize
@@ -569,12 +575,12 @@ const Clients: React.FC = () => {
                                 }`}
                               >
                                   <div className="flex items-center gap-3">
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${editingPetIndex === idx ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-                                          <Dog className="w-4 h-4" />
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base ${editingPetIndex === idx ? 'bg-blue-500 text-white' : 'bg-zinc-100'}`}>
+                                          {p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}
                                       </div>
                                       <div>
                                           <p className="text-sm font-bold text-zinc-900">{p.name}</p>
-                                          <p className="text-[10px] text-gray-500 uppercase">{p.breed || 'Unknown'} • {p.color || 'No Color'}</p>
+                                          <p className="text-[10px] text-gray-500 uppercase">{p.species ? `${p.species} · ` : ''}{p.breed || 'Unknown'} · {p.color || 'No Color'}</p>
                                       </div>
                                   </div>
                                   <button 
@@ -596,6 +602,26 @@ const Clients: React.FC = () => {
                          {editingPetIndex !== null ? 'Editing Pet Details' : 'Add New Pet'}
                       </p>
                       <div className="grid grid-cols-2 gap-3 mb-3">
+                        {/* Species Toggle */}
+                        <div className="col-span-2">
+                            <label className={labelClass}>Species</label>
+                            <div className="flex gap-2 mt-1">
+                              {(['DOG', 'CAT', 'OTHER'] as const).map(s => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => setPetInput({...petInput, species: petInput.species === s ? '' : s})}
+                                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
+                                    petInput.species === s
+                                      ? s === 'DOG' ? 'bg-amber-500 text-white border-amber-500' : s === 'CAT' ? 'bg-purple-600 text-white border-purple-600' : 'bg-zinc-500 text-white border-zinc-500'
+                                      : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
+                                  }`}
+                                >
+                                  {s === 'DOG' ? '🐶 Dog' : s === 'CAT' ? '🐱 Cat' : '🐾 Other'}
+                                </button>
+                              ))}
+                            </div>
+                        </div>
                         <div>
                             <label className={labelClass}>Pet Name</label>
                             <input 
@@ -753,12 +779,12 @@ const Clients: React.FC = () => {
                                 : 'bg-white border-transparent hover:border-zinc-300'
                             }`}
                          >
-                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activePetId === pet.id ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-                                 <Dog className="w-5 h-5" />
+                             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${activePetId === pet.id ? 'bg-purple-100' : 'bg-zinc-100'}`}>
+                                 {pet.species === 'CAT' ? '🐱' : pet.species === 'OTHER' ? '🐾' : '🐶'}
                              </div>
                              <div>
                                  <p className="font-bold text-sm text-zinc-900">{pet.name}</p>
-                                 <p className="text-xs text-gray-500">{pet.breed || 'Unknown Breed'}</p>
+                                 <p className="text-xs text-gray-500">{pet.species ? `${pet.species} · ` : ''}{pet.breed || 'Unknown Breed'}</p>
                              </div>
                          </div>
                      ))}
@@ -781,8 +807,10 @@ const Clients: React.FC = () => {
                         <div className="p-6 border-b border-zinc-100 flex justify-between items-start">
                             <div>
                                 <h2 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
+                                    <span className="text-3xl">{activePet.species === 'CAT' ? '🐱' : activePet.species === 'OTHER' ? '🐾' : '🐶'}</span>
                                     {activePet.name}
-                                    <span className="text-sm font-normal text-gray-500 px-2 py-1 bg-zinc-100 rounded-lg">{activePet.breed}</span>
+                                    {activePet.species && <span className={`text-xs font-bold px-2 py-1 rounded-full ${ activePet.species === 'DOG' ? 'bg-amber-100 text-amber-700' : activePet.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>{activePet.species}</span>}
+                                    {activePet.breed && <span className="text-sm font-normal text-gray-500 px-2 py-1 bg-zinc-100 rounded-lg">{activePet.breed}</span>}
                                 </h2>
                                 <div className="flex gap-4 mt-2 text-sm text-gray-600">
                                     <span>🎨 {activePet.color || 'N/A'}</span>

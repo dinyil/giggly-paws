@@ -1291,9 +1291,12 @@ const Grooming: React.FC = () => {
                                         onClick={() => selectPet(pet)}
                                         className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group"
                                     >
-                                        <div>
-                                            <p className="text-sm font-bold text-zinc-900">{pet.name}</p>
-                                            <p className="text-xs text-gray-500">{pet.breed}</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">{pet.species === 'CAT' ? '🐱' : pet.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                                            <div>
+                                                <p className="text-sm font-bold text-zinc-900">{pet.name}</p>
+                                                <p className="text-xs text-gray-500">{pet.species ? `${pet.species} · ` : ''}{pet.breed || 'Unknown Breed'}</p>
+                                            </div>
                                         </div>
                                         <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>

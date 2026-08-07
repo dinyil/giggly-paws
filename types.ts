@@ -104,6 +104,7 @@ export interface GroomingAppointment {
 export interface Pet {
   id: string;
   name: string;
+  species?: 'DOG' | 'CAT' | 'OTHER'; // Dog, Cat, or Other
   breed?: string;
   color?: string;
   weightSize?: string;
