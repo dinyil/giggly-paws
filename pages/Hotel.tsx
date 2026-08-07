@@ -209,11 +209,14 @@ const BookingForm: React.FC<{
   const addonTotal = form.addon_ids.reduce((s, id) => { const p = products.find(x => x.id === id); return s + (p?.price || 0); }, 0);
   const total = (selectedRoom?.daily_rate || 0) * nights + addonTotal;
 
-  const conflict = hotelBookings.some(b =>
-    b.id !== booking?.id && b.room_id === form.room_id &&
-    b.status !== 'CANCELLED' && b.status !== 'CHECKED_OUT' &&
-    form.check_in < b.check_out && form.check_out > b.check_in
-  );
+  const conflict = hotelBookings.some(b => {
+    if (b.id === booking?.id) return false;
+    if (b.room_id !== form.room_id) return false;
+    if (b.status === 'CANCELLED' || b.status === 'CHECKED_OUT') return false;
+    // Exclude overdue CHECKED_IN stays whose scheduled check_out already passed
+    if (b.status === 'CHECKED_IN' && b.check_out < today) return false;
+    return form.check_in < b.check_out && form.check_out > b.check_in;
+  });
 
   const handleSave = () => {
     if (!form.room_id || !form.pet_name || !form.owner_name || conflict) return;
@@ -561,15 +564,23 @@ const Hotel: React.FC = () => {
     COMPLETED: hotelBookings.filter(b => b.status === 'CHECKED_OUT' || b.status === 'CANCELLED').length,
   }), [hotelBookings, today]);
 
-  // Is in history range
-  const isInRange = (dateStr: string) => {
+  // Is in history range — uses actual_check_out (real checkout datetime) when available
+  const isInRange = (b: HotelBooking) => {
     if (historyRange === 'ALL') return true;
+    // Use actual checkout date (real) vs scheduled — actual_check_out is an ISO timestamp
+    const effectiveDateStr = b.actual_check_out
+      ? new Date(b.actual_check_out).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+      : b.check_out;
+    if (historyRange === 'TODAY') return effectiveDateStr === today;
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
     const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const [y, m, d] = dateStr.split('-').map(Number);
+    const [y, m, d] = effectiveDateStr.split('-').map(Number);
     const checkDate = new Date(y, m - 1, d);
-    if (historyRange === 'TODAY') return dateStr === today;
-    if (historyRange === 'WEEK') { const w = new Date(todayDate); w.setDate(todayDate.getDate() - 7); return checkDate >= w && checkDate <= todayDate; }
+    if (historyRange === 'WEEK') {
+      const w = new Date(todayDate);
+      w.setDate(todayDate.getDate() - 7);
+      return checkDate >= w && checkDate <= todayDate;
+    }
     if (historyRange === 'MONTH') return y === now.getFullYear() && m === now.getMonth() + 1;
     return true;
   };
@@ -581,7 +592,7 @@ const Hotel: React.FC = () => {
       if (activeTab === 'OCCUPIED')  return b.status === 'CHECKED_IN';
       if (activeTab === 'COMPLETED') {
         if (b.status !== 'CHECKED_OUT' && b.status !== 'CANCELLED') return false;
-        if (!isInRange(b.check_out)) return false;
+        if (!isInRange(b)) return false;
         if (historySearch) {
           const norm = normalizeText(historySearch);
           return normalizeText(b.pet_name).includes(norm) || normalizeText(b.owner_name).includes(norm);
@@ -590,7 +601,12 @@ const Hotel: React.FC = () => {
       }
       return false;
     }).sort((a, b) => {
-      if (activeTab === 'COMPLETED') return b.check_out.localeCompare(a.check_out);
+      if (activeTab === 'COMPLETED') {
+        // Sort by actual checkout date (most recent first)
+        const aDate = a.actual_check_out || a.check_out;
+        const bDate = b.actual_check_out || b.check_out;
+        return bDate.localeCompare(aDate);
+      }
       return a.check_in.localeCompare(b.check_in);
     });
   }, [hotelBookings, activeTab, today, historySearch, historyRange]);
