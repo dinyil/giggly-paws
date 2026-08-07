@@ -1295,7 +1295,7 @@ const Grooming: React.FC = () => {
                                             <span className="text-lg">{pet.species === 'CAT' ? '🐱' : pet.species === 'OTHER' ? '🐾' : '🐶'}</span>
                                             <div>
                                                 <p className="text-sm font-bold text-zinc-900">{pet.name}</p>
-                                                <p className="text-xs text-gray-500">{pet.species ? `${pet.species} · ` : ''}{pet.breed || 'Unknown Breed'}</p>
+                                                <p className="text-xs text-gray-500">{pet.species === 'OTHER' ? (pet.speciesLabel || 'Other') : pet.species}{pet.species ? ' · ' : ''}{pet.breed || 'Unknown Breed'}</p>
                                             </div>
                                         </div>
                                         <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />

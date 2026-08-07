@@ -311,7 +311,7 @@ const BookingForm: React.FC<{
                     <button key={p.id} onMouseDown={() => selectPet(p)} className="w-full text-left px-4 py-2.5 hover:bg-zinc-50 text-sm border-b border-zinc-100 last:border-0 flex items-center gap-2">
                       <span className="text-base">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
                       <span className="font-semibold">{p.name}</span>
-                      {p.species && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.species === 'DOG' ? 'bg-amber-100 text-amber-700' : p.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-500'}`}>{p.species}</span>}
+                      {p.species && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.species === 'DOG' ? 'bg-amber-100 text-amber-700' : p.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-500'}`}>{p.species === 'OTHER' ? (p.speciesLabel || 'Other') : p.species}</span>}
                       {p.breed && <span className="text-zinc-400">{p.breed}</span>}
                     </button>
                   ))}

@@ -105,6 +105,7 @@ export interface Pet {
   id: string;
   name: string;
   species?: 'DOG' | 'CAT' | 'OTHER'; // Dog, Cat, or Other
+  speciesLabel?: string;               // Custom label when species = 'OTHER' (e.g. "Rabbit", "Bird")
   breed?: string;
   color?: string;
   weightSize?: string;

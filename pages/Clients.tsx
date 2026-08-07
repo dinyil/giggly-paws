@@ -53,7 +53,8 @@ const Clients: React.FC = () => {
     petBreed: '',
     petColor: '',
     weightSize: '',
-    species: '' as '' | 'DOG' | 'CAT' | 'OTHER'
+    species: '' as '' | 'DOG' | 'CAT' | 'OTHER',
+    speciesOther: '' // custom label when species = OTHER
   });
 
   // Pet Update Confirmation State
@@ -143,7 +144,7 @@ const Clients: React.FC = () => {
   const openAddModal = () => {
     setEditingClient(null);
     setFormData({ ownerName: '', contactNumber: '', email: '', address: '', notes: '' });
-    setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '' });
+    setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
     setTempPets([]);
     setEditingPetIndex(null);
     setIsModalOpen(true);
@@ -161,7 +162,7 @@ const Clients: React.FC = () => {
     // Load existing pets
     setTempPets(client.pets ? [...client.pets] : []);
     // Clear input for adding new
-    setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '' });
+    setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
     setEditingPetIndex(null);
     setIsModalOpen(true);
   };
@@ -199,27 +200,29 @@ const Clients: React.FC = () => {
           petBreed: pet.breed || '',
           petColor: pet.color || '',
           weightSize: pet.weightSize || '',
-          species: pet.species || ''
+          species: pet.species || '',
+          speciesOther: pet.speciesLabel || ''
       });
   };
 
   const cancelPetEdit = () => {
       setEditingPetIndex(null);
-      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '' });
+      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
   };
 
   const handleAddPet = () => {
-      if (!petInput.petName) return;
+      if (!petInput.petName || !petInput.species) return;
       const newPet: Pet = {
           id: Date.now().toString() + Math.random().toString().slice(2,5),
           name: petInput.petName,
-          species: petInput.species || undefined,
+          species: petInput.species,
+          speciesLabel: petInput.species === 'OTHER' ? (petInput.speciesOther || 'Other') : undefined,
           breed: petInput.petBreed,
           color: petInput.petColor,
           weightSize: petInput.weightSize
       };
       setTempPets(prev => [...prev, newPet]);
-      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '' });
+      setPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
   };
 
   const handlePrepareUpdatePet = () => {
@@ -250,6 +253,7 @@ const Clients: React.FC = () => {
           ...tempPets[editingPetIndex],
           name: petInput.petName,
           species: petInput.species || undefined,
+          speciesLabel: petInput.species === 'OTHER' ? (petInput.speciesOther || 'Other') : undefined,
           breed: petInput.petBreed,
           color: petInput.petColor,
           weightSize: petInput.weightSize
@@ -285,11 +289,12 @@ const Clients: React.FC = () => {
     // Logic: If user typed in pet inputs but didn't click "Add", we should add it automatically
     // ONLY if not in edit mode (to prevent accidental dupes or overwrites)
     let finalPets = [...tempPets];
-    if (editingPetIndex === null && petInput.petName) {
+    if (editingPetIndex === null && petInput.petName && petInput.species) {
         finalPets.push({
             id: Date.now().toString() + Math.random().toString().slice(2,5),
             name: petInput.petName,
-            species: petInput.species || undefined,
+            species: petInput.species,
+            speciesLabel: petInput.species === 'OTHER' ? (petInput.speciesOther || 'Other') : undefined,
             breed: petInput.petBreed,
             color: petInput.petColor,
             weightSize: petInput.weightSize
@@ -580,7 +585,7 @@ const Clients: React.FC = () => {
                                       </div>
                                       <div>
                                           <p className="text-sm font-bold text-zinc-900">{p.name}</p>
-                                          <p className="text-[10px] text-gray-500 uppercase">{p.species ? `${p.species} · ` : ''}{p.breed || 'Unknown'} · {p.color || 'No Color'}</p>
+                                          <p className="text-[10px] text-gray-500 uppercase">{p.species === 'OTHER' ? (p.speciesLabel || 'Other') : p.species ? p.species : ''}{p.species ? ' · ' : ''}{p.breed || 'Unknown'} · {p.color || 'No Color'}</p>
                                       </div>
                                   </div>
                                   <button 
@@ -602,18 +607,18 @@ const Clients: React.FC = () => {
                          {editingPetIndex !== null ? 'Editing Pet Details' : 'Add New Pet'}
                       </p>
                       <div className="grid grid-cols-2 gap-3 mb-3">
-                        {/* Species Toggle */}
+                        {/* Species Toggle — Required */}
                         <div className="col-span-2">
-                            <label className={labelClass}>Species</label>
+                            <label className={labelClass}>Species <span className="text-red-500">*</span></label>
                             <div className="flex gap-2 mt-1">
                               {(['DOG', 'CAT', 'OTHER'] as const).map(s => (
                                 <button
                                   key={s}
                                   type="button"
-                                  onClick={() => setPetInput({...petInput, species: petInput.species === s ? '' : s})}
-                                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
+                                  onClick={() => setPetInput({...petInput, species: s, speciesOther: s !== 'OTHER' ? '' : petInput.speciesOther})}
+                                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                                     petInput.species === s
-                                      ? s === 'DOG' ? 'bg-amber-500 text-white border-amber-500' : s === 'CAT' ? 'bg-purple-600 text-white border-purple-600' : 'bg-zinc-500 text-white border-zinc-500'
+                                      ? s === 'DOG' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : s === 'CAT' ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-zinc-600 text-white border-zinc-600 shadow-md'
                                       : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
                                   }`}
                                 >
@@ -621,6 +626,20 @@ const Clients: React.FC = () => {
                                 </button>
                               ))}
                             </div>
+                            {/* Show "Specify" input when OTHER is selected */}
+                            {petInput.species === 'OTHER' && (
+                              <input
+                                type="text"
+                                className={`${inputClass} mt-2`}
+                                value={petInput.speciesOther}
+                                onChange={e => setPetInput({...petInput, speciesOther: e.target.value})}
+                                placeholder="e.g. Rabbit, Bird, Hamster..."
+                                autoFocus
+                              />
+                            )}
+                            {!petInput.species && (
+                              <p className="text-[10px] text-red-500 mt-1 font-medium">Please select a species to continue</p>
+                            )}
                         </div>
                         <div>
                             <label className={labelClass}>Pet Name</label>
@@ -688,8 +707,8 @@ const Clients: React.FC = () => {
                                 size="sm" 
                                 variant="secondary" 
                                 onClick={handleAddPet} 
-                                disabled={!petInput.petName} 
-                                className="w-full border-blue-200 text-blue-700 hover:bg-blue-100"
+                                disabled={!petInput.petName || !petInput.species || (petInput.species === 'OTHER' && !petInput.speciesOther.trim())} 
+                                className="w-full border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-40"
                               >
                                 Add Pet to List
                               </Button>
@@ -784,7 +803,7 @@ const Clients: React.FC = () => {
                              </div>
                              <div>
                                  <p className="font-bold text-sm text-zinc-900">{pet.name}</p>
-                                 <p className="text-xs text-gray-500">{pet.species ? `${pet.species} · ` : ''}{pet.breed || 'Unknown Breed'}</p>
+                                 <p className="text-xs text-gray-500">{pet.species === 'OTHER' ? (pet.speciesLabel || 'Other') : pet.species || ''}{pet.species ? ' · ' : ''}{pet.breed || 'Unknown Breed'}</p>
                              </div>
                          </div>
                      ))}
@@ -809,7 +828,7 @@ const Clients: React.FC = () => {
                                 <h2 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
                                     <span className="text-3xl">{activePet.species === 'CAT' ? '🐱' : activePet.species === 'OTHER' ? '🐾' : '🐶'}</span>
                                     {activePet.name}
-                                    {activePet.species && <span className={`text-xs font-bold px-2 py-1 rounded-full ${ activePet.species === 'DOG' ? 'bg-amber-100 text-amber-700' : activePet.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>{activePet.species}</span>}
+                                    {activePet.species && <span className={`text-xs font-bold px-2 py-1 rounded-full ${ activePet.species === 'DOG' ? 'bg-amber-100 text-amber-700' : activePet.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>{activePet.species === 'OTHER' ? (activePet.speciesLabel || 'Other') : activePet.species}</span>}
                                     {activePet.breed && <span className="text-sm font-normal text-gray-500 px-2 py-1 bg-zinc-100 rounded-lg">{activePet.breed}</span>}
                                 </h2>
                                 <div className="flex gap-4 mt-2 text-sm text-gray-600">
