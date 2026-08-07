@@ -33,7 +33,7 @@ const sanitizeContactNumber = (num: string) => {
 };
 
 const Grooming: React.FC = () => {
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, products, users, clients, storeSettings, addLog, checkAndIncrementSms, addTransaction, currentUser, discounts } = useStore();
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, products, users, clients, storeSettings, addLog, checkAndIncrementSms, addTransaction, currentUser, discounts, transactions } = useStore();
   const { startBroadcast } = useBroadcast(); // Use the background broadcaster queue
   
   // FIX: Force Philippine Time (Asia/Manila) regardless of system time for filtering
@@ -598,8 +598,22 @@ const Grooming: React.FC = () => {
   const handlePrintReceipt = (apt: GroomingAppointment) => {
       const service = products.find(p => p.id === apt.serviceId);
       const price = service ? service.price : 0;
-      
-      // Build add-on cart items
+
+      // 1. Try to find the REAL transaction from the database first
+      //    Match: transaction must contain this service as an item AND owner name matches (via grooming appointment)
+      const realTransaction = transactions.find(t =>
+          t.items?.some(item => item.id === apt.serviceId)
+          && new Date(t.date).toDateString() === new Date(apt.date).toDateString()
+      );
+
+      if (realTransaction) {
+          // Use the actual saved transaction — correct payment method, cashier, date, totals
+          setPrintingTransaction(realTransaction);
+          setShowReceiptPreview(true);
+          return;
+      }
+
+      // 2. Fallback: build from appointment data (no saved transaction found, e.g. old records)
       const addonCartItems = (apt.addonIds || []).flatMap(id => {
           const p = products.find(prod => prod.id === id);
           if (!p) return [];
@@ -613,14 +627,10 @@ const Grooming: React.FC = () => {
       const vat = (total / (1 + vatRate)) * vatRate;
       const subtotal = total - vat;
 
-      const mockTransaction: Transaction = {
+      const fallbackTransaction: Transaction = {
           id: `A-${apt.id.slice(-6)}`,
           items: [
-              {
-                  ...service!,
-                  quantity: 1,
-                  appliedDiscounts: []
-              },
+              { ...service!, quantity: 1, appliedDiscounts: [] },
               ...addonCartItems
           ],
           subtotal,
@@ -628,11 +638,11 @@ const Grooming: React.FC = () => {
           total,
           discount: 0,
           paymentMethod: 'CASH',
-          date: new Date().toISOString(),
+          date: apt.date,
           cashierId: 'REPRINT'
       };
 
-      setPrintingTransaction(mockTransaction);
+      setPrintingTransaction(fallbackTransaction);
       setShowReceiptPreview(true);
   };
 
