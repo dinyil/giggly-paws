@@ -292,3 +292,27 @@ BEGIN
     CHECK (receipt_paper_size IN ('48mm', '58mm', '80mm'));
   END IF;
 END $$;
+
+-- =======================================================
+-- MIGRATION: Add booking_type and pet_size to hotel_bookings
+-- Run this once in your Supabase SQL Editor
+-- =======================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'hotel_bookings'
+    AND column_name = 'booking_type'
+  ) THEN
+    ALTER TABLE hotel_bookings ADD COLUMN booking_type text;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'hotel_bookings'
+    AND column_name = 'pet_size'
+  ) THEN
+    ALTER TABLE hotel_bookings ADD COLUMN pet_size text;
+  END IF;
+END $$;
+

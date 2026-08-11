@@ -28,6 +28,51 @@ const fmtDate = (d: string) =>
 
 const normalizeText = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// ─── Official Giggly Paws Hotel Rate Matrix ────────────────────────────────────
+
+export type BookingTypeKey = 'DAYCARE' | 'OVERNIGHT' | 'STAYCATION_3D2N' | 'STAYCATION_4D3N' | 'VACATION';
+export type PetSizeKey = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+
+export const BOOKING_TYPE_LABELS: Record<BookingTypeKey, string> = {
+  DAYCARE:          'Daycare (9AM–5:30PM)',
+  OVERNIGHT:        'Overnight (9AM–9AM)',
+  STAYCATION_3D2N:  'Staycation · 3 Days & 2 Nights',
+  STAYCATION_4D3N:  'Staycation · 4 Days & 3 Nights (FREE Basic Groom)',
+  VACATION:         'Vacation · 7 Days & 6 Nights (FREE Luxury Groom)',
+};
+
+export const BOOKING_TYPE_NIGHTS: Record<BookingTypeKey, number> = {
+  DAYCARE:          1,
+  OVERNIGHT:        1,
+  STAYCATION_3D2N:  3,
+  STAYCATION_4D3N:  4,
+  VACATION:         7,
+};
+
+export const PET_SIZES: PetSizeKey[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+export const HOTEL_RATES: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
+  DAYCARE:         { XS: 400,  S: 450,  M: 500,  L: 650,  XL: 700,  XXL: 800  },
+  OVERNIGHT:       { XS: 700,  S: 800,  M: 850,  L: 1100, XL: 1200, XXL: 1500 },
+  STAYCATION_3D2N: { XS: 1300, S: 1500, M: 1600, L: 2100, XL: 2300, XXL: 3800 },
+  STAYCATION_4D3N: { XS: 2000, S: 2300, M: 2450, L: 3200, XL: 3500, XXL: 4400 },
+  VACATION:        { XS: 4000, S: 4600, M: 4900, L: 6400, XL: 7000, XXL: 8800 },
+};
+
+// Late checkout rates: [XS/S/M rate, L/XL/XXL rate]
+export const LATE_CHECKOUT_RATES: { label: string; small: number | 'daycare'; large: number | 'daycare' }[] = [
+  { label: '1 Hour Late', small: 100, large: 150 },
+  { label: '2 Hours Late', small: 200, large: 300 },
+  { label: '3 Hours Late (Daycare Fee)', small: 'daycare', large: 'daycare' },
+];
+
+// Additional hotel services (flat fees)
+export const HOTEL_EXTRAS = [
+  { id: 'meal-boiled-chicken', label: 'Meal Prep: Boiled Chicken w/ Veggies', price: 150 },
+  { id: 'reheat-food', label: 'Reheating (per overnight stay)', price: 100 },
+  { id: 'special-instruction', label: 'Special Instruction (per overnight stay)', price: 250 },
+];
+
 type HotelTab = 'UPCOMING' | 'ARRIVING' | 'OCCUPIED' | 'COMPLETED';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -137,23 +182,42 @@ const BookingForm: React.FC<{
   const { hotelRooms, hotelBookings, clients, products, currentUser } = useStore();
   const today = getPhToday();
   const activeRooms = hotelRooms.filter(r => r.is_active);
-  const services = products.filter(p => p.isService);
+
+  const existingType = (booking?.booking_type as BookingTypeKey) || 'OVERNIGHT';
+  const existingSize = (booking?.pet_size as PetSizeKey) || 'S';
+
+  const [bookingType, setBookingType] = useState<BookingTypeKey>(existingType);
+  const [petSize, setPetSize] = useState<PetSizeKey>(existingSize);
+
+  // Auto-calc check_out from booking type
+  const typeNights = BOOKING_TYPE_NIGHTS[bookingType];
+  const defaultCheckIn = booking?.check_in || preselectedDate || today;
+  const defaultCheckOut = booking?.check_out || addDays(defaultCheckIn, typeNights);
 
   const [form, setForm] = useState({
     room_id: booking?.room_id || preselectedRoomId || '',
     pet_name: booking?.pet_name || '',
-    pet_breed: '',
     owner_name: booking?.owner_name || '',
     contact_number: booking?.contact_number || '',
     email: booking?.email || '',
-    check_in: booking?.check_in || preselectedDate || today,
-    check_out: booking?.check_out || addDays(preselectedDate || today, 1),
+    check_in: defaultCheckIn,
+    check_out: defaultCheckOut,
     addon_ids: booking?.addon_ids || [] as string[],
     notes: booking?.notes || '',
     client_id: booking?.client_id || '',
     pet_id: booking?.pet_id || '',
   });
   const set = (k: keyof typeof form, v: any) => setForm(p => ({ ...p, [k]: v }));
+
+  // Auto-update check_out when booking type changes
+  useEffect(() => {
+    const nights = BOOKING_TYPE_NIGHTS[bookingType];
+    set('check_out', addDays(form.check_in, nights));
+  }, [bookingType]);
+
+  // Rate from matrix
+  const rate = HOTEL_RATES[bookingType][petSize];
+  const nights = diffDays(form.check_in, form.check_out);
 
   // Client autocomplete
   const [clientSearch, setClientSearch] = useState(booking?.owner_name || '');
@@ -200,26 +264,26 @@ const BookingForm: React.FC<{
   const selectPet = (p: Pet) => {
     set('pet_name', p.name);
     set('pet_id', p.id);
-    set('pet_breed', p.breed || '');
+    // Auto-select size from pet weight if available
+    if (p.weightSize) {
+      const ws = p.weightSize.toUpperCase();
+      if (['XS','S','M','L','XL','XXL'].includes(ws)) setPetSize(ws as PetSizeKey);
+    }
     setShowPetSugg(false);
   };
 
   const selectedRoom = activeRooms.find(r => r.id === form.room_id);
-  const nights = diffDays(form.check_in, form.check_out);
-  const addonTotal = form.addon_ids.reduce((s, id) => { const p = products.find(x => x.id === id); return s + (p?.price || 0); }, 0);
-  const total = (selectedRoom?.daily_rate || 0) * nights + addonTotal;
 
   const conflict = hotelBookings.some(b => {
     if (b.id === booking?.id) return false;
-    if (b.room_id !== form.room_id) return false;
+    if (b.room_id !== form.room_id || !form.room_id) return false;
     if (b.status === 'CANCELLED' || b.status === 'CHECKED_OUT') return false;
-    // Exclude overdue CHECKED_IN stays whose scheduled check_out already passed
     if (b.status === 'CHECKED_IN' && b.check_out < today) return false;
     return form.check_in < b.check_out && form.check_out > b.check_in;
   });
 
   const handleSave = () => {
-    if (!form.room_id || !form.pet_name || !form.owner_name || conflict) return;
+    if (!form.pet_name || !form.owner_name || conflict) return;
     onSave({
       id: booking?.id || crypto.randomUUID(),
       room_id: form.room_id,
@@ -234,13 +298,15 @@ const BookingForm: React.FC<{
       actual_check_in: booking?.actual_check_in || '',
       actual_check_out: booking?.actual_check_out || '',
       status: booking?.status || 'RESERVED',
-      daily_rate: selectedRoom?.daily_rate || 0,
+      daily_rate: rate,
       total_nights: nights,
-      total_amount: total,
+      total_amount: rate,  // flat package rate (not per-night)
       addon_ids: form.addon_ids,
       notes: form.notes,
       staff_id: currentUser?.id || '',
       transaction_id: booking?.transaction_id || '',
+      booking_type: bookingType,
+      pet_size: petSize,
     });
   };
 
@@ -252,35 +318,83 @@ const BookingForm: React.FC<{
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-5">
-          {/* Room & Dates */}
+
+          {/* ── Booking Type ── */}
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Room *</label>
-            <select value={form.room_id} onChange={e => set('room_id', e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none">
-              <option value="">Select a room...</option>
-              {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type}) · ₱{r.daily_rate.toLocaleString()}/night</option>)}
-            </select>
+            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
+            <div className="grid grid-cols-1 gap-2">
+              {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setBookingType(type)}
+                  className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}
+                >
+                  <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
+                  {BOOKING_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* ── Pet Size ── */}
+          <div>
+            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Pet Size *</label>
+            <div className="grid grid-cols-6 gap-2">
+              {PET_SIZES.map(size => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setPetSize(size)}
+                  className={`py-2.5 rounded-xl text-sm font-bold border transition-all ${petSize === size ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">XS ≤2kg · S ≤5kg · M ≤10kg · L ≤16kg · XL ≤25kg · XXL &gt;25kg</p>
+          </div>
+
+          {/* ── Rate Summary ── */}
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                <p className="text-xs text-purple-500 mt-0.5">Size: <strong>{petSize}</strong> · {form.check_in} → {form.check_out}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
+                <p className="text-xs text-purple-400">package rate</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Dates (manual override) ── */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In *</label>
-              <input type="date" value={form.check_in} min={today} onChange={e => { set('check_in', e.target.value); if (e.target.value >= form.check_out) set('check_out', addDays(e.target.value, 1)); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
+              <input type="date" value={form.check_in} min={today} onChange={e => { set('check_in', e.target.value); if (e.target.value >= form.check_out) set('check_out', addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
             </div>
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out *</label>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
               <input type="date" value={form.check_out} min={addDays(form.check_in, 1)} onChange={e => set('check_out', e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
             </div>
           </div>
 
+          {/* ── Room (optional slot) ── */}
+          {activeRooms.length > 0 && (
+            <div>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
+              <select value={form.room_id} onChange={e => set('room_id', e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none">
+                <option value="">No specific room</option>
+                {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
+              </select>
+            </div>
+          )}
+
           {conflict && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
-            </div>
-          )}
-          {selectedRoom && nights > 0 && (
-            <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-zinc-500">₱{selectedRoom.daily_rate.toLocaleString()} × {nights} night{nights !== 1 ? 's' : ''}</span><span className="font-bold">₱{(selectedRoom.daily_rate * nights).toLocaleString()}</span></div>
-              {addonTotal > 0 && <div className="flex justify-between"><span className="text-zinc-500">Add-ons</span><span className="font-bold">₱{addonTotal.toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-1 mt-1"><span>Total</span><span className="text-green-700">₱{total.toLocaleString()}</span></div>
             </div>
           )}
 
@@ -301,7 +415,6 @@ const BookingForm: React.FC<{
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Pet Name with autocomplete */}
             <div ref={petRef} className="relative">
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
               <input value={form.pet_name} onChange={e => { set('pet_name', e.target.value); set('pet_id', ''); }} onFocus={() => selectedClient && selectedClient.pets.length > 0 && setShowPetSugg(true)} placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
@@ -311,7 +424,7 @@ const BookingForm: React.FC<{
                     <button key={p.id} onMouseDown={() => selectPet(p)} className="w-full text-left px-4 py-2.5 hover:bg-zinc-50 text-sm border-b border-zinc-100 last:border-0 flex items-center gap-2">
                       <span className="text-base">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
                       <span className="font-semibold">{p.name}</span>
-                      {p.species && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.species === 'DOG' ? 'bg-amber-100 text-amber-700' : p.species === 'CAT' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-500'}`}>{p.species === 'OTHER' ? (p.speciesLabel || 'Other') : p.species}</span>}
+                      {p.weightSize && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 rounded font-bold">{p.weightSize}</span>}
                       {p.breed && <span className="text-zinc-400">{p.breed}</span>}
                     </button>
                   ))}
@@ -328,26 +441,6 @@ const BookingForm: React.FC<{
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="owner@email.com" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
           </div>
 
-          {/* Add-ons */}
-          {services.length > 0 && (
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Add-ons / Services</label>
-              <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-                {services.map(s => {
-                  const checked = form.addon_ids.includes(s.id);
-                  return (
-                    <label key={s.id} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-sm transition-colors ${checked ? 'bg-purple-700 text-white border-purple-700' : 'border-zinc-200 hover:border-zinc-400'}`}>
-                      <input type="checkbox" checked={checked} className="hidden" onChange={() => set('addon_ids', checked ? form.addon_ids.filter(id => id !== s.id) : [...form.addon_ids, s.id])} />
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? 'border-white bg-white' : 'border-zinc-300'}`}>{checked && <Check className="w-3 h-3 text-purple-900" />}</span>
-                      <span className="truncate text-xs">{s.name}</span>
-                      <span className={`ml-auto text-xs flex-shrink-0 ${checked ? 'text-zinc-300' : 'text-zinc-400'}`}>+₱{s.price.toLocaleString()}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
@@ -355,7 +448,7 @@ const BookingForm: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-white border-t border-zinc-100">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={handleSave} disabled={!form.room_id || !form.pet_name || !form.owner_name || conflict} className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40">
+          <button onClick={handleSave} disabled={!form.pet_name || !form.owner_name || conflict} className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40">
             {booking ? 'Save Changes' : '🐾 Book Room'}
           </button>
         </div>
@@ -371,38 +464,78 @@ const CheckoutModal: React.FC<{
   onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
   onClose: () => void;
 }> = ({ booking, onConfirm, onClose }) => {
-  const { hotelRooms, products } = useStore();
+  const { hotelRooms } = useStore();
   const room = hotelRooms.find(r => r.id === booking.room_id);
-  const addons = (booking.addon_ids || []).map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
-  const addonTotal = addons.reduce((s, p) => s + p.price, 0);
-  
-  // FIX: Always recalculate from source-of-truth fields (daily_rate × total_nights)
-  // Never use stored total_amount which may be stale from old room prices
-  const stayAmount = booking.daily_rate * booking.total_nights;
-  const grandTotal = stayAmount + addonTotal;
+
+  // Package rate (flat — not per-night multiply)
+  const packageRate = booking.daily_rate;
+  const bookingType = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
+  const petSize = (booking.pet_size as PetSizeKey) || 'S';
+  const isSmallSize = ['XS','S','M'].includes(petSize);
+
+  // Late checkout add-on
+  const [lateCheckout, setLateCheckout] = useState<number | null>(null); // index of LATE_CHECKOUT_RATES
+  const daycareRate = HOTEL_RATES['DAYCARE'][petSize];
+  const getLateRate = (idx: number) => {
+    const slot = LATE_CHECKOUT_RATES[idx];
+    const raw = isSmallSize ? slot.small : slot.large;
+    return raw === 'daycare' ? daycareRate : raw;
+  };
+  const lateAmount = lateCheckout !== null ? getLateRate(lateCheckout) : 0;
+
+  const grandTotal = packageRate + lateAmount;
 
   const [method, setMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
   const [cash, setCash] = useState(grandTotal);
   const [ref, setRef] = useState('');
 
+  // Update cash suggestion when total changes
+  useEffect(() => { setCash(grandTotal); }, [grandTotal]);
+
   return (
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
           <h2 className="text-xl font-bold text-zinc-900">Check Out & Pay</h2>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 space-y-2 text-sm">
-            <div className="flex justify-between font-bold text-base"><span>🐾 {booking.pet_name}</span><span className="text-zinc-500">Room {room?.room_number}</span></div>
-            {/* Rate breakdown - always show recalculated rate, never stale total_amount */}
-            <div className="flex justify-between text-zinc-500">
-              <span>Stay ({booking.total_nights} night{booking.total_nights !== 1 ? 's' : ''} × ₱{booking.daily_rate.toLocaleString()})</span>
-              <span>₱{stayAmount.toLocaleString()}</span>
+            <div className="flex justify-between font-bold text-base">
+              <span>🐾 {booking.pet_name}</span>
+              <span className="text-zinc-500">{room ? `Room ${room.room_number}` : 'Hotel'}</span>
             </div>
-            {addons.map(p => <div key={p.id} className="flex justify-between text-zinc-500"><span>{p.name}</span><span>₱{p.price.toLocaleString()}</span></div>)}
+            <div className="flex justify-between text-zinc-600">
+              <span>{BOOKING_TYPE_LABELS[bookingType] || bookingType} · <strong>{petSize}</strong></span>
+              <span className="font-bold">₱{packageRate.toLocaleString()}</span>
+            </div>
+            {lateAmount > 0 && (
+              <div className="flex justify-between text-amber-700">
+                <span>{LATE_CHECKOUT_RATES[lateCheckout!].label}</span>
+                <span>+₱{lateAmount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2"><span>TOTAL</span><span className="text-green-700">₱{grandTotal.toLocaleString()}</span></div>
           </div>
+
+          {/* Late Checkout */}
+          <div>
+            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Late Check-Out Fee (optional)</label>
+            <div className="space-y-2">
+              {LATE_CHECKOUT_RATES.map((slot, idx) => {
+                const fee = getLateRate(idx);
+                const active = lateCheckout === idx;
+                return (
+                  <button key={idx} type="button" onClick={() => setLateCheckout(active ? null : idx)}
+                    className={`w-full flex justify-between items-center px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${active ? 'bg-amber-500 text-white border-amber-500' : 'border-zinc-200 hover:border-amber-300'}`}>
+                    <span>{slot.label}</span>
+                    <span className={active ? 'text-white font-bold' : 'text-zinc-500'}>+₱{fee.toLocaleString()}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Payment Method</label>
             <div className="grid grid-cols-3 gap-2">
@@ -749,26 +882,30 @@ const Hotel: React.FC = () => {
                       {booking.notes && <div className="mt-2 text-xs bg-amber-50 text-amber-800 p-2 rounded-lg border border-amber-100 italic"><span className="font-bold not-italic">📝 Note:</span> {booking.notes}</div>}
                     </div>
 
-                    {/* Room + rate details */}
+                    {/* Booking type + rate details */}
                     <div className="space-y-1.5 mb-5">
-                      <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3">
-                        <span className="text-zinc-400">Room</span>
-                        <span className="font-bold text-zinc-800">{room?.room_number} — {room?.room_name || '?'} <span className="text-zinc-400 font-normal">({room?.room_type})</span></span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400">Stay</span>
-                        <span className="font-bold text-zinc-800">{booking.total_nights} night{booking.total_nights !== 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400">Amount</span>
-                        <span className="font-bold text-green-700">₱{booking.total_amount.toLocaleString()}</span>
-                      </div>
-                      {addonsDisplay.length > 0 && (
-                        <div className="flex justify-between items-start text-sm">
-                          <span className="text-zinc-400">Add-ons</span>
-                          <span className="font-medium text-zinc-600 text-right max-w-[60%]">{addonsDisplay.join(', ')}</span>
+                      {booking.booking_type && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded-lg">
+                            {booking.booking_type === 'DAYCARE' ? '☀️ Daycare' : booking.booking_type === 'OVERNIGHT' ? '🌙 Overnight' : booking.booking_type === 'STAYCATION_3D2N' ? '🏠 Staycation 3D2N' : booking.booking_type === 'STAYCATION_4D3N' ? '🏡 Staycation 4D3N' : '🌴 Vacation'}
+                          </span>
+                          {booking.pet_size && <span className="text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg">{booking.pet_size}</span>}
                         </div>
                       )}
+                      <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3">
+                        <span className="text-zinc-400">Rate</span>
+                        <span className="font-bold text-green-700">₱{booking.daily_rate.toLocaleString()}</span>
+                      </div>
+                      {room && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-zinc-400">Room</span>
+                          <span className="font-bold text-zinc-800">{room.room_number} — {room.room_name}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-zinc-400">Dates</span>
+                        <span className="font-bold text-zinc-800">{fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}</span>
+                      </div>
                     </div>
 
                     {/* Action buttons — mirrors Grooming page */}
@@ -878,14 +1015,14 @@ const Hotel: React.FC = () => {
             const bk = checkoutBooking; // capture before clearing
             await checkOutGuest(bk.id, method, cash, ref, recalcTotal);
             setCheckoutBooking(null);
-            // Build the receipt from booking data (mirrors checkOutGuest logic)
+            // Build the receipt from booking data
             const room = hotelRooms.find(r => r.id === bk.room_id);
-            const addonProds = (bk.addon_ids || []).map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
-            const addonTotal = addonProds.reduce((s: number, p: any) => s + p.price, 0);
-            const stayAmt = recalcTotal !== undefined ? recalcTotal - addonTotal : bk.daily_rate * bk.total_nights;
-            const nightlyItem = { id: `hotel-stay-${bk.id}`, name: `Hotel Stay – ${room?.room_name || 'Room'} (${bk.total_nights} night${bk.total_nights !== 1 ? 's' : ''} × ₱${bk.daily_rate.toLocaleString()})`, price: stayAmt, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
-            const addonItems = addonProds.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
-            const allItems = [nightlyItem, ...addonItems];
+            const bkType = bk.booking_type as BookingTypeKey | undefined;
+            const bkSize = bk.pet_size || '';
+            const stayLabel = bkType ? `${BOOKING_TYPE_LABELS[bkType] || bkType} · ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` – ${room.room_name}` : ''}`;
+            const packageTotal = recalcTotal !== undefined ? recalcTotal : bk.daily_rate;
+            const nightlyItem = { id: `hotel-stay-${bk.id}`, name: stayLabel, price: packageTotal, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
+            const allItems = [nightlyItem];
             const subtotal = allItems.reduce((s, i) => s + i.price, 0);
             const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) / 100 : 0;
             const vat = parseFloat((subtotal * vatRate).toFixed(2));

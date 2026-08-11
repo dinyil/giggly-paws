@@ -182,7 +182,10 @@ const mapHotelBooking = (b: any): HotelBooking => ({
     notes: b.notes || '',
     staff_id: b.staff_id || '',
     transaction_id: b.transaction_id || '',
+    booking_type: b.booking_type || '',
+    pet_size: b.pet_size || '',
 });
+
 
 // Map Settings (Mixed Case in DB)
 const mapSettingsPayload = (s: StoreSettings) => ({

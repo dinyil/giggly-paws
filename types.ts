@@ -273,4 +273,7 @@ export interface HotelBooking {
   notes?: string;
   staff_id?: string;
   transaction_id?: string;    // Set after checkout receipt
+  booking_type?: string;      // e.g. 'DAYCARE' | 'OVERNIGHT' | 'STAYCATION_3D2N' | 'STAYCATION_4D3N' | 'VACATION'
+  pet_size?: string;          // e.g. 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
 }
+
