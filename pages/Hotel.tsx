@@ -215,7 +215,7 @@ const BookingForm: React.FC<{
     setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[bookingType]));
   }, [bookingType]);
 
-  // ── Client mode: EXISTING or NEW ──
+  // ── Client mode ──
   const [clientMode, setClientMode] = useState<'EXISTING' | 'NEW'>(booking?.client_id ? 'EXISTING' : 'EXISTING');
 
   // ── Existing client fields ──
@@ -223,9 +223,7 @@ const BookingForm: React.FC<{
   const [showClientSugg, setShowClientSugg] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
-  const [showPetSugg, setShowPetSugg] = useState(false);
   const clientRef = useRef<HTMLDivElement>(null);
-  const petRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (booking?.client_id) {
@@ -234,15 +232,17 @@ const BookingForm: React.FC<{
         setSelectedClient(c);
         setClientSearch(c.name);
         const p = c.pets.find(p => p.id === booking.pet_id);
-        if (p) setSelectedPet(p);
+        if (p) { setSelectedPet(p); const s = getSizeFromWeight(p.weightSize || ''); if (s) setPetSize(s); }
       }
     }
   }, []);
 
+  // Only close client dropdown when clicking outside the search input area
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (clientRef.current && !clientRef.current.contains(e.target as Node)) setShowClientSugg(false);
-      if (petRef.current && !petRef.current.contains(e.target as Node)) setShowPetSugg(false);
+      if (clientRef.current && !clientRef.current.contains(e.target as Node)) {
+        setShowClientSugg(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -259,18 +259,19 @@ const BookingForm: React.FC<{
     setClientSearch(c.name);
     setSelectedPet(null);
     setShowClientSugg(false);
-    // Auto-pick first pet if only one
+    // Auto-pick if only one pet
     if (c.pets.length === 1) {
-      handleSelectPet(c.pets[0]);
+      const p = c.pets[0];
+      setSelectedPet(p);
+      const s = getSizeFromWeight(p.weightSize || '');
+      if (s) setPetSize(s);
     }
   };
 
   const handleSelectPet = (p: Pet) => {
-    setSelectedPet(p);
-    setShowPetSugg(false);
-    // Auto-size from pet's weightSize
-    const autoSize = getSizeFromWeight(p.weightSize || '');
-    if (autoSize) setPetSize(autoSize);
+    setSelectedPet(prev => prev?.id === p.id ? null : p); // toggle off if same pet tapped again
+    const s = getSizeFromWeight(p.weightSize || '');
+    if (s) setPetSize(s);
   };
 
   // ── New client fields ──
@@ -283,29 +284,31 @@ const BookingForm: React.FC<{
   const [ncPetColor, setNcPetColor] = useState('');
   const [ncPetWeight, setNcPetWeight] = useState('');
 
-  // Auto-size when new client pet weight changes
   useEffect(() => {
     if (ncPetWeight) {
-      const autoSize = getSizeFromWeight(ncPetWeight);
-      if (autoSize) setPetSize(autoSize);
+      const s = getSizeFromWeight(ncPetWeight);
+      if (s) setPetSize(s);
     }
   }, [ncPetWeight]);
 
-  // ── Derived values ──
+  // ── Derived ──
   const rate = HOTEL_RATES[bookingType][petSize];
   const nights = diffDays(checkIn, checkOut);
-
-  // Owner/pet info based on mode
   const ownerName = clientMode === 'EXISTING' ? (selectedClient?.name || '') : ncName;
   const contactNumber = clientMode === 'EXISTING' ? (selectedClient?.contactNumber || '') : ncContact;
   const email = clientMode === 'EXISTING' ? (selectedClient?.email || '') : ncEmail;
   const petName = clientMode === 'EXISTING' ? (selectedPet?.name || '') : ncPetName;
   const clientId = clientMode === 'EXISTING' ? (selectedClient?.id || '') : '';
   const petId = clientMode === 'EXISTING' ? (selectedPet?.id || '') : '';
-
-  // ── Room ──
   const [roomId, setRoomId] = useState(booking?.room_id || preselectedRoomId || '');
   const [notes, setNotes] = useState(booking?.notes || '');
+
+  // For new client: show booking section only after name is entered
+  const newClientReady = clientMode === 'NEW' && ncName.trim().length > 0;
+  // For existing client: show booking section after pet is selected (or no pets)
+  const existingClientReady = clientMode === 'EXISTING' && selectedClient !== null && (selectedClient.pets.length === 0 || selectedPet !== null);
+
+  const showBookingSection = booking ? true : (newClientReady || existingClientReady);
 
   const conflict = hotelBookings.some(b => {
     if (b.id === booking?.id) return false;
@@ -319,8 +322,6 @@ const BookingForm: React.FC<{
 
   const handleSave = () => {
     if (!canSave) return;
-
-    // If new client, save them to DB first
     let finalClientId = clientId;
     if (clientMode === 'NEW' && ncName) {
       const newClient: Client = {
@@ -343,7 +344,6 @@ const BookingForm: React.FC<{
       addClient(newClient);
       finalClientId = newClient.id;
     }
-
     onSave({
       id: booking?.id || crypto.randomUUID(),
       room_id: roomId,
@@ -379,16 +379,16 @@ const BookingForm: React.FC<{
         </div>
         <div className="p-6 space-y-5">
 
-          {/* ── Client Mode Toggle ── */}
+          {/* ── STEP 1: Client Mode Toggle ── */}
           {!booking && (
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Client Type</label>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Step 1 — Client</label>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setClientMode('EXISTING')}
+                <button type="button" onClick={() => { setClientMode('EXISTING'); setSelectedClient(null); setSelectedPet(null); setClientSearch(''); }}
                   className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'EXISTING' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
                   🔍 Existing Client
                 </button>
-                <button type="button" onClick={() => setClientMode('NEW')}
+                <button type="button" onClick={() => { setClientMode('NEW'); setSelectedClient(null); setSelectedPet(null); }}
                   className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'NEW' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
                   ✨ New Client
                 </button>
@@ -396,9 +396,10 @@ const BookingForm: React.FC<{
             </div>
           )}
 
-          {/* ── EXISTING CLIENT: Search + Pet Select ── */}
+          {/* ── EXISTING CLIENT ── */}
           {clientMode === 'EXISTING' && (
             <div className="space-y-3">
+              {/* Search */}
               <div ref={clientRef} className="relative">
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Search Owner *</label>
                 <input
@@ -413,58 +414,66 @@ const BookingForm: React.FC<{
                     {filteredClients.map(c => (
                       <button key={c.id} onMouseDown={() => handleSelectClient(c)} className="w-full text-left px-4 py-3 hover:bg-purple-50 text-sm border-b border-zinc-100 last:border-0">
                         <div className="font-semibold text-zinc-900">{c.name}</div>
-                        <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` · ${c.pets.map(p => p.name).join(', ')}` : ''}</div>
+                        <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` · ${c.pets.map(p => p.name).join(', ')}` : ' · No pets on record'}</div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
+              {/* Selected client banner */}
               {selectedClient && (
-                <div>
-                  <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm text-green-800 font-medium mb-2 flex items-center gap-2">
-                    <span>✅</span> {selectedClient.name} {selectedClient.contactNumber && <span className="text-green-600">({selectedClient.contactNumber})</span>}
+                <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm text-green-800 font-medium flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span>✅</span>
+                    <span>{selectedClient.name}</span>
+                    {selectedClient.contactNumber && <span className="text-green-600">({selectedClient.contactNumber})</span>}
                   </div>
+                  <button type="button" onMouseDown={() => { setSelectedClient(null); setSelectedPet(null); setClientSearch(''); }}
+                    className="text-green-500 hover:text-green-700 text-xs underline">Change</button>
+                </div>
+              )}
 
-                  {selectedClient.pets.length > 0 ? (
-                    <div>
-                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Select Pet *</label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {selectedClient.pets.map(p => {
-                          const autoSize = getSizeFromWeight(p.weightSize || '');
-                          const isSelected = selectedPet?.id === p.id;
-                          return (
-                            <button key={p.id} type="button" onClick={() => handleSelectPet(p)}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all ${isSelected ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
-                              <span className="text-lg">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
-                              <div className="flex-1">
-                                <div className="font-bold">{p.name}</div>
-                                {p.breed && <div className={`text-xs ${isSelected ? 'text-purple-200' : 'text-zinc-400'}`}>{p.breed}</div>}
-                              </div>
-                              {p.weightSize && (
-                                <div className="text-right">
-                                  <div className={`text-xs font-bold px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-600'}`}>{p.weightSize}</div>
-                                  {autoSize && <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-purple-200' : 'text-zinc-400'}`}>→ Size {autoSize}</div>}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-                      ⚠️ This client has no pets on record. Enter pet name below manually.
-                    </div>
-                  )}
+              {/* Pet selection — only when client chosen */}
+              {selectedClient && selectedClient.pets.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Select Pet *</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {selectedClient.pets.map(p => {
+                      const autoSize = getSizeFromWeight(p.weightSize || '');
+                      const isSelected = selectedPet?.id === p.id;
+                      return (
+                        <button key={p.id} type="button"
+                          onMouseDown={e => { e.preventDefault(); handleSelectPet(p); }}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all select-none ${isSelected ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'border-zinc-200 hover:border-purple-400 hover:bg-purple-50'}`}>
+                          <span className="text-xl flex-shrink-0">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold">{p.name}</div>
+                            {p.breed && <div className={`text-xs truncate ${isSelected ? 'text-purple-200' : 'text-zinc-400'}`}>{p.breed}</div>}
+                          </div>
+                          {p.weightSize && (
+                            <div className="text-right flex-shrink-0">
+                              <div className={`text-xs font-bold px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/25 text-white' : 'bg-zinc-100 text-zinc-600'}`}>{p.weightSize}</div>
+                              {autoSize && <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-purple-200' : 'text-zinc-400'}`}>Size {autoSize}</div>}
+                            </div>
+                          )}
+                          {isSelected && <span className="text-white text-base flex-shrink-0">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-                  {/* Manual pet name if client has no pets */}
-                  {selectedClient.pets.length === 0 && (
-                    <div>
-                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
-                      <input value={selectedPet?.name || ''} onChange={e => setSelectedPet({ id: '', name: e.target.value, species: 'DOG' })} placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
-                    </div>
-                  )}
+              {/* No pets — manual entry */}
+              {selectedClient && selectedClient.pets.length === 0 && (
+                <div className="space-y-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700">⚠️ No pets on record — enter pet name manually</div>
+                  <div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
+                    <input value={selectedPet?.name || ''} onChange={e => setSelectedPet({ id: '', name: e.target.value, species: 'DOG' })}
+                      placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                  </div>
                 </div>
               )}
             </div>
@@ -472,30 +481,39 @@ const BookingForm: React.FC<{
 
           {/* ── NEW CLIENT FORM ── */}
           {clientMode === 'NEW' && (
-            <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 space-y-4">
-              <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">✨ New Client Info</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+            <div className="space-y-4">
+              {/* Owner info — always shown */}
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">✨ Owner Info</p>
+                <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Owner Name *</label>
-                  <input value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Juan dela Cruz" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                  <input value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Juan dela Cruz"
+                    className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Contact No.</label>
-                  <input value={ncContact} onChange={e => setNcContact(e.target.value)} placeholder="09XX..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Email</label>
-                  <input type="email" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Contact No.</label>
+                    <input value={ncContact} onChange={e => setNcContact(e.target.value)} placeholder="09XX..."
+                      className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Email</label>
+                    <input type="email" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@..."
+                      className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                  </div>
                 </div>
               </div>
-              <div className="border-t border-purple-200 pt-3">
-                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-3">🐾 Pet Info</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
+
+              {/* Pet info — shown only after owner name entered */}
+              {ncName.trim() && (
+                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">🐾 Pet Info</p>
+                  <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
-                    <input value={ncPetName} onChange={e => setNcPetName(e.target.value)} placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    <input value={ncPetName} onChange={e => setNcPetName(e.target.value)} placeholder="Buddy"
+                      className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Species</label>
                     <div className="grid grid-cols-3 gap-2">
                       {(['DOG','CAT','OTHER'] as const).map(sp => (
@@ -506,110 +524,119 @@ const BookingForm: React.FC<{
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Breed</label>
-                    <input value={ncPetBreed} onChange={e => setNcPetBreed(e.target.value)} placeholder="Shih Tzu" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Breed</label>
+                      <input value={ncPetBreed} onChange={e => setNcPetBreed(e.target.value)} placeholder="Shih Tzu"
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Color</label>
+                      <input value={ncPetColor} onChange={e => setNcPetColor(e.target.value)} placeholder="Brown & White"
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Color</label>
-                    <input value={ncPetColor} onChange={e => setNcPetColor(e.target.value)} placeholder="Brown & White" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-                  </div>
-                  <div className="col-span-2">
                     <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Weight / Size</label>
-                    <input value={ncPetWeight} onChange={e => setNcPetWeight(e.target.value)} placeholder="e.g. 3.5kg or S or M" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    <input value={ncPetWeight} onChange={e => setNcPetWeight(e.target.value)} placeholder="e.g. 3.5kg or S or M"
+                      className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
                     {ncPetWeight && getSizeFromWeight(ncPetWeight) && (
                       <p className="text-xs text-purple-600 mt-1 font-bold">→ Auto-size: <span className="bg-purple-100 px-2 py-0.5 rounded">{getSizeFromWeight(ncPetWeight)}</span></p>
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Booking Type ── */}
-          <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
-            <div className="grid grid-cols-1 gap-2">
-              {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
-                <button key={type} type="button" onClick={() => setBookingType(type)}
-                  className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
-                  <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
-                  {BOOKING_TYPE_LABELS[type]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Pet Size (manual override, auto-set from pet) ── */}
-          <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">
-              Pet Size *
-              {(selectedPet?.weightSize || ncPetWeight) && (
-                <span className="ml-2 text-purple-500 normal-case font-normal">(auto-detected from pet weight)</span>
               )}
-            </label>
-            <div className="grid grid-cols-6 gap-2">
-              {PET_SIZES.map(size => (
-                <button key={size} type="button" onClick={() => setPetSize(size)}
-                  className={`py-2.5 rounded-xl text-sm font-bold border transition-all ${petSize === size ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
-                  {size}
-                </button>
-              ))}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">XS ≤2kg · S ≤5kg · M ≤10kg · L ≤16kg · XL ≤25kg · XXL &gt;25kg</p>
-          </div>
+          )}
 
-          {/* ── Rate Summary ── */}
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
-            <div className="flex items-center justify-between">
+          {/* ── STEP 2: Booking details (shown only when client+pet are ready) ── */}
+          {showBookingSection && (
+            <>
+              {/* Divider */}
+              {!booking && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-zinc-200" />
+                  <span className="text-xs font-bold text-zinc-400 uppercase">Step 2 — Booking Details</span>
+                  <div className="flex-1 h-px bg-zinc-200" />
+                </div>
+              )}
+
+              {/* Size display — read-only, no buttons */}
+              <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase">Pet Size</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Auto-detected from weight record</p>
+                </div>
+                <span className="text-lg font-black text-purple-700 bg-purple-100 px-4 py-1.5 rounded-xl">{petSize}</span>
+              </div>
+
+              {/* Booking Type */}
               <div>
-                <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
-                <p className="text-xs text-purple-500 mt-0.5">
-                  {petName && <span>🐾 {petName} · </span>}
-                  Size: <strong>{petSize}</strong> · {checkIn} → {checkOut}
-                </p>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
+                    <button key={type} type="button" onClick={() => setBookingType(type)}
+                      className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
+                      <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
+                      {BOOKING_TYPE_LABELS[type]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
-                <p className="text-xs text-purple-400">package rate</p>
+
+              {/* Rate Summary */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                    <p className="text-xs text-purple-500 mt-0.5">
+                      {petName && <span>🐾 {petName} · </span>}
+                      Size: <strong>{petSize}</strong> · {checkIn} → {checkOut}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
+                    <p className="text-xs text-purple-400">package rate</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* ── Dates ── */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
-              <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
-              <input type="date" value={checkOut} min={addDays(checkIn, 1)} onChange={e => setCheckOut(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
-            </div>
-          </div>
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
+                  <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
+                  <input type="date" value={checkOut} min={addDays(checkIn, 1)} onChange={e => setCheckOut(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+                </div>
+              </div>
 
-          {/* ── Room ── */}
-          {activeRooms.length > 0 && (
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
-              <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none">
-                <option value="">No specific room</option>
-                {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
-              </select>
-            </div>
+              {/* Room */}
+              {activeRooms.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
+                  <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none">
+                    <option value="">No specific room</option>
+                    {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
+                  </select>
+                </div>
+              )}
+
+              {conflict && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
+              </div>
+            </>
           )}
-
-          {conflict && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
-            </div>
-          )}
-
-          {/* ── Notes ── */}
-          <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
-          </div>
         </div>
 
         <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-white border-t border-zinc-100">
@@ -622,6 +649,25 @@ const BookingForm: React.FC<{
     </div>
   );
 };
+
+  const today = getPhToday();
+  const activeRooms = hotelRooms.filter(r => r.is_active);
+
+  // ── Booking type & size ──
+  const existingType = (booking?.booking_type as BookingTypeKey) || 'OVERNIGHT';
+  const existingSize = (booking?.pet_size as PetSizeKey) || 'S';
+  const [bookingType, setBookingType] = useState<BookingTypeKey>(existingType);
+  const [petSize, setPetSize] = useState<PetSizeKey>(existingSize);
+
+  // Auto-calc check_out
+  const defaultCheckIn = booking?.check_in || preselectedDate || today;
+  const defaultCheckOut = booking?.check_out || addDays(defaultCheckIn, BOOKING_TYPE_NIGHTS[existingType]);
+  const [checkIn, setCheckIn] = useState(defaultCheckIn);
+  const [checkOut, setCheckOut] = useState(defaultCheckOut);
+
+  useEffect(() => {
+    setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[bookingType]));
+  }, [bookingType]);
 
 // ─── Checkout Modal ───────────────────────────────────────────────────────────
 
