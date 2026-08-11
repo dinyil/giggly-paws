@@ -539,7 +539,7 @@ const Hotel: React.FC = () => {
   const [checkoutBooking, setCheckoutBooking] = useState<HotelBooking | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
-  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('80mm');
+  const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [isQrZoomed, setIsQrZoomed] = useState(false);
 
   // History filters
@@ -906,13 +906,10 @@ const Hotel: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {/* Paper size toggle */}
+            {/* Paper size info (read-only, configured in Settings) */}
             <div className="bg-purple-900/50 p-3 rounded-xl mb-4 flex items-center justify-between">
               <span className="text-white text-sm font-bold">Paper Size</span>
-              <div className="flex bg-purple-900 rounded-lg p-1">
-                <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
-                <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
-              </div>
+              <span className="text-sm font-bold bg-purple-700 text-white px-3 py-1 rounded-lg">{paperSize}</span>
             </div>
             <div className="flex-1 overflow-auto bg-purple-900/30 rounded-xl p-4 flex justify-center items-start">
               <div className="shadow-2xl shadow-black/50">
@@ -922,7 +919,15 @@ const Hotel: React.FC = () => {
             <div className="mt-4 flex gap-3">
               <button onClick={() => setReceiptTransaction(null)} className="flex-1 border border-white/20 text-white py-2.5 rounded-xl font-semibold hover:bg-white/10">Skip</button>
               <button
-                onClick={() => { setTimeout(() => window.print(), 300); }}
+                onClick={() => {
+                  const existingStyle = document.getElementById('thermal-print-style');
+                  if (existingStyle) existingStyle.remove();
+                  const style = document.createElement('style');
+                  style.id = 'thermal-print-style';
+                  style.textContent = `@media print { @page { size: ${paperSize} auto; margin: 0; } }`;
+                  document.head.appendChild(style);
+                  setTimeout(() => window.print(), 300);
+                }}
                 className="flex-[2] bg-white text-purple-900 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-50"
               >
                 <Printer className="w-4 h-4" /> Print Receipt

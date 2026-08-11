@@ -35,6 +35,7 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   receiptHeader: 'Thank you for choosing GigglyPaws!',
   receiptFooter: 'No return, no exchange after 7 days.',
   logo: '',
+  receiptPaperSize: '80mm',
   supabaseUrl: SUPABASE_URL,
   supabaseKey: SUPABASE_KEY,
 

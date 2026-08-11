@@ -22,7 +22,7 @@ const Transactions: React.FC = () => {
   // Receipt Modal State
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('80mm');
+  const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
 
   // Delete Modal State
   const [deleteConfirmation, setDeleteConfirmation] = useState<{isOpen: boolean, id: string | null}>({ isOpen: false, id: null });
@@ -99,6 +99,13 @@ const Transactions: React.FC = () => {
   };
 
   const handlePrint = () => {
+      // Inject dynamic @page size before printing so the browser uses correct thermal width
+      const existingStyle = document.getElementById('thermal-print-style');
+      if (existingStyle) existingStyle.remove();
+      const style = document.createElement('style');
+      style.id = 'thermal-print-style';
+      style.textContent = `@media print { @page { size: ${paperSize} auto; margin: 0; } }`;
+      document.head.appendChild(style);
       setTimeout(() => {
           window.print();
       }, 300);
@@ -539,26 +546,13 @@ const Transactions: React.FC = () => {
                  </button>
              </div>
 
-             {/* Printer Settings */}
+             {/* Paper size info (read-only, configured in Settings) */}
              <div className="bg-zinc-700/50 p-3 rounded-xl mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-purple-900 rounded-lg p-1">
-                    <button 
-                        onClick={() => setPaperSize('58mm')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        58mm
-                    </button>
-                    <button 
-                        onClick={() => setPaperSize('80mm')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        80mm
-                    </button>
-                </div>
+                <span className="text-sm font-bold bg-purple-700 text-white px-3 py-1 rounded-lg">{paperSize}</span>
              </div>
 
              {/* Preview Area */}

@@ -11,6 +11,25 @@ import ReceiptTemplate from '../components/ReceiptTemplate';
 
 type GroomingTab = 'UPCOMING' | 'WAITING' | 'ONGOING' | 'COMPLETED';
 type TimeRange = 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR';
+type PetSpecies = 'DOG' | 'CAT' | 'OTHER';
+type SizeCategory = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+
+// Auto-detect dog size category from weight in kg
+const detectSizeFromWeight = (weightKg: number): SizeCategory => {
+  if (weightKg <= 2) return 'XS';
+  if (weightKg <= 5) return 'S';
+  if (weightKg <= 10) return 'M';
+  if (weightKg <= 16) return 'L';
+  if (weightKg <= 25) return 'XL';
+  return 'XXL';
+};
+
+// Parse weight from a string input (e.g. "3.5kg", "3.5", "3")
+const parseWeightKg = (input: string): number | null => {
+  const cleaned = input.replace(/[^0-9.]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+};
 
 // Smart Search Helper: Removes non-alphanumeric chars for loose matching
 const normalizeText = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -103,7 +122,7 @@ const Grooming: React.FC = () => {
 
   // Printing State
   const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
-  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('80mm');
+  const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   
   // Delete Confirmation State
@@ -137,10 +156,18 @@ const Grooming: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<GroomingAppointment>>({
     petName: '', petBreed: '', petColor: '', weightSize: '',
+    petSpecies: 'DOG',
     ownerName: '', contactNumber: '', email: '',
     serviceId: '', hairCut: '',
     date: today, time: '', status: 'SCHEDULED', groomerId: ''
   });
+
+  // Detected size derived from weightSize input
+  const detectedSize = useMemo((): SizeCategory | null => {
+    if (formData.petSpecies !== 'DOG') return null;
+    const kg = parseWeightKg(formData.weightSize || '');
+    return kg !== null ? detectSizeFromWeight(kg) : null;
+  }, [formData.weightSize, formData.petSpecies]);
 
   const groomers = users.filter(u => u.role === Role.GROOMER || u.role === 'GROOMER');
   const groomingServices = products.filter(p => p.isService);
@@ -215,7 +242,9 @@ const Grooming: React.FC = () => {
           petName: pet.name,
           petBreed: pet.breed || '',
           petColor: pet.color || '',
-          weightSize: pet.weightSize || ''
+          weightSize: pet.weightSize || '',
+          // Auto-fill species from pet profile (map Pet.species to appointment petSpecies)
+          petSpecies: (pet.species === 'CAT' ? 'CAT' : pet.species === 'OTHER' ? 'OTHER' : 'DOG') as 'DOG' | 'CAT' | 'OTHER'
       }));
       setShowPetSuggestions(false);
   };
@@ -345,6 +374,7 @@ const Grooming: React.FC = () => {
     // Ensure new manual appointments also default to PH Today
     setFormData({
       petName: '', petBreed: '', petColor: '', weightSize: '',
+      petSpecies: 'DOG',
       ownerName: '', contactNumber: '', email: '',
       serviceId: '', hairCut: '',
       date: getPhTodayStr(), time: '', status: 'SCHEDULED', groomerId: ''
@@ -383,6 +413,7 @@ const Grooming: React.FC = () => {
       petBreed: apt.petBreed,
       petColor: apt.petColor,
       weightSize: apt.weightSize,
+      petSpecies: apt.petSpecies || 'DOG',
       ownerName: apt.ownerName,
       contactNumber: apt.contactNumber,
       email: apt.email,
@@ -426,8 +457,18 @@ const Grooming: React.FC = () => {
     
     const finalFormData = { ...formData, contactNumber: formattedContact };
 
+    // Compute detectedSizeCategory from weight before saving
+    const kg = parseWeightKg(finalFormData.weightSize || '');
+    const sizeCategory = kg !== null && finalFormData.petSpecies === 'DOG' ? detectSizeFromWeight(kg) : undefined;
+
     if (editingId) {
-      const updatedApt: GroomingAppointment = { ...finalFormData as GroomingAppointment, id: editingId, addonIds: addonItems };
+      const updatedApt: GroomingAppointment = { 
+        ...finalFormData as GroomingAppointment, 
+        id: editingId, 
+        addonIds: addonItems,
+        petSpecies: finalFormData.petSpecies as 'DOG' | 'CAT' | 'OTHER' | undefined,
+        detectedSizeCategory: sizeCategory
+      };
       updateAppointment(updatedApt);
     } else {
       const apt: GroomingAppointment = {
@@ -436,6 +477,8 @@ const Grooming: React.FC = () => {
         petBreed: finalFormData.petBreed,
         petColor: finalFormData.petColor,
         weightSize: finalFormData.weightSize,
+        petSpecies: finalFormData.petSpecies as 'DOG' | 'CAT' | 'OTHER' | undefined,
+        detectedSizeCategory: sizeCategory,
         ownerName: finalFormData.ownerName!,
         contactNumber: finalFormData.contactNumber,
         email: finalFormData.email,
@@ -647,6 +690,13 @@ const Grooming: React.FC = () => {
   };
 
   const handleActualPrint = () => {
+      // Inject dynamic @page size before printing so the browser uses correct thermal width
+      const existingStyle = document.getElementById('thermal-print-style');
+      if (existingStyle) existingStyle.remove();
+      const style = document.createElement('style');
+      style.id = 'thermal-print-style';
+      style.textContent = `@media print { @page { size: ${paperSize} auto; margin: 0; } }`;
+      document.head.appendChild(style);
       setTimeout(() => window.print(), 300); // Allow render then print
   };
 
@@ -834,9 +884,19 @@ const Grooming: React.FC = () => {
                                      <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3"><span className="text-gray-400">Service</span><span className="font-bold text-zinc-800 text-right max-w-[60%] truncate">{serviceName}</span></div>
                                      <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
                                      {(apt.addonIds || []).length > 0 && (
-                                         <div className="flex justify-between items-center text-sm">
-                                             <span className="text-gray-400">Add-ons</span>
-                                             <span className="text-xs text-zinc-500">{(apt.addonIds || []).length} item{(apt.addonIds || []).length > 1 ? 's' : ''} (+₱{aptAddonTotal.toFixed(2)})</span>
+                                         <div className="text-sm pt-1">
+                                             <span className="text-gray-400 block mb-1">+ Add-ons</span>
+                                             <div className="space-y-0.5">
+                                                 {(apt.addonIds || []).map((id, ai) => {
+                                                     const addonProduct = products.find(p => p.id === id);
+                                                     return (
+                                                         <div key={ai} className="flex justify-between items-center">
+                                                             <span className="text-zinc-600 text-xs pl-2">• {addonProduct?.name || id}</span>
+                                                             {addonProduct?.price ? <span className="text-xs text-gray-400">₱{addonProduct.price}</span> : null}
+                                                         </div>
+                                                     );
+                                                 })}
+                                             </div>
                                          </div>
                                      )}
                                      {!isWalkIn && (
@@ -1260,6 +1320,40 @@ const Grooming: React.FC = () => {
                           </span>
                       )}
                   </div>
+
+                  {/* SPECIES SELECTOR */}
+                  <div>
+                    <label className={labelClass}>Pet Species</label>
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      {([
+                        { key: 'DOG', emoji: '🐶', label: 'Dog', color: 'amber' },
+                        { key: 'CAT', emoji: '🐱', label: 'Cat', color: 'purple' },
+                        { key: 'OTHER', emoji: '🐾', label: 'Other', color: 'zinc' },
+                      ] as const).map(({ key, emoji, label, color }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, petSpecies: key, serviceId: '', }));
+                            setServiceSearch('');
+                            setAddonItems([]);
+                          }}
+                          className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                            formData.petSpecies === key
+                              ? color === 'amber'
+                                ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-sm scale-[1.02]'
+                                : color === 'purple'
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm scale-[1.02]'
+                                  : 'border-zinc-700 bg-zinc-100 text-zinc-800 shadow-sm scale-[1.02]'
+                              : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-300'
+                          }`}
+                        >
+                          <span className="text-xl">{emoji}</span>
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="relative" ref={petDropdownRef}>
@@ -1321,11 +1415,44 @@ const Grooming: React.FC = () => {
                         <input className={inputClass} value={formData.petColor} onChange={e => setFormData({...formData, petColor: e.target.value})} placeholder="e.g. White/Brown" />
                     </div>
                     <div>
-                        <label className={labelClass}>Weight / Size</label>
-                        <input className={inputClass} value={formData.weightSize} onChange={e => setFormData({...formData, weightSize: e.target.value})} placeholder="e.g. 5kg / Small" />
+                        <label className={labelClass}>
+                          Weight (kg)
+                          {detectedSize && (
+                            <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              detectedSize === 'XS' ? 'bg-sky-50 text-sky-600 border-sky-200' :
+                              detectedSize === 'S' ? 'bg-green-50 text-green-600 border-green-200' :
+                              detectedSize === 'M' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                              detectedSize === 'L' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                              detectedSize === 'XL' ? 'bg-red-50 text-red-600 border-red-200' :
+                              'bg-purple-50 text-purple-600 border-purple-200'
+                            }`}>
+                              → {detectedSize}
+                            </span>
+                          )}
+                        </label>
+                        <input 
+                          className={inputClass} 
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={formData.weightSize} 
+                          onChange={e => setFormData({...formData, weightSize: e.target.value})} 
+                          placeholder={formData.petSpecies === 'DOG' ? "e.g. 3.5 → auto-detects size" : "e.g. 4.2"} 
+                        />
+                        {detectedSize && (
+                          <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                            Services & add-ons filtered to: <span className="font-bold text-purple-700">{formData.petSpecies} · {detectedSize}</span>
+                          </p>
+                        )}
+                        {formData.petSpecies !== 'DOG' && (
+                          <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                            Showing services for: <span className="font-bold text-purple-700">{formData.petSpecies}</span>
+                          </p>
+                        )}
                     </div>
                   </div>
               </div>
+
 
               <div className="space-y-3 pt-2 border-t border-zinc-100">
                   <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Scissors className="w-3 h-3" /> Service & Style</h4>
@@ -1348,35 +1475,54 @@ const Grooming: React.FC = () => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                         </div>
                         
-                        {/* Enhanced Service Dropdown */}
+                        {/* Enhanced Service Dropdown - filtered by species + size */}
                         {showServiceSuggestions && (
-                            <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="max-h-56 overflow-y-auto custom-scrollbar">
-                                    {groomingServices
-                                        .filter(s => normalizeText(s.name).includes(normalizeText(serviceSearch)))
-                                        .map(s => (
-                                        <div 
-                                            key={s.id} 
-                                            onClick={() => {
-                                                setFormData({...formData, serviceId: s.id});
-                                                setServiceSearch(s.name);
-                                                setShowServiceSuggestions(false);
-                                            }}
-                                            className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
-                                        >
-                                            <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
-                                            <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
-                                        </div>
-                                    ))}
-                                    {groomingServices.filter(s => normalizeText(s.name).includes(normalizeText(serviceSearch))).length === 0 && (
-                                        <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center">
-                                            <Search className="w-6 h-6 mb-1 opacity-20" />
-                                            No services match "{serviceSearch}"
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                             <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                 {/* Active filter indicator */}
+                                 <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                                   <span>{formData.petSpecies === 'DOG' ? '🐶' : formData.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                   <span className="uppercase tracking-wider">{formData.petSpecies}</span>
+                                   {detectedSize && <><span>·</span><span className="text-purple-600">{detectedSize}</span></>}
+                                   <span className="ml-auto normal-case">Filtered</span>
+                                 </div>
+                                 <div className="max-h-56 overflow-y-auto custom-scrollbar">
+                                     {groomingServices
+                                         .filter(s => {
+                                           const nameMatch = normalizeText(s.name).includes(normalizeText(serviceSearch));
+                                           // Species match: show if species matches or product is BOTH
+                                           const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === formData.petSpecies;
+                                           // Size match (only for dogs with a detected size)
+                                           const sizeMatch = !detectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === detectedSize;
+                                           return nameMatch && speciesMatch && sizeMatch;
+                                         })
+                                         .map(s => (
+                                         <div 
+                                             key={s.id} 
+                                             onClick={() => {
+                                                 setFormData({...formData, serviceId: s.id});
+                                                 setServiceSearch(s.name);
+                                                 setShowServiceSuggestions(false);
+                                             }}
+                                             className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
+                                         >
+                                             <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
+                                             <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
+                                         </div>
+                                     ))}
+                                     {groomingServices.filter(s => {
+                                       const nameMatch = normalizeText(s.name).includes(normalizeText(serviceSearch));
+                                       const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === formData.petSpecies;
+                                       const sizeMatch = !detectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === detectedSize;
+                                       return nameMatch && speciesMatch && sizeMatch;
+                                     }).length === 0 && (
+                                         <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
+                                             <Search className="w-6 h-6 mb-1 opacity-20" />
+                                             {serviceSearch ? `No ${formData.petSpecies} services match "${serviceSearch}"` : `No services found for ${formData.petSpecies}${detectedSize ? ` · ${detectedSize}` : ''}`}
+                                         </div>
+                                     )}
+                                 </div>
+                             </div>
+                         )}
                      </div>
                      <div>
                         <label className={labelClass}>Groomer</label>
@@ -1446,70 +1592,85 @@ const Grooming: React.FC = () => {
                       </div>
 
                       {showAddonSuggestions && (
-                          <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                              {/* Filter tabs */}
-                              <div className="flex border-b border-zinc-100 bg-zinc-50">
-                                  {(['ALL', 'SERVICE', 'PRODUCT'] as const).map(f => (
-                                      <button
-                                          key={f}
-                                          type="button"
-                                          onClick={() => setAddonFilter(f)}
-                                          className={`flex-1 py-2 text-[11px] font-bold transition-all ${
-                                              addonFilter === f
-                                                  ? f === 'SERVICE'
-                                                      ? 'text-purple-600 border-b-2 border-purple-500 bg-white'
-                                                      : f === 'PRODUCT'
-                                                          ? 'text-blue-600 border-b-2 border-blue-500 bg-white'
-                                                          : 'text-zinc-900 border-b-2 border-zinc-900 bg-white'
-                                                  : 'text-gray-400 hover:text-gray-600'
-                                          }`}
-                                      >
-                                          {f === 'ALL' ? 'All' : f === 'SERVICE' ? '✂️ Services' : '🛍️ Products'}
-                                      </button>
-                                  ))}
-                              </div>
-                              <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                                  {products
-                                      .filter(p =>
-                                          p.id !== formData.serviceId &&
-                                          !addonItems.includes(p.id) &&
-                                          normalizeText(p.name).includes(normalizeText(addonSearch)) &&
-                                          (addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService))
-                                      )
-                                      .map(p => (
-                                          <div
-                                              key={p.id}
-                                              onClick={() => {
-                                                  setAddonItems(prev => [...prev, p.id]);
-                                                  setAddonSearch('');
-                                                  setShowAddonSuggestions(false);
-                                              }}
-                                              className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
-                                          >
-                                              <div className="flex items-center gap-2">
-                                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                      {p.isService ? 'SERVICE' : 'PRODUCT'}
-                                                  </span>
-                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
-                                              </div>
-                                              <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
-                                          </div>
-                                      ))
-                                  }
-                                  {products.filter(p =>
-                                      p.id !== formData.serviceId &&
-                                      !addonItems.includes(p.id) &&
-                                      normalizeText(p.name).includes(normalizeText(addonSearch)) &&
-                                      (addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService))
-                                  ).length === 0 && (
-                                      <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
-                                          <Search className="w-5 h-5 opacity-20" />
-                                          {addonSearch ? `No results for "${addonSearch}"` : 'All available items already added'}
-                                      </div>
-                                  )}
-                              </div>
-                          </div>
-                      )}
+                           <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                               {/* Filter tabs */}
+                               <div className="flex border-b border-zinc-100 bg-zinc-50">
+                                   {(['ALL', 'SERVICE', 'PRODUCT'] as const).map(f => (
+                                       <button
+                                           key={f}
+                                           type="button"
+                                           onClick={() => setAddonFilter(f)}
+                                           className={`flex-1 py-2 text-[11px] font-bold transition-all ${
+                                               addonFilter === f
+                                                   ? f === 'SERVICE'
+                                                       ? 'text-purple-600 border-b-2 border-purple-500 bg-white'
+                                                       : f === 'PRODUCT'
+                                                           ? 'text-blue-600 border-b-2 border-blue-500 bg-white'
+                                                           : 'text-zinc-900 border-b-2 border-zinc-900 bg-white'
+                                                   : 'text-gray-400 hover:text-gray-600'
+                                           }`}
+                                       >
+                                           {f === 'ALL' ? 'All' : f === 'SERVICE' ? '✂️ Services' : '🛍️ Products'}
+                                       </button>
+                                   ))}
+                               </div>
+                               {/* Species + size filter badge */}
+                               <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                                 <span>{formData.petSpecies === 'DOG' ? '🐶' : formData.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                 <span className="uppercase tracking-wider">{formData.petSpecies}</span>
+                                 {detectedSize && <><span>·</span><span className="text-purple-600">{detectedSize}</span></>}
+                                 <span className="ml-auto normal-case">Showing matching items</span>
+                               </div>
+                               <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                   {products
+                                       .filter(p => {
+                                         const notSelected = p.id !== formData.serviceId;
+                                         const notAdded = !addonItems.includes(p.id);
+                                         const nameMatch = normalizeText(p.name).includes(normalizeText(addonSearch));
+                                         const typeMatch = addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService);
+                                         // Species filter: show BOTH, OTHER (for other pets), or matching species
+                                         const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
+                                         // Size filter (only for dogs)
+                                         const sizeMatch = !detectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === detectedSize;
+                                         return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
+                                       })
+                                       .map(p => (
+                                           <div
+                                               key={p.id}
+                                               onClick={() => {
+                                                   setAddonItems(prev => [...prev, p.id]);
+                                                   setAddonSearch('');
+                                                   setShowAddonSuggestions(false);
+                                               }}
+                                               className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
+                                           >
+                                               <div className="flex items-center gap-2">
+                                                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                       {p.isService ? 'SERVICE' : 'PRODUCT'}
+                                                   </span>
+                                                   <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                               </div>
+                                               <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
+                                           </div>
+                                       ))
+                                   }
+                                   {products.filter(p => {
+                                     const notSelected = p.id !== formData.serviceId;
+                                     const notAdded = !addonItems.includes(p.id);
+                                     const nameMatch = normalizeText(p.name).includes(normalizeText(addonSearch));
+                                     const typeMatch = addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService);
+                                     const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
+                                     const sizeMatch = !detectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === detectedSize;
+                                     return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
+                                   }).length === 0 && (
+                                       <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
+                                           <Search className="w-5 h-5 opacity-20" />
+                                           {addonSearch ? `No results for "${addonSearch}"` : 'All available items already added or none match the filter'}
+                                       </div>
+                                   )}
+                               </div>
+                           </div>
+                       )}
                   </div>
               </div>
 
@@ -1577,16 +1738,13 @@ const Grooming: React.FC = () => {
                  </button>
              </div>
              
-             {/* Preview Controls */}
+             {/* Paper size info (read-only, configured in Settings) */}
              <div className="bg-zinc-700/50 p-3 rounded-xl mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-purple-900 rounded-lg p-1">
-                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
-                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
-                </div>
+                <span className="text-sm font-bold bg-purple-700 text-white px-3 py-1 rounded-lg">{paperSize}</span>
              </div>
 
              <div className="flex-1 overflow-auto bg-zinc-700/50 rounded-xl p-6 flex justify-center items-start">

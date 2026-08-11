@@ -32,7 +32,8 @@ const Inventory: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({
-    name: '', price: 0, cost: 0, stock: 0, category: '', isService: false
+    name: '', price: 0, cost: 0, stock: 0, category: '', isService: false,
+    petSpecies: 'BOTH', weightSizeCategory: 'ALL'
   });
 
   // Delete Product Modal State
@@ -110,14 +111,20 @@ const Inventory: React.FC = () => {
       cost: 0, 
       stock: 0, 
       category: currentCategories[0], 
-      isService: activeTab === 'SERVICES' 
+      isService: activeTab === 'SERVICES',
+      petSpecies: 'BOTH',
+      weightSizeCategory: 'ALL',
     });
     setIsModalOpen(true);
   };
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
-    setFormData(product);
+    setFormData({
+      ...product,
+      petSpecies: (product as any).petSpecies || 'BOTH',
+      weightSizeCategory: (product as any).weightSizeCategory || 'ALL',
+    });
     setIsModalOpen(true);
   };
 
@@ -152,7 +159,9 @@ const Inventory: React.FC = () => {
       cost: Number(formData.cost || 0),
       stock: activeTab === 'SERVICES' ? 0 : Number(formData.stock),
       category: formData.category as Category,
-      isService: activeTab === 'SERVICES', // Locked to tab
+      isService: activeTab === 'SERVICES',
+      petSpecies: formData.petSpecies || 'BOTH',
+      weightSizeCategory: formData.petSpecies === 'DOG' ? (formData.weightSizeCategory || 'ALL') : 'ALL',
     };
 
     if (editingProduct) {
@@ -368,6 +377,7 @@ const Inventory: React.FC = () => {
             <tr>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">For</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Cost</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Price (SRP)</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
@@ -379,6 +389,26 @@ const Inventory: React.FC = () => {
               <tr key={product.id} className="hover:bg-zinc-50 transition-colors">
                 <td className="p-4 font-medium text-zinc-900">{product.name}</td>
                 <td className="p-4"><span className="text-xs bg-zinc-100 text-zinc-800 px-2 py-1 rounded-lg font-bold">{product.category}</span></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-1">
+                    {/* Species badge */}
+                    {(product as any).petSpecies && (product as any).petSpecies !== 'BOTH' ? (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        (product as any).petSpecies === 'DOG' ? 'bg-amber-100 text-amber-700' :
+                        (product as any).petSpecies === 'CAT' ? 'bg-purple-100 text-purple-700' :
+                        'bg-zinc-100 text-zinc-600'
+                      }`}>
+                        {(product as any).petSpecies === 'DOG' ? '🐶 Dog' : (product as any).petSpecies === 'CAT' ? '🐱 Cat' : '🐾 Other'}
+                      </span>
+                    ) : <span className="text-[10px] text-gray-300">All species</span>}
+                    {/* Size badge — only for dog services */}
+                    {(product as any).petSpecies === 'DOG' && (product as any).weightSizeCategory && (product as any).weightSizeCategory !== 'ALL' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        {(product as any).weightSizeCategory}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="p-4 text-gray-500">₱{(product.cost || 0).toFixed(2)}</td>
                 <td className="p-4 font-bold text-zinc-900">₱{product.price.toFixed(2)}</td>
                 <td className="p-4">
@@ -479,6 +509,48 @@ const Inventory: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* ── Pet Species ── */}
+              <div>
+                <label className="text-sm font-bold text-gray-700">For which pet? <span className="text-xs font-normal text-gray-400">(used for filtering in POS)</span></label>
+                <div className="flex gap-2 mt-2">
+                  {(['BOTH','DOG','CAT','OTHER'] as const).map(s => (
+                    <button key={s} type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, petSpecies: s, weightSizeCategory: s !== 'DOG' ? 'ALL' : prev.weightSizeCategory }))}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        formData.petSpecies === s
+                          ? s === 'DOG'  ? 'bg-amber-500 text-white border-amber-500'
+                          : s === 'CAT'  ? 'bg-purple-600 text-white border-purple-600'
+                          : s === 'BOTH' ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-zinc-600 text-white border-zinc-600'
+                          : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
+                      }`}>
+                      {s === 'DOG' ? '🐶 Dog' : s === 'CAT' ? '🐱 Cat' : s === 'BOTH' ? '✦ All' : '🐾 Other'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Weight/Size Category — only for DOG ── */}
+              {formData.petSpecies === 'DOG' && (
+                <div>
+                  <label className="text-sm font-bold text-gray-700">Dog Size Category <span className="text-xs font-normal text-gray-400">(leave ALL for any size)</span></label>
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {(['ALL','XS','S','M','L','XL','XXL'] as const).map(sz => (
+                      <button key={sz} type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, weightSizeCategory: sz }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          formData.weightSizeCategory === sz
+                            ? sz === 'ALL' ? 'bg-zinc-700 text-white border-zinc-700' : 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
+                        }`}>
+                        {sz === 'ALL' ? '✦ ALL sizes' : sz}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">XS ≤2kg · S ≤5kg · M ≤10kg · L ≤16kg · XL ≤25kg · XXL &gt;25kg</p>
+                </div>
+              )}
               
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsModalOpen(false)}>Cancel</Button>

@@ -25,9 +25,42 @@ body {
 
 /* Thermal print */
 @media print {
-  @page { margin: 0; size: auto; }
-  body { margin: 0; padding: 0; background-color: white; }
+  /* Base page — dynamically overridden by the injected style in handleActualPrint */
+  @page { margin: 0mm; size: auto; }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* Colour accuracy */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /*
+    Use visibility:hidden (NOT display:none) so that child elements
+    CAN override with visibility:visible — display:none on a parent
+    cannot be overridden by children, which would make the receipt blank.
+  */
+  body * { visibility: hidden !important; }
+
+  /* Reveal only the receipt and all its descendants */
+  #printable-content,
+  #printable-content * { visibility: visible !important; }
+
+  /* Position the receipt at the top-left corner of the page */
+  #printable-content {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
 }
 
 /* Animations */

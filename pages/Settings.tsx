@@ -81,7 +81,8 @@ const Settings: React.FC = () => {
         hotelVatEnabled: formData.hotelVatEnabled,
         gcashNumber: formData.gcashNumber,
         receiptHeader: formData.receiptHeader,
-        receiptFooter: formData.receiptFooter
+        receiptFooter: formData.receiptFooter,
+        receiptPaperSize: formData.receiptPaperSize || '80mm'
     };
     updateStoreSettings(mergedSettings);
     setIsEditingGeneral(false);
@@ -472,6 +473,30 @@ const Settings: React.FC = () => {
 
                     <div className="pt-4 border-t border-zinc-100 mt-4">
                         <h3 className="font-bold text-gray-500 uppercase text-xs mb-3">Receipt Customization</h3>
+                        
+                        {/* Paper Size Selector */}
+                        <div className="mb-4">
+                            <label className="text-sm font-bold text-gray-700 block mb-2">Thermal Paper Size</label>
+                            <p className="text-xs text-gray-400 mb-2">Width of your thermal receipt printer roll. Length is automatic.</p>
+                            <div className="flex gap-2">
+                                {(['48mm', '58mm', '80mm'] as const).map((size) => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        disabled={!isEditingGeneral}
+                                        onClick={() => setFormData({...formData, receiptPaperSize: size})}
+                                        className={`flex-1 py-2.5 rounded-xl font-bold text-sm border-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                                            (formData.receiptPaperSize || '80mm') === size
+                                                ? 'border-purple-600 bg-purple-600 text-white shadow-md shadow-purple-200'
+                                                : 'border-zinc-200 bg-white text-zinc-600 hover:border-purple-300'
+                                        }`}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <div>
                             <label className="text-sm font-bold text-gray-700">Receipt Header</label>
                             <input disabled={!isEditingGeneral} type="text" className={inputClass(isEditingGeneral)} value={formData.receiptHeader || ''} onChange={e => setFormData({...formData, receiptHeader: e.target.value})} />

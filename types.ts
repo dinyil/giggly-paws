@@ -42,6 +42,8 @@ export interface Product {
   category: Category;
   stock: number;
   isService: boolean; // True for Grooming
+  petSpecies?: 'DOG' | 'CAT' | 'BOTH' | 'OTHER'; // For grooming service/add-on filtering
+  weightSizeCategory?: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'ALL'; // Size tier for dog services
 }
 
 export interface Discount {
@@ -85,7 +87,9 @@ export interface GroomingAppointment {
   petName: string;
   petBreed?: string;
   petColor?: string;
-  weightSize?: string;
+  weightSize?: string;    // Free text field e.g. "3.5kg"
+  petSpecies?: 'DOG' | 'CAT' | 'OTHER'; // Species for service filtering
+  detectedSizeCategory?: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'; // Auto-detected from weight
   
   ownerName: string;
   contactNumber?: string;
@@ -169,6 +173,7 @@ export interface StoreSettings {
   receiptHeader: string;
   receiptFooter: string;
   logo: string; // Base64 string
+  receiptPaperSize?: '48mm' | '58mm' | '80mm'; // Thermal printer paper width
   
   // Cloud Database Config
   supabaseUrl?: string;

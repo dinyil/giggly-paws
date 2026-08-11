@@ -5,131 +5,158 @@ import { Transaction, StoreSettings } from '../types';
 interface ReceiptTemplateProps { 
   transaction: Transaction; 
   settings: StoreSettings; 
-  paperSize: '58mm' | '80mm';
+  paperSize: '48mm' | '58mm' | '80mm';
   isPreview?: boolean;
 }
 
 const ReceiptTemplate: React.FC<ReceiptTemplateProps> = ({ transaction, settings, paperSize, isPreview }) => {
-  const widthClass = paperSize === '58mm' ? 'w-[58mm]' : 'w-[80mm]';
-  const textSize = paperSize === '58mm' ? 'text-[9px]' : 'text-[11px]';
-  const headerSize = paperSize === '58mm' ? 'text-[11px]' : 'text-sm';
-  const padding = paperSize === '58mm' ? 'p-1' : 'p-2';
-  
+  // Width in pixels for the outer container (preview only)
+  const widthPx = paperSize === '80mm' ? '302px' : paperSize === '58mm' ? '219px' : '181px';
+
+  // For print, the @page rule sets exact mm width; we rely on 100% width.
+  // For preview we constrain to the pixel equivalent above.
+  const containerStyle: React.CSSProperties = isPreview
+    ? { width: widthPx, fontFamily: 'monospace', fontSize: paperSize === '80mm' ? '11px' : '9px', lineHeight: '1.35', wordBreak: 'break-word', overflowWrap: 'break-word', color: '#000', backgroundColor: '#fff', padding: paperSize === '80mm' ? '8px' : '4px', margin: '0 auto' }
+    : { width: '100%', fontFamily: 'monospace', fontSize: paperSize === '80mm' ? '11px' : '9px', lineHeight: '1.35', wordBreak: 'break-word', overflowWrap: 'break-word', color: '#000', backgroundColor: '#fff', padding: paperSize === '80mm' ? '6px' : '3px' };
+
+  const headerFontSize = paperSize === '80mm' ? '13px' : '10px';
+  const totalFontSize  = paperSize === '80mm' ? '13px' : '10px';
+
   const formattedDate = new Date(transaction.date).toLocaleString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
+    month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
   });
 
-  // Split Logic Helpers
-  const isSplit = transaction.paymentMethod === 'SPLIT';
-  const cashPaid = transaction.cashReceived || 0;
-  const gcashPaid = transaction.total - cashPaid;
+  const isSplit   = transaction.paymentMethod === 'SPLIT';
+  const isGcash   = transaction.paymentMethod === 'GCASH';
+  const isCash    = transaction.paymentMethod === 'CASH';
+
+  // For SPLIT: cashReceived holds the cash portion, rest is GCash
+  const splitCash  = isSplit ? (transaction.cashReceived ?? 0) : 0;
+  const splitGcash = isSplit ? Math.max(0, transaction.total - splitCash) : 0;
+
+  // For CASH: cashReceived holds what the customer gave (may include change)
+  const cashGiven  = isCash ? (transaction.cashReceived ?? 0) : 0;
+  const cashChange = isCash ? Math.max(0, cashGiven - transaction.total) : 0;
+
+
+  const row = (left: React.ReactNode, right: React.ReactNode, bold = false, extraStyle?: React.CSSProperties) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontWeight: bold ? 'bold' : 'normal', ...extraStyle }}>
+      <span style={{ flex: 1, paddingRight: '4px', wordBreak: 'break-word' }}>{left}</span>
+      <span style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{right}</span>
+    </div>
+  );
+
+  const dashedBorder: React.CSSProperties = { borderTop: '1px dashed #000', marginTop: '6px', paddingTop: '6px' };
+  const dashedBottom: React.CSSProperties = { borderBottom: '1px dashed #000', paddingBottom: '6px', marginBottom: '6px' };
 
   return (
-    <div className={`font-mono leading-tight text-black bg-white mx-auto ${widthClass} ${textSize} ${padding}`}>
-      <div className="text-center mb-2">
+    <div style={containerStyle}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '6px' }}>
         {settings.logo && (
-          <div className="flex justify-center mb-2">
-             <img 
-               src={settings.logo} 
-               alt="Store Logo"
-               className="object-contain" 
-               style={{ 
-                   maxHeight: paperSize === '58mm' ? '60px' : '90px',
-                   maxWidth: '90%',
-                   margin: '0 auto',
-                   display: 'block'
-               }} 
-             />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+            <img
+              src={settings.logo}
+              alt="Store Logo"
+              style={{ maxHeight: paperSize === '80mm' ? '80px' : '55px', maxWidth: '85%', objectFit: 'contain' }}
+            />
           </div>
         )}
-        
-        <h1 className={`font-bold uppercase ${headerSize} mt-1`}>{settings.name}</h1>
-        <p>{settings.address}</p>
-        <p>{settings.contactNumber}</p>
-      </div>
-      
-      <div className="text-center mb-2 border-b border-black pb-1 border-dashed">
-        {settings.receiptHeader}
+        <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: headerFontSize }}>{settings.name}</div>
+        <div>{settings.address}</div>
+        <div>{settings.contactNumber}</div>
       </div>
 
-      <div className="border-b border-black border-dashed pb-2 mb-2 space-y-1">
+      {/* Receipt Header message */}
+      {settings.receiptHeader && (
+        <div style={{ textAlign: 'center', ...dashedBottom }}>{settings.receiptHeader}</div>
+      )}
+
+      {/* Items */}
+      <div style={dashedBottom}>
         {transaction.items.map((item, idx) => {
-            const itemTotal = item.price * item.quantity;
-            return (
-              <div key={idx}>
-                <div className="flex justify-between items-start">
-                    <span className="w-2/3 pr-1 leading-tight">{item.quantity} x {item.name}</span>
-                    <span className="w-1/3 text-right">{itemTotal.toFixed(2)}</span>
-                </div>
-                {item.appliedDiscounts && item.appliedDiscounts.length > 0 && item.appliedDiscounts.map(d => {
-                    const discountAmt = d.type === 'PERCENTAGE' 
-                        ? itemTotal * (d.value / 100) 
-                        : d.value * item.quantity;
-                    return (
-                        <div key={d.id} className="flex justify-between items-start text-[8px] italic pl-2 text-gray-600">
-                            <span>- {d.name} ({d.type === 'PERCENTAGE' ? d.value + '%' : '₱'+d.value})</span>
-                            <span>-{discountAmt.toFixed(2)}</span>
-                        </div>
-                    );
-                })}
-              </div>
-            );
+          const itemTotal = item.price * item.quantity;
+          return (
+            <div key={idx} style={{ marginBottom: '2px' }}>
+              {row(
+                <>{item.quantity} x {item.name}</>,
+                itemTotal.toFixed(2)
+              )}
+              {item.appliedDiscounts?.map(d => {
+                const discountAmt = d.type === 'PERCENTAGE'
+                  ? itemTotal * (d.value / 100)
+                  : d.value * item.quantity;
+                return (
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontStyle: 'italic', color: '#555', paddingLeft: '8px' }}>
+                    <span>- {d.name} ({d.type === 'PERCENTAGE' ? d.value + '%' : '₱' + d.value})</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>-{discountAmt.toFixed(2)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
         })}
       </div>
 
-      <div className="space-y-1 mb-2">
-        <div className="flex justify-between"><span>Subtotal</span><span>{transaction.subtotal.toFixed(2)}</span></div>
-        {transaction.discount > 0 && (
-          <div className="flex justify-between"><span>Discount</span><span>-{transaction.discount.toFixed(2)}</span></div>
-        )}
-        <div className="flex justify-between"><span>VAT ({settings.vatRate}%)</span><span>{transaction.vat.toFixed(2)}</span></div>
-        <div className={`flex justify-between font-bold border-t border-black pt-1 mt-1 ${headerSize}`}>
+      {/* Totals */}
+      <div style={{ marginBottom: '6px' }}>
+        {row('Subtotal', transaction.subtotal.toFixed(2))}
+        {transaction.discount > 0 && row('Discount', `-${transaction.discount.toFixed(2)}`)}
+        {row(`VAT (${settings.vatRate}%)`, transaction.vat.toFixed(2))}
+        <div style={{ borderTop: '1px solid #000', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: totalFontSize }}>
           <span>TOTAL</span>
           <span>₱{transaction.total.toFixed(2)}</span>
         </div>
       </div>
 
-      <div className="border-t border-black border-dashed pt-1 mt-2 space-y-1">
-          {transaction.paymentMethod === 'CASH' && (
-              <>
-                <div className="flex justify-between"><span>Paid via Cash</span><span>₱{transaction.total.toFixed(2)}</span></div>
-                {transaction.cashReceived != null && (
-                    <div className="flex justify-between"><span>Cash Received</span><span>₱{transaction.cashReceived.toFixed(2)}</span></div>
-                )}
-                {transaction.cashReceived != null && (
-                    <div className="flex justify-between font-bold"><span>Change</span><span>₱{Math.max(0, transaction.cashReceived - transaction.total).toFixed(2)}</span></div>
-                )}
-              </>
-          )}
+      {/* Payment */}
+      <div style={dashedBorder}>
+        {/* ── CASH ── */}
+        {isCash && (
+          <>
+            {row('Paid via Cash', `₱${transaction.total.toFixed(2)}`)}
+            {cashGiven > 0 && row('Cash Received', `₱${cashGiven.toFixed(2)}`)}
+            {cashGiven > 0 && row('Change', `₱${cashChange.toFixed(2)}`, true)}
+          </>
+        )}
 
-          {transaction.paymentMethod === 'GCASH' && (
-              <>
-                <div className="flex justify-between"><span>Paid via GCash</span><span>₱{transaction.total.toFixed(2)}</span></div>
-                <div className="flex justify-between text-[9px]"><span>Ref:</span><span>{transaction.gcashRef}</span></div>
-              </>
-          )}
-          {isSplit && (
-              <>
-                <div className="flex justify-between font-bold"><span>SPLIT PAYMENT</span></div>
-                <div className="flex justify-between"><span>Cash:</span><span>₱{cashPaid.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>GCash:</span><span>₱{gcashPaid.toFixed(2)}</span></div>
-                <div className="flex justify-between text-[9px]"><span>Ref:</span><span>{transaction.gcashRef}</span></div>
-              </>
-          )}
+        {/* ── GCASH ── */}
+        {isGcash && (
+          <>
+            {row('Paid via GCash', `₱${transaction.total.toFixed(2)}`)}
+            {transaction.gcashRef && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px' }}>
+                <span>Ref:</span><span>{transaction.gcashRef}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── SPLIT ── */}
+        {isSplit && (
+          <>
+            <div style={{ fontWeight: 'bold' }}>SPLIT PAYMENT</div>
+            {row('Cash:', `₱${splitCash.toFixed(2)}`)}
+            {row('GCash:', `₱${splitGcash.toFixed(2)}`)}
+            {transaction.gcashRef && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px' }}>
+                <span>Ref:</span><span>{transaction.gcashRef}</span>
+              </div>
+            )}
+          </>
+        )}
       </div>
+      
 
-      <div className="text-center mt-4 space-y-1">
-        <p>Ref: {transaction.id.slice(-8)}</p>
-        <p>{formattedDate}</p>
-        <div className="mt-2 pt-2 border-t border-black border-dashed">
-          {settings.receiptFooter}
-        </div>
-        {!isPreview && <p className="mt-2 font-bold">*** CUSTOMER COPY ***</p>}
+      {/* Footer */}
+      <div style={{ textAlign: 'center', marginTop: '10px' }}>
+        <div>Ref: {transaction.id.slice(-8)}</div>
+        <div>{formattedDate}</div>
+        {settings.receiptFooter && (
+          <div style={{ ...dashedBorder, marginTop: '6px', wordBreak: 'break-word' }}>{settings.receiptFooter}</div>
+        )}
+        {!isPreview && <div style={{ marginTop: '6px', fontWeight: 'bold' }}>*** CUSTOMER COPY ***</div>}
       </div>
     </div>
   );

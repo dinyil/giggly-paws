@@ -275,3 +275,20 @@ ALTER TABLE clients REPLICA IDENTITY FULL;
 ALTER TABLE users REPLICA IDENTITY FULL;
 ALTER TABLE devices REPLICA IDENTITY FULL;
 ALTER TABLE messages REPLICA IDENTITY FULL;
+
+-- =======================================================
+-- MIGRATION: Add receipt_paper_size to store_settings
+-- Run this once in your Supabase SQL Editor
+-- =======================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'store_settings'
+    AND column_name = 'receipt_paper_size'
+  ) THEN
+    ALTER TABLE store_settings
+    ADD COLUMN receipt_paper_size text DEFAULT '80mm'
+    CHECK (receipt_paper_size IN ('48mm', '58mm', '80mm'));
+  END IF;
+END $$;

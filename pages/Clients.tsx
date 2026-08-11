@@ -262,11 +262,17 @@ const Clients: React.FC = () => {
       const newList = [...tempPets];
       newList[editingPetIndex] = updatedPet;
       setTempPets(newList);
-      
+
+      // If editing an existing client, save to DB immediately — no need for "Save Changes"
+      if (editingClient) {
+          updateClient({ ...editingClient, pets: newList });
+      }
+
       // Reset everything
       setPetUpdateModal({ isOpen: false, changes: [] });
       cancelPetEdit();
   };
+
 
   const handleRemovePetFromList = (e: React.MouseEvent, index: number) => {
       e.stopPropagation(); // Prevent triggering edit mode

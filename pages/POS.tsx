@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product, CartItem, Category, Transaction, StoreSettings, Discount, GroomingAppointment, Role, Client, Pet } from '../types';
 import Button from '../components/ui/Button';
-import { Search, ShoppingBag, Trash2, Plus, Minus, CreditCard, Bone, Dog, Printer, Check, X, Settings, ArrowRight, Scissors, DollarSign, User, ChevronDown, Tag, Percent, Info, CheckCircle, AlertCircle } from '../components/ui/Icons';
+import { Search, ShoppingBag, Trash2, Plus, Minus, CreditCard, Bone, Dog, Printer, Check, X, Settings, ArrowRight, Scissors, DollarSign, User, ChevronDown, Tag, Percent, Info, CheckCircle, AlertCircle, MapPin, Pencil, Users } from '../components/ui/Icons';
 import { Dialog } from '@headlessui/react';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import { useNavigate } from 'react-router-dom';
@@ -238,11 +238,30 @@ const CartPanel: React.FC<CartPanelProps> = ({
 }
 
 const POS: React.FC = () => {
-  const { products, discounts, addTransaction, addAppointment, currentUser, productCategories, serviceCategories, storeSettings, clients, users } = useStore();
+  const { products, discounts, addTransaction, addAppointment, currentUser, productCategories, serviceCategories, storeSettings, clients, users, addClient } = useStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   
   const navigate = useNavigate();
+
+  // ── New Client Form State (mirrors Clients page Add New Client) ──────
+  const [ncFormData, setNcFormData] = useState({ ownerName: '', contactNumber: '', email: '', address: '', notes: '' });
+  const [ncTempPets, setNcTempPets] = useState<Pet[]>([]);
+  const [ncEditingPetIndex, setNcEditingPetIndex] = useState<number | null>(null);
+  const [ncPetInput, setNcPetInput] = useState({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '' as '' | 'DOG' | 'CAT' | 'OTHER', speciesOther: '' });
+
+  const ncHandleAddPet = () => {
+    if (!ncPetInput.petName || !ncPetInput.species) return;
+    const newPet: Pet = { id: Date.now().toString() + Math.random().toString().slice(2,5), name: ncPetInput.petName, species: ncPetInput.species, speciesLabel: ncPetInput.species === 'OTHER' ? (ncPetInput.speciesOther || 'Other') : undefined, breed: ncPetInput.petBreed, color: ncPetInput.petColor, weightSize: ncPetInput.weightSize };
+    setNcTempPets(prev => [...prev, newPet]);
+    setNcPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
+  };
+  const ncResetForm = () => {
+    setNcFormData({ ownerName: '', contactNumber: '', email: '', address: '', notes: '' });
+    setNcTempPets([]);
+    setNcEditingPetIndex(null);
+    setNcPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
+  };
 
   // New: Tab state for splitting Products and Services
   const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'SERVICES'>('PRODUCTS');
@@ -279,8 +298,8 @@ const POS: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isQrZoomed, setIsQrZoomed] = useState(false);
   
-  // Printer Settings
-  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('80mm');
+  // Printer Settings — read from store settings (configured globally)
+  const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
 
@@ -292,6 +311,18 @@ const POS: React.FC = () => {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  // Services tab: pet species + weight filter
+  const [serviceSpecies, setServiceSpecies] = useState<'DOG' | 'CAT' | 'OTHER' | null>(null);
+  const [serviceWeightKg, setServiceWeightKg] = useState<string>('');
+  // Modal to collect pet info before browsing services
+  const [showServicePetModal, setShowServicePetModal] = useState(false);
+  const [isNewClientMode, setIsNewClientMode] = useState(false);
+  const [servicePetInfo, setServicePetInfo] = useState({
+    ownerName: '', contactNumber: '', email: '', petName: '',
+    species: '' as 'DOG' | 'CAT' | 'OTHER' | '',
+    weightKg: '',
+  });
   const clientDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pet Autocomplete Logic
@@ -370,6 +401,26 @@ const POS: React.FC = () => {
   // Determine which categories to show based on active tab
   const currentCategories = activeTab === 'PRODUCTS' ? productCategories : serviceCategories;
 
+  // Auto-detect dog size from weight input
+  const detectSizeFromWeight = (kg: number) => {
+    if (kg <= 2)  return 'XS';
+    if (kg <= 5)  return 'S';
+    if (kg <= 10) return 'M';
+    if (kg <= 16) return 'L';
+    if (kg <= 25) return 'XL';
+    return 'XXL';
+  };
+  const VALID_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  const serviceWeightNum = parseFloat(serviceWeightKg);
+  const serviceDetectedSize: string | null = serviceSpecies === 'DOG'
+    ? (!isNaN(serviceWeightNum) && serviceWeightNum > 0
+        ? detectSizeFromWeight(serviceWeightNum)                        // numeric kg → detect size
+        : VALID_SIZES.includes((serviceWeightKg || '').toUpperCase())
+          ? (serviceWeightKg || '').toUpperCase()                       // already a size label (S, M, L…)
+          : null)
+    : null;
+
+
   // Filtering Logic
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -380,14 +431,44 @@ const POS: React.FC = () => {
       const normalizedName = normalizeText(p.name);
       const matchesSearch = normalizedName.includes(normalizedSearch);
       const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
+
+      // Species + size filtering for services
+      if (activeTab === 'SERVICES' && serviceSpecies) {
+        const species = (p as any).pet_species || (p as any).petSpecies || 'BOTH';
+        // Species match: BOTH/null means available for all
+        const speciesMatch = species === 'BOTH' || !species ||
+          (serviceSpecies === 'DOG' && species === 'DOG') ||
+          (serviceSpecies === 'CAT' && species === 'CAT') ||
+          (serviceSpecies === 'OTHER' && (species === 'BOTH' || !species));
+        if (!speciesMatch) return false;
+
+        // Size filter (only for dogs with a detected size)
+        if (serviceSpecies === 'DOG' && serviceDetectedSize) {
+          const sizeCol = (p as any).weight_size_category || (p as any).weightSizeCategory;
+          if (sizeCol && sizeCol !== 'ALL' && sizeCol !== serviceDetectedSize) return false;
+        }
+      }
+
       return matchesSearch && matchesCategory;
     });
-  }, [products, search, activeCategory, activeTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, search, activeCategory, activeTab, serviceSpecies, serviceDetectedSize]);
+
+  // Pending service — holds an item the user tried to add before pet info was entered
+  const [pendingServiceProduct, setPendingServiceProduct] = React.useState<Product | null>(null);
 
   // Cart Logic
   const addToCart = (product: Product) => {
     if (!product.isService && product.stock <= 0) return;
-    
+
+    // Guard: services require pet info first
+    if (product.isService && !servicePetInfo.ownerName && !servicePetInfo.petName) {
+      setPendingServiceProduct(product); // remember what they tried to add
+      setIsNewClientMode(false);
+      setShowServicePetModal(true);
+      return;
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -523,9 +604,11 @@ const POS: React.FC = () => {
       return sum + Math.min(itemDiscount, originalItemTotal);
   }, 0);
   
-  const total = Math.max(0, subtotal - discountAmount);
-  const vatRate = storeSettings.vatRate / 100;
-  const vatAmount = (total / (1 + vatRate)) * vatRate; 
+  const vatRate       = storeSettings.vatRate / 100;
+  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const vatAmount     = subtotalAfterDiscount * vatRate;          // VAT added ON TOP
+  const total         = subtotalAfterDiscount + vatAmount;        // Total includes VAT
+
 
   // --- CHECKOUT HANDLERS ---
   const handleCheckoutClick = () => {
@@ -626,38 +709,42 @@ const POS: React.FC = () => {
     addTransaction(transaction);
     setLastTransaction(transaction);
 
-    // Appointments Logic
+    // Appointments Logic — group ALL services into ONE appointment
     const serviceItems = cart.filter(i => i.isService);
     let hasServices = false;
 
     if (serviceItems.length > 0) {
         hasServices = true;
-        serviceItems.forEach(item => {
-            for(let i=0; i < item.quantity; i++) {
-                const now = new Date();
-                const instructions = groomingFormData.hairCut 
-                    ? `${groomingFormData.hairCut} (Paid at POS Tx:#${transaction.id.slice(-4)})`
-                    : `Paid at POS (Tx: #${transaction.id.slice(-4)})`;
+        const now = new Date();
+        const instructions = groomingFormData.hairCut
+            ? `${groomingFormData.hairCut} (Paid at POS Tx:#${transaction.id.slice(-4)})`
+            : `Paid at POS (Tx: #${transaction.id.slice(-4)})`;
 
-                const newApt: GroomingAppointment = {
-                    id: Date.now().toString() + Math.random().toString().slice(2, 5),
-                    petName: groomingFormData.petName,
-                    petBreed: groomingFormData.petBreed,
-                    petColor: groomingFormData.petColor,
-                    weightSize: groomingFormData.weightSize,
-                    ownerName: groomingFormData.ownerName,
-                    contactNumber: finalContactNumber, // Use sanitized
-                    email: groomingFormData.email,
-                    groomerId: groomingFormData.groomerId,
-                    serviceId: item.id,
-                    hairCut: instructions,
-                    date: now.toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'}),
-                    time: now.toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'}),
-                    status: 'SCHEDULED',
-                };
-                addAppointment(newApt);
-            }
+        // First service = main serviceId, rest = addonIds
+        const allServiceIds: string[] = [];
+        serviceItems.forEach(item => {
+            for (let q = 0; q < item.quantity; q++) allServiceIds.push(item.id);
         });
+        const [mainServiceId, ...addonServiceIds] = allServiceIds;
+
+        const newApt: GroomingAppointment = {
+            id: Date.now().toString() + Math.random().toString().slice(2, 5),
+            petName: groomingFormData.petName,
+            petBreed: groomingFormData.petBreed,
+            petColor: groomingFormData.petColor,
+            weightSize: groomingFormData.weightSize,
+            ownerName: groomingFormData.ownerName,
+            contactNumber: finalContactNumber,
+            email: groomingFormData.email,
+            groomerId: groomingFormData.groomerId,
+            serviceId: mainServiceId,
+            addonIds: addonServiceIds.length > 0 ? addonServiceIds : undefined,
+            hairCut: instructions,
+            date: now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+            time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' }),
+            status: 'SCHEDULED',
+        };
+        addAppointment(newApt);
     }
 
     setCart([]);
@@ -674,7 +761,15 @@ const POS: React.FC = () => {
   };
 
   const handleActualPrint = () => {
-    setTimeout(() => { window.print(); }, 500);
+    // Inject @page rule with exact mm width and auto height.
+    // index.css handles visibility isolation via visibility:hidden/visible.
+    const existingStyle = document.getElementById('thermal-print-style');
+    if (existingStyle) existingStyle.remove();
+    const style = document.createElement('style');
+    style.id = 'thermal-print-style';
+    style.textContent = `@media print { @page { size: ${paperSize} auto; margin: 0mm; } }`;
+    document.head.appendChild(style);
+    setTimeout(() => { window.print(); }, 300);
   };
 
   const handleOpenPreview = () => {
@@ -684,7 +779,20 @@ const POS: React.FC = () => {
   const handleTabChange = (tab: 'PRODUCTS' | 'SERVICES') => {
       setActiveTab(tab);
       setActiveCategory('ALL');
+      // Open pet-info modal when entering services tab ONLY if no client is set yet
+      if (tab === 'SERVICES') {
+        if (!servicePetInfo.ownerName && !servicePetInfo.petName) {
+          // No client chosen yet — prompt for info
+          setIsNewClientMode(false);
+          setServicePetInfo({ ownerName: '', contactNumber: '', email: '', petName: '', species: '', weightKg: '' });
+          setShowServicePetModal(true);
+        }
+        // If client already chosen — keep existing info and species/size filter active
+      } else {
+        // Switching away from Services — preserve species filter so it's still set when returning
+      }
   };
+
 
   const inputClass = "w-full border border-zinc-300 rounded-xl p-3 mt-1 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent placeholder-zinc-400 font-medium text-sm";
   const labelClass = "text-xs font-bold text-gray-500 uppercase";
@@ -695,7 +803,7 @@ const POS: React.FC = () => {
       {/* Product Grid */}
       <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-zinc-100 overflow-hidden h-full">
         {/* Header */}
-        <div className="p-4 border-b border-zinc-100 space-y-4">
+        <div className="p-4 border-b border-zinc-100 space-y-3">
           <div className="flex gap-4">
              <button onClick={() => handleTabChange('PRODUCTS')} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'PRODUCTS' ? 'bg-purple-700 text-white shadow-lg' : 'bg-zinc-50 text-gray-500 hover:bg-zinc-100 border border-zinc-200'}`}>
                 <Bone className="w-5 h-5" /> Products
@@ -704,6 +812,35 @@ const POS: React.FC = () => {
                 <Scissors className="w-5 h-5" /> Services
              </button>
           </div>
+
+          {/* ── Active pet filter banner (Services tab) ───────────── */}
+          {activeTab === 'SERVICES' && serviceSpecies && (
+            <div className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-purple-800">
+                <span>{serviceSpecies === 'DOG' ? '🐶' : serviceSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                <span>
+                  {servicePetInfo.petName || 'Pet'}
+                  {serviceSpecies === 'DOG' && serviceDetectedSize && ` · ${serviceDetectedSize}`}
+                  {servicePetInfo.ownerName && ` — ${servicePetInfo.ownerName}`}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowServicePetModal(true)}
+                className="text-xs text-purple-600 font-bold underline"
+              >
+                Edit
+              </button>
+            </div>
+          )}
+          {activeTab === 'SERVICES' && !serviceSpecies && (
+            <button
+              onClick={() => setShowServicePetModal(true)}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-purple-300 text-purple-500 text-sm font-bold hover:bg-purple-50 transition-all"
+            >
+              <Scissors className="w-4 h-4" /> Select pet to filter services
+            </button>
+          )}
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input type="text" placeholder={`Search ${activeTab === 'PRODUCTS' ? 'products' : 'services'}...`} className="w-full pl-10 pr-4 py-3 bg-white text-zinc-900 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black" value={search} onChange={e => setSearch(e.target.value)} />
@@ -788,125 +925,163 @@ const POS: React.FC = () => {
           </div>
       )}
 
-      {/* Grooming Modal */}
+      {/* Grooming Modal — smart: compact confirm if pre-filled, full form if walk-in */}
       <Dialog open={showGroomingModal} onClose={() => setShowGroomingModal(false)} className="relative z-50">
         <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
             <Dialog.Title className="text-xl font-bold mb-4 text-zinc-900 border-b border-zinc-100 pb-2">
-              Walk-In Grooming Details
+              {groomingFormData.ownerName && groomingFormData.petName ? 'Confirm Grooming Details' : 'Walk-In Grooming Details'}
             </Dialog.Title>
-            
+
             <form onSubmit={handleProceedToPayment} className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                {/* Search / Select Owner */}
-                <div className="relative" ref={clientDropdownRef}>
+
+              {/* ── PRE-FILLED MODE: client/pet info already captured ─────── */}
+              {groomingFormData.ownerName && groomingFormData.petName ? (
+                <>
+                  {/* Read-only summary card */}
+                  <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-100 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-xl">
+                        {servicePetInfo.species === 'CAT' ? '🐱' : servicePetInfo.species === 'OTHER' ? '🐾' : '🐶'}
+                      </div>
+                      <div>
+                        <p className="font-bold text-zinc-900">{groomingFormData.petName}</p>
+                        <p className="text-xs text-gray-500">{groomingFormData.petBreed ? `${groomingFormData.petBreed} · ` : ''}{groomingFormData.weightSize || 'No weight'}</p>
+                      </div>
+                    </div>
+                    <div className="border-t border-zinc-100 pt-3">
+                      <p className="text-xs text-gray-400 uppercase font-bold mb-1">Owner</p>
+                      <p className="text-sm font-bold text-zinc-900">{groomingFormData.ownerName}</p>
+                      {groomingFormData.contactNumber && <p className="text-xs text-gray-500">{groomingFormData.contactNumber}</p>}
+                    </div>
+                    <button type="button" onClick={() => setGroomingFormData(prev => ({ ...prev, ownerName: '', petName: '' }))} className="text-[10px] text-purple-600 hover:underline font-bold">
+                      ✎ Edit details
+                    </button>
+                  </div>
+
+                  {/* Only ask for Groomer + Instructions */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className={labelClass}>Groomer <span className="text-red-500">*</span></label>
+                      <select required className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.groomerId} onChange={e => setGroomingFormData({...groomingFormData, groomerId: e.target.value})} disabled={groomers.length === 0}>
+                        <option value="">Select Groomer</option>
+                        {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Instructions / Style</label>
+                      <textarea className={`${inputClass} bg-white text-zinc-900 resize-none`} rows={2} value={groomingFormData.hairCut} onChange={e => setGroomingFormData({...groomingFormData, hairCut: e.target.value})} placeholder="Specific cut or notes..." />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* ── WALK-IN MODE: full form ──────────────────────────────── */}
+                  {/* Search / Select Owner */}
+                  <div className="relative" ref={clientDropdownRef}>
                     <label className={labelClass}>Owner Name</label>
                     <div className="relative">
-                        <input 
-                            required 
-                            className={`${inputClass} pl-9 bg-white text-zinc-900`}
-                            value={groomingFormData.ownerName} 
-                            onChange={handleOwnerSearch} 
-                            onFocus={(e) => handleOwnerSearch(e)}
-                            placeholder="Type to search..." 
-                            autoComplete="off"
-                        />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        required
+                        className={`${inputClass} pl-9 bg-white text-zinc-900`}
+                        value={groomingFormData.ownerName}
+                        onChange={handleOwnerSearch}
+                        onFocus={(e) => handleOwnerSearch(e)}
+                        placeholder="Type to search..."
+                        autoComplete="off"
+                      />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                     </div>
                     {showClientSuggestions && filteredClients.length > 0 && (
-                        <div className="absolute z-50 w-full bg-white mt-1 rounded-xl shadow-xl border border-zinc-100 overflow-hidden">
-                            {filteredClients.map(c => (
-                                <div key={c.id} onClick={() => selectClient(c)} className="p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 flex justify-between">
-                                    <span className="font-bold text-sm text-zinc-900">{c.name}</span>
-                                    <span className="text-xs text-gray-500">{c.contactNumber}</span>
-                                </div>
-                            ))}
-                        </div>
+                      <div className="absolute z-50 w-full bg-white mt-1 rounded-xl shadow-xl border border-zinc-100 overflow-hidden">
+                        {filteredClients.map(c => (
+                          <div key={c.id} onClick={() => selectClient(c)} className="p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 flex justify-between">
+                            <span className="font-bold text-sm text-zinc-900">{c.name}</span>
+                            <span className="text-xs text-gray-500">{c.contactNumber}</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                </div>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Contact #</label>
-                        <input 
-                            required 
-                            className={`${inputClass} bg-white text-zinc-900`}
-                            value={groomingFormData.contactNumber} 
-                            onChange={e => setGroomingFormData({...groomingFormData, contactNumber: e.target.value})} 
-                            onBlur={(e) => setGroomingFormData({...groomingFormData, contactNumber: sanitizeContactNumber(e.target.value)})}
-                            placeholder="09XX..." 
-                        />
+                      <label className="text-xs font-bold text-gray-500 uppercase">Contact #</label>
+                      <input required className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.contactNumber} onChange={e => setGroomingFormData({...groomingFormData, contactNumber: e.target.value})} onBlur={(e) => setGroomingFormData({...groomingFormData, contactNumber: sanitizeContactNumber(e.target.value)})} placeholder="09XX..." />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Email (Optional)</label>
-                        <input type="email" className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.email} onChange={e => setGroomingFormData({...groomingFormData, email: e.target.value})} placeholder="email@ex.com" />
+                      <label className="text-xs font-bold text-gray-500 uppercase">Email (Optional)</label>
+                      <input type="email" className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.email} onChange={e => setGroomingFormData({...groomingFormData, email: e.target.value})} placeholder="email@ex.com" />
                     </div>
-                </div>
+                  </div>
 
-                {/* Pet Details */}
-                <div className="pt-2 border-t border-zinc-100 mt-2">
+                  {/* Pet Details */}
+                  <div className="pt-2 border-t border-zinc-100 mt-2">
                     <div className="relative" ref={petDropdownRef}>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Pet Name</label>
-                        <input 
-                            required 
-                            className={`${inputClass} bg-white text-zinc-900`}
-                            value={groomingFormData.petName} 
-                            onChange={e => {
-                                setGroomingFormData({...groomingFormData, petName: e.target.value});
-                                if (selectedClient && selectedClient.pets && selectedClient.pets.length > 0) setShowPetSuggestions(true);
-                            }}
-                            onFocus={handlePetNameFocus}
-                            placeholder="Pet's Name" 
-                            autoComplete="off"
-                        />
-                        {showPetSuggestions && selectedClient && selectedClient.pets.length > 0 && (
-                            <div className="absolute z-50 w-full bg-white mt-1 rounded-xl shadow-xl border border-zinc-100 overflow-hidden">
-                                {selectedClient.pets.filter(p => normalizeText(p.name).includes(normalizeText(groomingFormData.petName))).map(p => (
-                                    <div key={p.id} onClick={() => selectPet(p)} className="p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50">
-                                        <p className="font-bold text-sm text-zinc-900">{p.name}</p>
-                                        <p className="text-xs text-gray-500">{p.breed}</p>
-                                    </div>
-                                ))}
+                      <label className="text-xs font-bold text-gray-500 uppercase">Pet Name</label>
+                      <input
+                        required
+                        className={`${inputClass} bg-white text-zinc-900`}
+                        value={groomingFormData.petName}
+                        onChange={e => {
+                          setGroomingFormData({...groomingFormData, petName: e.target.value});
+                          if (selectedClient && selectedClient.pets && selectedClient.pets.length > 0) setShowPetSuggestions(true);
+                        }}
+                        onFocus={handlePetNameFocus}
+                        placeholder="Pet's Name"
+                        autoComplete="off"
+                      />
+                      {showPetSuggestions && selectedClient && selectedClient.pets.length > 0 && (
+                        <div className="absolute z-50 w-full bg-white mt-1 rounded-xl shadow-xl border border-zinc-100 overflow-hidden">
+                          {selectedClient.pets.filter(p => normalizeText(p.name).includes(normalizeText(groomingFormData.petName))).map(p => (
+                            <div key={p.id} onClick={() => selectPet(p)} className="p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50">
+                              <p className="font-bold text-sm text-zinc-900">{p.name}</p>
+                              <p className="text-xs text-gray-500">{p.breed}</p>
                             </div>
-                        )}
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Breed</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.petBreed} onChange={e => setGroomingFormData({...groomingFormData, petBreed: e.target.value})} /></div>
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Color</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.petColor} onChange={e => setGroomingFormData({...groomingFormData, petColor: e.target.value})} /></div>
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Weight/Size</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.weightSize} onChange={e => setGroomingFormData({...groomingFormData, weightSize: e.target.value})} /></div>
-                    </div>
-                </div>
 
-                {/* Service Details */}
-                <div className="pt-2 border-t border-zinc-100 mt-2">
+                    <div className="grid grid-cols-2 gap-4 mt-3">
+                      <div><label className="text-xs font-bold text-gray-500 uppercase">Breed</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.petBreed} onChange={e => setGroomingFormData({...groomingFormData, petBreed: e.target.value})} /></div>
+                      <div><label className="text-xs font-bold text-gray-500 uppercase">Color</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.petColor} onChange={e => setGroomingFormData({...groomingFormData, petColor: e.target.value})} /></div>
+                      <div><label className="text-xs font-bold text-gray-500 uppercase">Weight/Size</label><input className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.weightSize} onChange={e => setGroomingFormData({...groomingFormData, weightSize: e.target.value})} /></div>
+                    </div>
+                  </div>
+
+                  {/* Service Details */}
+                  <div className="pt-2 border-t border-zinc-100 mt-2">
                     <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Groomer</label>
-                        <select required className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.groomerId} onChange={e => setGroomingFormData({...groomingFormData, groomerId: e.target.value})} disabled={groomers.length === 0}>
-                            <option value="">Select Groomer</option>
-                            {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
-                        </select>
+                      <label className="text-xs font-bold text-gray-500 uppercase">Groomer</label>
+                      <select required className={`${inputClass} bg-white text-zinc-900`} value={groomingFormData.groomerId} onChange={e => setGroomingFormData({...groomingFormData, groomerId: e.target.value})} disabled={groomers.length === 0}>
+                        <option value="">Select Groomer</option>
+                        {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                      </select>
                     </div>
                     <div className="mt-3">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Instructions / Style</label>
-                        <textarea className={`${inputClass} bg-white text-zinc-900 resize-none`} rows={2} value={groomingFormData.hairCut} onChange={e => setGroomingFormData({...groomingFormData, hairCut: e.target.value})} placeholder="Specific cut or notes..." />
+                      <label className="text-xs font-bold text-gray-500 uppercase">Instructions / Style</label>
+                      <textarea className={`${inputClass} bg-white text-zinc-900 resize-none`} rows={2} value={groomingFormData.hairCut} onChange={e => setGroomingFormData({...groomingFormData, hairCut: e.target.value})} placeholder="Specific cut or notes..." />
                     </div>
-                </div>
+                  </div>
+                </>
+              )}
 
-                <div className="pt-3 border-t border-zinc-100">
-                    {/* Skip option */}
-                    <button
-                        type="button"
-                        onClick={() => { setShowGroomingModal(false); setIsCheckoutOpen(true); }}
-                        className="w-full text-xs text-zinc-400 hover:text-zinc-600 py-2 transition-colors underline underline-offset-2 mb-2"
-                    >
-                        Skip details → Go straight to payment
-                    </button>
-                    <div className="flex gap-3">
-                        <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowGroomingModal(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">Proceed to Payment</Button>
-                    </div>
+              <div className="pt-3 border-t border-zinc-100">
+                {/* Skip option */}
+                <button
+                  type="button"
+                  onClick={() => { setShowGroomingModal(false); setIsCheckoutOpen(true); }}
+                  className="w-full text-xs text-zinc-400 hover:text-zinc-600 py-2 transition-colors underline underline-offset-2 mb-2"
+                >
+                  Skip details → Go straight to payment
+                </button>
+                <div className="flex gap-3">
+                  <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowGroomingModal(false)}>Cancel</Button>
+                  <Button type="submit" className="flex-1">Proceed to Payment</Button>
                 </div>
+              </div>
             </form>
           </Dialog.Panel>
         </div>
@@ -927,7 +1102,7 @@ const POS: React.FC = () => {
                     <div className="space-y-1 text-sm text-zinc-600 mb-2 border-b border-zinc-200 pb-2">
                         <div className="flex justify-between"><span>Items ({totalItems})</span><span>₱{subtotal.toFixed(2)}</span></div>
                         {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₱{discountAmount.toFixed(2)}</span></div>}
-                        <div className="flex justify-between text-zinc-400 text-xs"><span>VAT (% Included)</span><span>₱{vatAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-zinc-400 text-xs"><span>VAT ({storeSettings.vatRate}%)</span><span>+₱{vatAmount.toFixed(2)}</span></div>
                     </div>
                     <div className="flex justify-between items-center mt-2">
                         <span className="font-bold text-lg text-zinc-900">TOTAL TO PAY</span>
@@ -1381,16 +1556,13 @@ const POS: React.FC = () => {
                  </button>
              </div>
              
-             {/* Preview Controls */}
+             {/* Paper size info (read-only, configured in Settings) */}
              <div className="bg-zinc-700/50 p-3 rounded-xl mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                     <Settings className="w-4 h-4" />
                     <span className="text-sm font-bold">Paper Size</span>
                 </div>
-                <div className="flex bg-purple-900 rounded-lg p-1">
-                    <button onClick={() => setPaperSize('58mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '58mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>58mm</button>
-                    <button onClick={() => setPaperSize('80mm')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${paperSize === '80mm' ? 'bg-white text-purple-900' : 'text-gray-400 hover:text-white'}`}>80mm</button>
-                </div>
+                <span className="text-sm font-bold bg-purple-700 text-white px-3 py-1 rounded-lg">{paperSize}</span>
              </div>
 
              <div className="flex-1 overflow-auto bg-zinc-700/50 rounded-xl p-6 flex justify-center items-start">
@@ -1426,12 +1598,465 @@ const POS: React.FC = () => {
       </Dialog>
     </div>
 
-    {/* Hidden Print Layout */}
+    {/* Hidden Print Layout — visible only during window.print() via injected @media print CSS */}
     {lastTransaction && (
-      <div id="printable-content" className="hidden print:block fixed inset-0 bg-white z-[9999] p-2">
-          <ReceiptTemplate transaction={lastTransaction} settings={storeSettings} paperSize={paperSize} />
+      <div
+        id="printable-content"
+        style={{
+          display: 'none',          // hidden normally; shown by injected @media print rule
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: 'auto',
+          backgroundColor: '#fff',
+          zIndex: 9999,
+          overflow: 'visible',
+        }}
+      >
+        <ReceiptTemplate transaction={lastTransaction} settings={storeSettings} paperSize={paperSize} />
       </div>
     )}
+
+    {/* ── Pet Info Modal — Existing / New Client ─────────────────────────── */}
+    <Dialog open={showServicePetModal} onClose={() => setShowServicePetModal(false)} className="relative z-50">
+      <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh] animate-slide-up">
+          <Dialog.Title className="text-xl font-bold mb-3 text-zinc-900 border-b border-zinc-100 pb-2">
+            Pet Info
+          </Dialog.Title>
+
+          {/* Existing / New toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setIsNewClientMode(false);
+                setServicePetInfo(prev => ({ ...prev, petName: '', species: '', weightKg: '', contactNumber: '', email: '' }));
+                setSelectedClient(null);
+              }}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all border ${!isNewClientMode ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'bg-zinc-50 text-gray-500 border-zinc-200 hover:border-purple-300'}`}
+            >
+              Existing Client
+            </button>
+            <button
+              onClick={() => {
+                setIsNewClientMode(true);
+                setSelectedClient(null);
+                setServicePetInfo({ ownerName: '', contactNumber: '', email: '', petName: '', species: '', weightKg: '' });
+                ncResetForm();
+              }}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all border ${isNewClientMode ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'bg-zinc-50 text-gray-500 border-zinc-200 hover:border-purple-300'}`}
+            >
+              New Client
+            </button>
+          </div>
+
+          {/* ── Owner search — OUTSIDE scroll area so dropdown is never clipped ── */}
+          {!isNewClientMode && (
+            <div className="relative mb-4" ref={clientDropdownRef} style={{ overflow: 'visible' }}>
+              <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1 mb-2">
+                <User className="w-3 h-3" /> Owner
+              </h4>
+              <label className={labelClass}>Owner Name</label>
+              <div className="relative">
+                <input
+                  className={`${inputClass} pl-9`}
+                  value={servicePetInfo.ownerName}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setServicePetInfo(prev => ({ ...prev, ownerName: val, petName: '', species: '' }));
+                    setSelectedClient(null);
+                    if (val.length > 0) {
+                      const norm = normalizeText(val);
+                      setFilteredClients(clients.filter(c =>
+                        normalizeText(c.name).includes(norm) ||
+                        (c.contactNumber && c.contactNumber.replace(/\D/g,'').includes(norm))
+                      ).slice(0, 6));
+                      setShowClientSuggestions(true);
+                    } else {
+                      setShowClientSuggestions(false);
+                    }
+                  }}
+                  placeholder="Type to search existing client..."
+                  autoComplete="off"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              </div>
+              {showClientSuggestions && filteredClients.length > 0 && (
+                <div className="absolute z-[9999] w-full bg-white mt-2 rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden ring-1 ring-black/5" style={{ top: '100%', left: 0 }}>
+                  <div className="max-h-52 overflow-y-auto">
+                    {filteredClients.map(c => (
+                      <div key={c.id}
+                        onClick={() => {
+                          setServicePetInfo(prev => ({ ...prev, ownerName: c.name, petName: '', species: '' }));
+                          setSelectedClient(c);
+                          setShowClientSuggestions(false);
+                        }}
+                        className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{c.name}</p>
+                          <p className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                            {c.contactNumber && <span>{c.contactNumber}</span>}
+                            {(c.pets?.length ?? 0) > 0 && <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{c.pets!.length} Pet(s)</span>}
+                          </p>
+                        </div>
+                        <ChevronDown className="-rotate-90 w-4 h-4 text-gray-300 group-hover:text-purple-900 transition-colors" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Pet picker — OUTSIDE scroll area so dropdown never clips ── */}
+          {!isNewClientMode && selectedClient && (
+            <div className="space-y-3 pt-2 border-t border-zinc-100 mb-2" style={{ overflow: 'visible' }}>
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+                  <Dog className="w-3 h-3" /> Pet
+                </h4>
+                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">
+                  {(selectedClient.pets?.length ?? 0) > 0 ? 'Select existing pet below' : 'No pets on record'}
+                </span>
+              </div>
+
+              <div className="relative" ref={petDropdownRef} style={{ overflow: 'visible' }}>
+                <label className={labelClass}>Pet Name</label>
+                <input
+                  className={inputClass}
+                  value={servicePetInfo.petName}
+                  onChange={e => {
+                    setServicePetInfo(prev => ({ ...prev, petName: e.target.value, species: '' }));
+                    if (selectedClient?.pets?.length) setShowPetSuggestions(true);
+                  }}
+                  onFocus={() => { if (selectedClient?.pets?.length) setShowPetSuggestions(true); }}
+                  placeholder={selectedClient ? 'Click to select pet...' : "Pet's Name"}
+                  autoComplete="off"
+                />
+                {showPetSuggestions && (selectedClient.pets?.length ?? 0) > 0 && (
+                  <div className="absolute z-[9999] w-full bg-white mt-2 rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden ring-1 ring-black/5" style={{ top: '100%', left: 0 }}>
+                    <div className="p-2.5 bg-zinc-50 text-[10px] text-gray-400 font-bold uppercase tracking-wider border-b border-zinc-100">
+                      {selectedClient.name}'s Pets
+                    </div>
+                    {selectedClient.pets!
+                      .filter(p => normalizeText(p.name).includes(normalizeText(servicePetInfo.petName || '')))
+                      .map((pet, i) => (
+                        <div key={i}
+                          onClick={() => {
+                            const autoSpecies = (pet.species === 'CAT' ? 'CAT' : pet.species === 'OTHER' ? 'OTHER' : 'DOG') as 'DOG'|'CAT'|'OTHER';
+                            // Auto-fill ALL pet + client details from DB
+                            setServicePetInfo(prev => ({
+                              ...prev,
+                              ownerName: selectedClient.name,
+                              contactNumber: selectedClient.contactNumber || '',
+                              email: selectedClient.email || '',
+                              petName: pet.name,
+                              species: autoSpecies,
+                              weightKg: pet.weightSize || '',
+                              petBreed: pet.breed || '',
+                              petColor: (pet as any).color || '',
+                            }));
+                            setShowPetSuggestions(false);
+                          }}
+                          className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{pet.species === 'CAT' ? '🐱' : pet.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                            <div>
+                              <p className="text-sm font-bold text-zinc-900">{pet.name}</p>
+                              <p className="text-xs text-gray-500">{pet.species || 'Dog'}{pet.breed ? ` · ${pet.breed}` : ''}</p>
+                            </div>
+                          </div>
+                          <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Full confirmation card after pet is selected ── */}
+              {servicePetInfo.species && servicePetInfo.petName && (
+                <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl border border-purple-100 p-4 space-y-3 shadow-sm">
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest">✓ Client & Pet Details</p>
+                    <button type="button" onClick={() => setServicePetInfo(prev => ({ ...prev, petName: '', species: '', petBreed: '', petColor: '', weightKg: '' }))} className="text-[10px] text-purple-400 hover:text-purple-700 font-bold hover:underline">✎ Change pet</button>
+                  </div>
+
+                  {/* Owner row */}
+                  <div className="flex items-start gap-3 pb-3 border-b border-purple-100">
+                    <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm flex-shrink-0">
+                      {servicePetInfo.ownerName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-zinc-900 text-sm truncate">{servicePetInfo.ownerName}</p>
+                      {servicePetInfo.contactNumber && <p className="text-xs text-gray-500">{servicePetInfo.contactNumber}</p>}
+                      {servicePetInfo.email && <p className="text-xs text-gray-400 truncate">{servicePetInfo.email}</p>}
+                    </div>
+                  </div>
+
+                  {/* Pet row */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-xl flex-shrink-0">
+                      {servicePetInfo.species === 'CAT' ? '🐱' : servicePetInfo.species === 'OTHER' ? '🐾' : '🐶'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-zinc-900 text-sm">{servicePetInfo.petName}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        <span className="text-xs text-gray-500">{servicePetInfo.species === 'CAT' ? 'Cat' : servicePetInfo.species === 'OTHER' ? 'Other' : 'Dog'}</span>
+                        {(servicePetInfo as any).petBreed && <span className="text-xs text-gray-500">· {(servicePetInfo as any).petBreed}</span>}
+                        {(servicePetInfo as any).petColor && <span className="text-xs text-gray-500">· {(servicePetInfo as any).petColor}</span>}
+                        {servicePetInfo.weightKg && (() => {
+                          const kg = parseFloat(servicePetInfo.weightKg);
+                          if (!isNaN(kg) && kg > 0 && servicePetInfo.species === 'DOG') {
+                            const sz = detectSizeFromWeight(kg);
+                            const cols: Record<string,string> = { XS:'bg-sky-100 text-sky-700', S:'bg-green-100 text-green-700', M:'bg-yellow-100 text-yellow-700', L:'bg-orange-100 text-orange-700', XL:'bg-red-100 text-red-700', XXL:'bg-purple-100 text-purple-700' };
+                            return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cols[sz]}`}>{kg}kg · {sz}</span>;
+                          }
+                          return <span className="text-xs text-gray-500">· {servicePetInfo.weightKg}</span>;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Only New Client form needs scrolling */}
+          <div className="space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+            {/* ════════════════════════════════════════
+                NEW CLIENT MODE — mirrors Clients page Add New Client form
+                ════════════════════════════════════════ */}
+            {isNewClientMode && (
+
+              <>
+                {/* 1. Owner Details */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Users className="w-3 h-3" /> Owner Details</h4>
+                  <div>
+                    <label className={labelClass}>Owner Name</label>
+                    <input required className={inputClass} value={ncFormData.ownerName} onChange={e => setNcFormData({...ncFormData, ownerName: e.target.value})} placeholder="Name" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Contact no.</label>
+                      <input className={inputClass} value={ncFormData.contactNumber} onChange={e => setNcFormData({...ncFormData, contactNumber: e.target.value})} onBlur={e => setNcFormData({...ncFormData, contactNumber: sanitizeContactNumber(e.target.value)})} placeholder="09XX..." />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Email Address</label>
+                      <input type="email" className={inputClass} value={ncFormData.email} onChange={e => setNcFormData({...ncFormData, email: e.target.value})} placeholder="email@example.com" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Pet Details */}
+                <div className="space-y-3 pt-2 border-t border-zinc-100">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Pets ({ncTempPets.length})</h4>
+                    <span className="text-[10px] text-gray-400 italic">Click a pet to edit</span>
+                  </div>
+
+                  {/* Added pets list */}
+                  {ncTempPets.length > 0 && (
+                    <div className="space-y-2 mb-4 bg-zinc-50 p-2 rounded-xl border border-zinc-100">
+                      {ncTempPets.map((p, idx) => (
+                        <div key={p.id || idx}
+                          onClick={() => {
+                            setNcEditingPetIndex(idx);
+                            setNcPetInput({ petName: p.name, petBreed: p.breed || '', petColor: p.color || '', weightSize: p.weightSize || '', species: p.species || '', speciesOther: p.speciesLabel || '' });
+                          }}
+                          className={`flex justify-between items-center p-2 rounded-lg border shadow-sm cursor-pointer transition-all ${ncEditingPetIndex === idx ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-white border-zinc-200 hover:border-blue-300'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base ${ncEditingPetIndex === idx ? 'bg-blue-500 text-white' : 'bg-zinc-100'}`}>
+                              {p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-zinc-900">{p.name}</p>
+                              <p className="text-[10px] text-gray-500 uppercase">{p.species === 'OTHER' ? (p.speciesLabel || 'Other') : p.species}{p.species ? ' · ' : ''}{p.breed || 'Unknown'}</p>
+                            </div>
+                          </div>
+                          <button type="button" onClick={e => { e.stopPropagation(); setNcTempPets(prev => prev.filter((_, i) => i !== idx)); if (ncEditingPetIndex === idx) { setNcEditingPetIndex(null); setNcPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' }); } }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add/Edit Pet Form */}
+                  <div className={`p-4 rounded-xl border relative transition-all ${ncEditingPetIndex !== null ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50/50 border-blue-100'}`}>
+                    <p className={`text-xs font-bold mb-3 uppercase flex items-center gap-1 ${ncEditingPetIndex !== null ? 'text-yellow-700' : 'text-blue-600'}`}>
+                      {ncEditingPetIndex !== null ? <Pencil className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                      {ncEditingPetIndex !== null ? 'Editing Pet Details' : 'Add New Pet'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      {/* Species Toggle */}
+                      <div className="col-span-2">
+                        <label className={labelClass}>Species <span className="text-red-500">*</span></label>
+                        <div className="flex gap-2 mt-1">
+                          {(['DOG', 'CAT', 'OTHER'] as const).map(s => (
+                            <button key={s} type="button"
+                              onClick={() => setNcPetInput({...ncPetInput, species: s, speciesOther: s !== 'OTHER' ? '' : ncPetInput.speciesOther})}
+                              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${ncPetInput.species === s ? s === 'DOG' ? 'bg-amber-500 text-white border-amber-500 shadow-md' : s === 'CAT' ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-zinc-600 text-white border-zinc-600 shadow-md' : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'}`}
+                            >
+                              {s === 'DOG' ? '🐶 Dog' : s === 'CAT' ? '🐱 Cat' : '🐾 Other'}
+                            </button>
+                          ))}
+                        </div>
+                        {ncPetInput.species === 'OTHER' && (
+                          <input type="text" className={`${inputClass} mt-2`} value={ncPetInput.speciesOther} onChange={e => setNcPetInput({...ncPetInput, speciesOther: e.target.value})} placeholder="e.g. Rabbit, Bird, Hamster..." autoFocus />
+                        )}
+                        {!ncPetInput.species && <p className="text-[10px] text-red-500 mt-1 font-medium">Please select a species to continue</p>}
+                      </div>
+                      <div>
+                        <label className={labelClass}>Pet Name</label>
+                        <input className={inputClass} value={ncPetInput.petName} onChange={e => setNcPetInput({...ncPetInput, petName: e.target.value})} placeholder="Pet Name" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Breed</label>
+                        <input className={inputClass} value={ncPetInput.petBreed} onChange={e => setNcPetInput({...ncPetInput, petBreed: e.target.value})} placeholder="Breed" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Color</label>
+                        <input className={inputClass} value={ncPetInput.petColor} onChange={e => setNcPetInput({...ncPetInput, petColor: e.target.value})} placeholder="Color" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Weight / Size</label>
+                        <input className={inputClass} value={ncPetInput.weightSize} onChange={e => setNcPetInput({...ncPetInput, weightSize: e.target.value})} placeholder="e.g. 5kg" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {ncEditingPetIndex !== null ? (
+                        <>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => { setNcEditingPetIndex(null); setNcPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' }); }} className="flex-1 bg-white border border-zinc-200">Cancel</Button>
+                          <Button type="button" size="sm" variant="primary" onClick={() => {
+                            const updated = { ...ncTempPets[ncEditingPetIndex!], name: ncPetInput.petName, species: ncPetInput.species || undefined, speciesLabel: ncPetInput.species === 'OTHER' ? (ncPetInput.speciesOther || 'Other') : undefined, breed: ncPetInput.petBreed, color: ncPetInput.petColor, weightSize: ncPetInput.weightSize };
+                            const newList = [...ncTempPets]; newList[ncEditingPetIndex!] = updated as Pet;
+                            setNcTempPets(newList); setNcEditingPetIndex(null); setNcPetInput({ petName: '', petBreed: '', petColor: '', weightSize: '', species: '', speciesOther: '' });
+                          }} className="flex-1 bg-yellow-500 hover:bg-yellow-600 border-yellow-600 text-white">Update Pet</Button>
+                        </>
+                      ) : (
+                        <Button type="button" size="sm" variant="secondary" onClick={ncHandleAddPet} disabled={!ncPetInput.petName || !ncPetInput.species || (ncPetInput.species === 'OTHER' && !ncPetInput.speciesOther.trim())} className="w-full border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-40">
+                          Add Pet to List
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Additional Info */}
+                <div className="space-y-3 pt-2 border-t border-zinc-100">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><MapPin className="w-3 h-3" /> Additional Info</h4>
+                  <div>
+                    <label className={labelClass}>Address</label>
+                    <input className={inputClass} value={ncFormData.address} onChange={e => setNcFormData({...ncFormData, address: e.target.value})} placeholder="City/Address..." />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Notes</label>
+                    <textarea rows={2} className={`${inputClass} resize-none`} value={ncFormData.notes} onChange={e => setNcFormData({...ncFormData, notes: e.target.value})} placeholder="Important notes..." />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-4 border-t border-zinc-100 mt-4">
+            <button onClick={() => setShowServicePetModal(false)}
+              className="flex-1 py-3 rounded-xl border border-zinc-200 text-gray-500 font-bold text-sm hover:bg-zinc-50 transition-colors">
+              Cancel
+            </button>
+
+            {/* EXISTING CLIENT: Browse Services */}
+            {!isNewClientMode && (
+              <button
+                disabled={!servicePetInfo.species}
+                onClick={() => {
+                  const kg = parseFloat(servicePetInfo.weightKg);
+                  const SIZES = ['XS','S','M','L','XL','XXL'];
+                  const resolvedSize = servicePetInfo.species === 'DOG'
+                    ? (!isNaN(kg) && kg > 0
+                        ? detectSizeFromWeight(kg)
+                        : SIZES.includes((servicePetInfo.weightKg || '').toUpperCase())
+                          ? (servicePetInfo.weightKg || '').toUpperCase()
+                          : servicePetInfo.weightKg)
+                    : servicePetInfo.weightKg;
+                  setServiceSpecies(servicePetInfo.species as 'DOG'|'CAT'|'OTHER');
+                  setServiceWeightKg(servicePetInfo.weightKg);
+                  // Pass ALL details to groomingFormData — fully auto-filled from DB
+                  setGroomingFormData(prev => ({
+                    ...prev,
+                    ownerName: servicePetInfo.ownerName,
+                    contactNumber: servicePetInfo.contactNumber || prev.contactNumber,
+                    email: servicePetInfo.email || prev.email,
+                    petName: servicePetInfo.petName,
+                    petBreed: (servicePetInfo as any).petBreed || prev.petBreed,
+                    petColor: (servicePetInfo as any).petColor || prev.petColor,
+                    weightSize: resolvedSize,
+                  }));
+                  setShowServicePetModal(false);
+                  // Auto-add the service the user tried to click before setting pet info
+                  if (pendingServiceProduct) {
+                    setCart(prev => {
+                      const existing = prev.find(i => i.id === pendingServiceProduct.id);
+                      if (existing) return prev.map(i => i.id === pendingServiceProduct.id ? { ...i, quantity: i.quantity + 1 } : i);
+                      return [...prev, { ...pendingServiceProduct, quantity: 1, appliedDiscounts: [] }];
+                    });
+                    setPendingServiceProduct(null);
+                  }
+                }}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${servicePetInfo.species ? 'bg-purple-700 text-white hover:bg-purple-800 shadow-lg' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'}`}>
+                Browse Services →
+              </button>
+            )}
+
+            {/* NEW CLIENT: Save Client then browse */}
+            {isNewClientMode && (
+              <button
+                disabled={!ncFormData.ownerName}
+                onClick={() => {
+                  // Build final pets list — auto-add if petInput has data but wasn't saved yet
+                  let finalPets = [...ncTempPets];
+                  if (ncEditingPetIndex === null && ncPetInput.petName && ncPetInput.species) {
+                    finalPets.push({ id: Date.now().toString() + Math.random().toString().slice(2,5), name: ncPetInput.petName, species: ncPetInput.species, speciesLabel: ncPetInput.species === 'OTHER' ? (ncPetInput.speciesOther || 'Other') : undefined, breed: ncPetInput.petBreed, color: ncPetInput.petColor, weightSize: ncPetInput.weightSize });
+                  }
+                  const newClient: Client = { id: Date.now().toString(), name: ncFormData.ownerName, contactNumber: sanitizeContactNumber(ncFormData.contactNumber), email: ncFormData.email, address: ncFormData.address, notes: ncFormData.notes, pets: finalPets, firstSeen: new Date().toISOString() };
+                  addClient(newClient);
+
+                  // Auto-use first pet for service filter
+                  const firstPet = finalPets[0];
+                  if (firstPet) {
+                    const sp = (firstPet.species === 'CAT' ? 'CAT' : firstPet.species === 'OTHER' ? 'OTHER' : 'DOG') as 'DOG'|'CAT'|'OTHER';
+                    setServiceSpecies(sp);
+                    setServiceWeightKg(firstPet.weightSize || '');
+                    setServicePetInfo({ ownerName: ncFormData.ownerName, contactNumber: ncFormData.contactNumber, email: ncFormData.email, petName: firstPet.name, species: sp, weightKg: firstPet.weightSize || '' });
+                    setGroomingFormData(prev => ({ ...prev, ownerName: ncFormData.ownerName, contactNumber: ncFormData.contactNumber, email: ncFormData.email, petName: firstPet.name, weightSize: firstPet.weightSize || '' }));
+                  }
+                  ncResetForm();
+                  setShowServicePetModal(false);
+                  // Auto-add the service the user tried to click before setting pet info
+                  if (pendingServiceProduct) {
+                    setCart(prev => {
+                      const existing = prev.find(i => i.id === pendingServiceProduct.id);
+                      if (existing) return prev.map(i => i.id === pendingServiceProduct.id ? { ...i, quantity: i.quantity + 1 } : i);
+                      return [...prev, { ...pendingServiceProduct, quantity: 1, appliedDiscounts: [] }];
+                    });
+                    setPendingServiceProduct(null);
+                  }
+                }}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${ncFormData.ownerName ? 'bg-purple-700 text-white hover:bg-purple-800 shadow-lg' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'}`}>
+                Save Client →
+              </button>
+            )}
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
     </>
   );
 };

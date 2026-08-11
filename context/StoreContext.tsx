@@ -94,7 +94,9 @@ const mapTransactionPayload = (t: Transaction) => ({
 // Products (CamelCase "isService")
 const mapProduct = (p: any): Product => ({
     ...p,
-    isService: p.isService ?? false // CamelCase in DB
+    isService: p.isService ?? false, // CamelCase in DB
+    petSpecies: p.pet_species || 'BOTH',
+    weightSizeCategory: p.weight_size_category || 'ALL'
 });
 
 const mapProductPayload = (p: Product) => ({
@@ -104,7 +106,9 @@ const mapProductPayload = (p: Product) => ({
     cost: p.cost,
     stock: p.stock,
     category: p.category,
-    "isService": p.isService // Quoted CamelCase for DB
+    "isService": p.isService, // Quoted CamelCase for DB
+    pet_species: p.petSpecies || 'BOTH',
+    weight_size_category: p.weightSizeCategory || 'ALL'
 });
 
 // Appointments (CamelCase Quoted Columns)
@@ -114,11 +118,14 @@ const mapAppointment = (a: any): GroomingAppointment => ({
     petBreed: a.petBreed,
     petColor: a.petColor,
     weightSize: a.weightSize,
+    petSpecies: a.pet_species || undefined,
+    detectedSizeCategory: a.detected_size_category || undefined,
     ownerName: a.ownerName,
     contactNumber: a.contactNumber, // CamelCase in Appointments table
     email: a.email,
     serviceId: a.serviceId,
     hairCut: a.hairCut,
+    addonIds: a.addon_ids || [],
     groomerId: a.groomerId
 });
 
@@ -128,11 +135,14 @@ const mapAppointmentPayload = (a: GroomingAppointment) => ({
     "petBreed": a.petBreed,
     "petColor": a.petColor,
     "weightSize": a.weightSize,
+    pet_species: a.petSpecies || null,
+    detected_size_category: a.detectedSizeCategory || null,
     "ownerName": a.ownerName,
     "contactNumber": a.contactNumber, // Quoted CamelCase
     email: a.email,
     "serviceId": a.serviceId,
     "hairCut": a.hairCut,
+    addon_ids: a.addonIds || [],
     date: a.date,
     time: a.time,
     status: a.status,
@@ -186,6 +196,7 @@ const mapSettingsPayload = (s: StoreSettings) => ({
     "gcashQr": s.gcashQr,             // Quoted CamelCase
     "receiptHeader": s.receiptHeader, // Quoted CamelCase
     "receiptFooter": s.receiptFooter, // Quoted CamelCase
+    receipt_paper_size: s.receiptPaperSize || '80mm',
     
     logo: s.logo,
     sms_enabled: s.smsEnabled,
@@ -240,6 +251,7 @@ const mapSettingsFromDb = (s: any): Partial<StoreSettings> => ({
     gcashQr: s.gcashQr,             // CamelCase from DB
     receiptHeader: s.receiptHeader, // CamelCase from DB
     receiptFooter: s.receiptFooter, // CamelCase from DB
+    receiptPaperSize: (s.receipt_paper_size as '48mm' | '58mm' | '80mm') || '80mm',
     
     logo: s.logo,
     smsEnabled: s.sms_enabled ?? false,
