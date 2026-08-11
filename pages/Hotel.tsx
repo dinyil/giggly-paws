@@ -650,25 +650,6 @@ const BookingForm: React.FC<{
   );
 };
 
-  const today = getPhToday();
-  const activeRooms = hotelRooms.filter(r => r.is_active);
-
-  // ── Booking type & size ──
-  const existingType = (booking?.booking_type as BookingTypeKey) || 'OVERNIGHT';
-  const existingSize = (booking?.pet_size as PetSizeKey) || 'S';
-  const [bookingType, setBookingType] = useState<BookingTypeKey>(existingType);
-  const [petSize, setPetSize] = useState<PetSizeKey>(existingSize);
-
-  // Auto-calc check_out
-  const defaultCheckIn = booking?.check_in || preselectedDate || today;
-  const defaultCheckOut = booking?.check_out || addDays(defaultCheckIn, BOOKING_TYPE_NIGHTS[existingType]);
-  const [checkIn, setCheckIn] = useState(defaultCheckIn);
-  const [checkOut, setCheckOut] = useState(defaultCheckOut);
-
-  useEffect(() => {
-    setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[bookingType]));
-  }, [bookingType]);
-
 // ─── Checkout Modal ───────────────────────────────────────────────────────────
 
 const CheckoutModal: React.FC<{
