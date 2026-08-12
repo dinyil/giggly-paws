@@ -1880,21 +1880,20 @@ const Hotel: React.FC = () => {
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-zinc-100 flex gap-3">
-            <button onClick={() => setShowRatesModal(false)} className="flex-1 py-3 rounded-2xl font-semibold text-sm border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
-              Cancel
-            </button>
-            <button onClick={saveRates} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white transition-all shadow-lg" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
-              ✓ Save Rates
-            </button>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-zinc-100 flex gap-3 flex-shrink-0">
+              <button onClick={() => setShowRatesModal(false)} className="flex-1 py-3 rounded-2xl font-semibold text-sm border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
+                Cancel
+              </button>
+              <button onClick={saveRates} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white transition-all shadow-lg" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
+                ✓ Save Rates
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
+      )}
+    </div>
   );
 };
 
