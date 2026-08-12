@@ -185,6 +185,7 @@ const mapHotelBooking = (b: any): HotelBooking => ({
     booking_type: b.booking_type || '',
     pet_size: b.pet_size || '',
     hotel_extras: b.hotel_extras || [],
+    furparent_updates: b.furparent_updates || { am: false, pm: false, evening: false },
 });
 
 

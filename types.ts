@@ -285,5 +285,5 @@ export interface HotelBooking {
   booking_type?: string;      // e.g. 'DAYCARE' | 'OVERNIGHT' | 'STAYCATION_3D2N' | 'STAYCATION_4D3N' | 'VACATION'
   pet_size?: string;          // e.g. 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
   hotel_extras?: { id: string; qty: number }[]; // Selected add-ons with quantity
+  furparent_updates?: { am: boolean; pm: boolean; evening: boolean };
 }
-

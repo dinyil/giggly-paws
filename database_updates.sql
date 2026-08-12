@@ -32,6 +32,12 @@ ALTER TABLE store_settings
 ALTER TABLE hotel_bookings
   ADD COLUMN IF NOT EXISTS hotel_extras JSONB DEFAULT '[]'::jsonb;
 
+-- ── 4. Furparent Updates ─────────────────────────────────────
+-- Tracks AM/PM/Evening update status for checked-in pets
+-- Staff checks off when they've sent the pet owner an update
+ALTER TABLE hotel_bookings
+  ADD COLUMN IF NOT EXISTS furparent_updates JSONB DEFAULT '{"am":false,"pm":false,"evening":false}'::jsonb;
+
 -- ============================================================
 -- That's it! Here's what each column does:
 --

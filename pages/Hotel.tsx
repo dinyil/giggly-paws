@@ -1562,6 +1562,38 @@ const Hotel: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Furparent Updates — only for checked-in pets */}
+                    {booking.status === 'CHECKED_IN' && (() => {
+                      const fu = booking.furparent_updates || { am: false, pm: false, evening: false };
+                      const toggle = async (key: 'am' | 'pm' | 'evening') => {
+                        const updated = { ...fu, [key]: !fu[key] };
+                        await updateHotelBooking({ ...booking, furparent_updates: updated });
+                      };
+                      return (
+                        <div className="mb-4 bg-purple-50 rounded-2xl px-4 py-3 border border-purple-100">
+                          <p className="text-xs font-black text-purple-700 uppercase tracking-wide mb-2.5">🐾 Furparent Updates</p>
+                          <div className="flex items-center gap-4">
+                            {(['am', 'pm', 'evening'] as const).map(slot => (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => toggle(slot)}
+                                className="flex items-center gap-1.5 group"
+                              >
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${fu[slot] ? 'bg-green-500 border-green-500' : 'border-zinc-300 bg-white group-hover:border-purple-400'}`}>
+                                  {fu[slot] && <span className="text-white text-xs font-black">✓</span>}
+                                </div>
+                                <span className={`text-xs font-bold uppercase ${fu[slot] ? 'text-green-700' : 'text-zinc-400'}`}>
+                                  {slot === 'am' ? 'AM' : slot === 'pm' ? 'PM' : 'Eve'}
+                                </span>
+                                <span className="text-base">📸</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Action buttons — mirrors Grooming page */}
                     <div className="mt-auto">
                       {booking.status === 'RESERVED' && booking.check_in <= today && (
