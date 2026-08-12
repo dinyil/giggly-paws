@@ -96,57 +96,89 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
     room_number: room?.room_number || '',
     room_name: room?.room_name || '',
     room_type: room?.room_type || 'Standard',
-    daily_rate: room?.daily_rate ? String(room.daily_rate) : '',
     capacity: room?.capacity || 1,
     description: room?.description || '',
     is_active: room?.is_active ?? true,
   });
   const set = (k: keyof typeof form, v: any) => setForm(p => ({ ...p, [k]: v }));
+  const [showRates, setShowRates] = useState(false);
+
+  const canSave = form.room_number.trim() && form.room_name.trim();
 
   return (
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-zinc-900">{room ? 'Edit Room' : 'Add New Room'}</h2>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-zinc-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-bold text-zinc-900">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Room No. *</label>
-              <input value={form.room_number} onChange={e => set('room_number', e.target.value)} placeholder="A1" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+              <input value={form.room_number} onChange={e => set('room_number', e.target.value)} placeholder="A1" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
             </div>
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Room Name *</label>
-              <input value={form.room_name} onChange={e => set('room_name', e.target.value)} placeholder="Sunny Suite" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+              <input value={form.room_name} onChange={e => set('room_name', e.target.value)} placeholder="Sunny Suite" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Type</label>
-              <input value={form.room_type} onChange={e => set('room_type', e.target.value)} placeholder="Standard / Deluxe" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+              <input value={form.room_type} onChange={e => set('room_type', e.target.value)} placeholder="Standard / Deluxe" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
             </div>
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Max Pets</label>
-              <input type="number" min={1} value={form.capacity} onChange={e => set('capacity', parseInt(e.target.value) || 1)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
+              <input type="number" min={1} value={form.capacity} onChange={e => set('capacity', parseInt(e.target.value) || 1)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Daily Rate (₱) *</label>
-            <input
-              type="number"
-              min={0}
-              value={form.daily_rate}
-              onChange={e => set('daily_rate', e.target.value)}
-              onFocus={e => { if (form.daily_rate === '0') set('daily_rate', ''); }}
-              placeholder="0"
-              className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none"
-            />
-          </div>
-          <div>
             <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Description</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
+            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none" />
           </div>
+
+          {/* Rate matrix info box */}
+          <div className="bg-purple-50 border border-purple-100 rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowRates(r => !r)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left">
+              <div>
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">📊 Giggly Paws Rate Matrix</p>
+                <p className="text-xs text-purple-400 mt-0.5">Rates are auto-calculated by booking type × pet size</p>
+              </div>
+              <span className="text-purple-500 text-lg">{showRates ? '▲' : '▼'}</span>
+            </button>
+            {showRates && (
+              <div className="px-4 pb-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-purple-100">
+                        <th className="text-left py-1.5 font-bold text-purple-600 pr-2">Type</th>
+                        {PET_SIZES.map(s => <th key={s} className="text-center py-1.5 font-bold text-purple-600 px-1">{s}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
+                        <tr key={type} className="border-b border-purple-50 last:border-0">
+                          <td className="py-1.5 pr-2 text-zinc-600 font-medium whitespace-nowrap">
+                            {type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'}{' '}
+                            {type === 'DAYCARE' ? 'Daycare' : type === 'OVERNIGHT' ? 'Overnight' : type === 'STAYCATION_3D2N' ? '3D2N' : type === 'STAYCATION_4D3N' ? '4D3N' : 'Vacation'}
+                          </td>
+                          {PET_SIZES.map(s => (
+                            <td key={s} className="text-center py-1.5 px-1 text-zinc-700 font-semibold">₱{HOTEL_RATES[type][s].toLocaleString()}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
           <label className="flex items-center gap-3 cursor-pointer">
             <div className={`w-10 h-6 rounded-full transition-colors relative ${form.is_active ? 'bg-purple-700' : 'bg-zinc-300'}`} onClick={() => set('is_active', !form.is_active)}>
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${form.is_active ? 'left-5' : 'left-1'}`} />
@@ -154,15 +186,14 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
             <span className="text-sm font-medium text-zinc-700">{form.is_active ? 'Active (bookable)' : 'Inactive'}</span>
           </label>
         </div>
-        <div className="p-6 pt-0 flex gap-3">
+        <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-white border-t border-zinc-100">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
           <button
             onClick={() => {
-              const rate = parseFloat(String(form.daily_rate));
-              if (!form.room_number || !form.room_name || !rate || rate <= 0) return;
-              onSave({ id: room?.id || crypto.randomUUID(), ...form, daily_rate: rate });
+              if (!canSave) return;
+              onSave({ id: room?.id || crypto.randomUUID(), ...form, daily_rate: 0 });
             }}
-            disabled={!form.room_number || !form.room_name || !parseFloat(String(form.daily_rate)) || parseFloat(String(form.daily_rate)) <= 0}
+            disabled={!canSave}
             className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40"
           >Save Room</button>
         </div>
@@ -1453,10 +1484,17 @@ const Hotel: React.FC = () => {
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {hotelRooms.length === 0 && <p className="text-center text-zinc-400 py-8">No rooms yet.</p>}
                 {hotelRooms.map(r => (
-                  <div key={r.id} className={`flex items-center justify-between p-4 rounded-2xl border ${r.is_active ? 'border-zinc-200 bg-white' : 'border-zinc-100 bg-zinc-50 opacity-60'}`}>
-                    <div>
+                  <div key={r.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${r.is_active ? 'border-zinc-200 bg-white hover:border-purple-200' : 'border-zinc-100 bg-zinc-50 opacity-60'}`}>
+                    <div className="flex-1 min-w-0">
                       <p className="font-bold text-zinc-900">{r.room_number} — {r.room_name}</p>
-                      <p className="text-xs text-zinc-400">{r.room_type} · ₱{r.daily_rate.toLocaleString()}/night · Max {r.capacity} pet{r.capacity !== 1 ? 's' : ''}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-lg font-medium">{r.room_type}</span>
+                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg font-medium">Max {r.capacity} pet{r.capacity !== 1 ? 's' : ''}</span>
+                        {r.is_active
+                          ? <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-lg font-medium">● Active</span>
+                          : <span className="text-xs bg-zinc-100 text-zinc-400 px-2 py-0.5 rounded-lg font-medium">○ Inactive</span>}
+                      </div>
+                      {r.description && <p className="text-xs text-zinc-400 mt-1 truncate">{r.description}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setEditRoom(r)} className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50"><Pencil className="w-4 h-4 text-zinc-500" /></button>
