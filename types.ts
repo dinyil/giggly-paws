@@ -243,6 +243,7 @@ export interface StoreSettings {
   // Hotel Rate Matrix (overrides hardcoded defaults if set)
   hotelRates?: Record<string, Record<string, number>>; // BookingTypeKey → PetSizeKey → price
   hotelBookingTypeLabels?: Record<string, string>;      // BookingTypeKey → display label
+  hotelExtras?: { id: string; label: string; price: number }[]; // Editable add-on list
 }
 
 // --- HOTEL MODULE TYPES ---
@@ -283,5 +284,6 @@ export interface HotelBooking {
   transaction_id?: string;    // Set after checkout receipt
   booking_type?: string;      // e.g. 'DAYCARE' | 'OVERNIGHT' | 'STAYCATION_3D2N' | 'STAYCATION_4D3N' | 'VACATION'
   pet_size?: string;          // e.g. 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
+  hotel_extras?: { id: string; qty: number }[]; // Selected add-ons with quantity
 }
 

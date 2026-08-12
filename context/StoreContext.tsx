@@ -184,6 +184,7 @@ const mapHotelBooking = (b: any): HotelBooking => ({
     transaction_id: b.transaction_id || '',
     booking_type: b.booking_type || '',
     pet_size: b.pet_size || '',
+    hotel_extras: b.hotel_extras || [],
 });
 
 
@@ -198,6 +199,7 @@ const mapSettingsPayload = (s: StoreSettings) => ({
     auto_approve_users: s.autoApproveUsers ?? true,
     hotel_rates: s.hotelRates ? JSON.stringify(s.hotelRates) : null,
     hotel_booking_type_labels: s.hotelBookingTypeLabels ? JSON.stringify(s.hotelBookingTypeLabels) : null,
+    hotel_extras: s.hotelExtras ? JSON.stringify(s.hotelExtras) : null,
     "gcashNumber": s.gcashNumber,     // Quoted CamelCase
     "gcashQr": s.gcashQr,             // Quoted CamelCase
     "receiptHeader": s.receiptHeader, // Quoted CamelCase
@@ -256,6 +258,7 @@ const mapSettingsFromDb = (s: any): Partial<StoreSettings> => ({
     autoApproveUsers: s.auto_approve_users ?? true,
     hotelRates: s.hotel_rates ? (typeof s.hotel_rates === 'string' ? JSON.parse(s.hotel_rates) : s.hotel_rates) : undefined,
     hotelBookingTypeLabels: s.hotel_booking_type_labels ? (typeof s.hotel_booking_type_labels === 'string' ? JSON.parse(s.hotel_booking_type_labels) : s.hotel_booking_type_labels) : undefined,
+    hotelExtras: s.hotel_extras ? (typeof s.hotel_extras === 'string' ? JSON.parse(s.hotel_extras) : s.hotel_extras) : undefined,
     gcashNumber: s.gcashNumber,     // CamelCase from DB
     gcashQr: s.gcashQr,             // CamelCase from DB
     receiptHeader: s.receiptHeader, // CamelCase from DB

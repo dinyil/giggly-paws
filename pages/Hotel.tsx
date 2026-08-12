@@ -241,6 +241,10 @@ const BookingForm: React.FC<{
     ...BOOKING_TYPE_LABELS,
     ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
   } as Record<BookingTypeKey, string>;
+  const activeExtras: { id: string; label: string; price: number }[] =
+    storeSettings.hotelExtras && storeSettings.hotelExtras.length > 0
+      ? storeSettings.hotelExtras
+      : HOTEL_EXTRAS;
 
   // ── Wizard step ──
   const [step, setStep] = useState<1 | 2>(1);
@@ -346,6 +350,23 @@ const BookingForm: React.FC<{
   const petId = clientMode === 'EXISTING' ? (selectedPet?.id || '') : '';
   const [roomId, setRoomId] = useState(booking?.room_id || preselectedRoomId || '');
   const [notes, setNotes] = useState(booking?.notes || '');
+  // Selected add-ons: { id: string; qty: number }[]
+  const [selectedExtras, setSelectedExtras] = useState<{ id: string; qty: number }[]>(booking?.hotel_extras || []);
+
+  const toggleExtra = (id: string) => {
+    setSelectedExtras(prev => {
+      const existing = prev.find(e => e.id === id);
+      if (existing) return prev.filter(e => e.id !== id);
+      return [...prev, { id, qty: 1 }];
+    });
+  };
+  const setExtraQty = (id: string, qty: number) => {
+    setSelectedExtras(prev => prev.map(e => e.id === id ? { ...e, qty: Math.max(1, qty) } : e));
+  };
+  const extrasTotal = selectedExtras.reduce((sum, e) => {
+    const extra = activeExtras.find(x => x.id === e.id);
+    return sum + (extra ? extra.price * e.qty : 0);
+  }, 0);
 
   // Step 1 is valid when client+pet info is complete
   const step1Valid =
@@ -403,8 +424,9 @@ const BookingForm: React.FC<{
       status: booking?.status || 'RESERVED',
       daily_rate: rate,
       total_nights: nights,
-      total_amount: rate,
+      total_amount: rate + extrasTotal,
       addon_ids: booking?.addon_ids || [],
+      hotel_extras: selectedExtras,
       notes: notes,
       staff_id: currentUser?.id || '',
       transaction_id: booking?.transaction_id || '',
@@ -791,6 +813,42 @@ const BookingForm: React.FC<{
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
                 </div>
               )}
+              {/* Add-ons: Meal Prep & Additional Services */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Add-ons & Services (Optional)</label>
+                <div className="space-y-2">
+                  {activeExtras.map(extra => {
+                    const sel = selectedExtras.find(e => e.id === extra.id);
+                    const checked = !!sel;
+                    return (
+                      <div key={extra.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${checked ? 'border-purple-400 bg-purple-50' : 'border-zinc-200 hover:border-purple-200'}`}
+                        onClick={() => toggleExtra(extra.id)}>
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${checked ? 'bg-purple-700 border-purple-700' : 'border-zinc-300'}`}>
+                          {checked && <span className="text-white text-xs font-bold">✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-800">{extra.label}</p>
+                          <p className="text-xs text-purple-600 font-bold">₱{extra.price.toLocaleString()}</p>
+                        </div>
+                        {checked && (
+                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <button type="button" onClick={() => setExtraQty(extra.id, (sel?.qty || 1) - 1)} className="w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 font-bold">−</button>
+                            <span className="w-6 text-center text-sm font-bold">{sel?.qty || 1}</span>
+                            <button type="button" onClick={() => setExtraQty(extra.id, (sel?.qty || 1) + 1)} className="w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 font-bold">+</button>
+                          </div>
+                        )}
+                        {checked && <span className="text-xs font-bold text-purple-700 flex-shrink-0">₱{((sel?.qty || 1) * extra.price).toLocaleString()}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {extrasTotal > 0 && (
+                  <div className="mt-2 flex justify-between items-center px-1">
+                    <span className="text-xs text-zinc-400">Add-ons total</span>
+                    <span className="text-sm font-bold text-purple-700">+₱{extrasTotal.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
               {/* Notes */}
               <div>
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
@@ -1002,12 +1060,23 @@ const CheckoutModal: React.FC<{
     ...BOOKING_TYPE_LABELS,
     ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
   } as Record<BookingTypeKey, string>;
+  const activeExtras: { id: string; label: string; price: number }[] =
+    storeSettings.hotelExtras && storeSettings.hotelExtras.length > 0
+      ? storeSettings.hotelExtras
+      : HOTEL_EXTRAS;
 
   // Package rate (flat — not per-night multiply)
   const packageRate = booking.daily_rate;
   const bookingType = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const petSize = (booking.pet_size as PetSizeKey) || 'S';
   const isSmallSize = ['XS','S','M'].includes(petSize);
+
+  // Extras from booking
+  const bookingExtras = (booking.hotel_extras || []).map(e => {
+    const extra = activeExtras.find(x => x.id === e.id);
+    return extra ? { ...extra, qty: e.qty } : null;
+  }).filter(Boolean) as { id: string; label: string; price: number; qty: number }[];
+  const extrasTotal = bookingExtras.reduce((sum, e) => sum + e.price * e.qty, 0);
 
   // Late checkout add-on
   const [lateCheckout, setLateCheckout] = useState<number | null>(null); // index of LATE_CHECKOUT_RATES
@@ -1019,7 +1088,7 @@ const CheckoutModal: React.FC<{
   };
   const lateAmount = lateCheckout !== null ? getLateRate(lateCheckout) : 0;
 
-  const grandTotal = packageRate + lateAmount;
+  const grandTotal = packageRate + extrasTotal + lateAmount;
 
   const [method, setMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
   const [cash, setCash] = useState(grandTotal);
@@ -1032,7 +1101,7 @@ const CheckoutModal: React.FC<{
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-zinc-900">Check Out & Pay</h2>
+          <h2 className="text-xl font-bold text-zinc-900">Check Out &amp; Pay</h2>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
@@ -1045,6 +1114,12 @@ const CheckoutModal: React.FC<{
               <span>{activeLabels[bookingType] || bookingType} · <strong>{petSize}</strong></span>
               <span className="font-bold">₱{packageRate.toLocaleString()}</span>
             </div>
+            {bookingExtras.map(e => (
+              <div key={e.id} className="flex justify-between text-green-700">
+                <span>🍗 {e.label}{e.qty > 1 ? ` ×${e.qty}` : ''}</span>
+                <span>+₱{(e.price * e.qty).toLocaleString()}</span>
+              </div>
+            ))}
             {lateAmount > 0 && (
               <div className="flex justify-between text-amber-700">
                 <span>{LATE_CHECKOUT_RATES[lateCheckout!].label}</span>
@@ -1223,19 +1298,25 @@ const Hotel: React.FC = () => {
     ...BOOKING_TYPE_LABELS,
     ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
   } as Record<BookingTypeKey, string>;
+  const activeExtras: { id: string; label: string; price: number }[] =
+    storeSettings.hotelExtras && storeSettings.hotelExtras.length > 0
+      ? storeSettings.hotelExtras
+      : HOTEL_EXTRAS;
 
   // Rates editor local state
   const [draftRates, setDraftRates] = useState<Record<string, Record<string, number>>>(activeRates);
   const [draftLabels, setDraftLabels] = useState<Record<string, string>>(activeLabels);
+  const [draftExtras, setDraftExtras] = useState<{ id: string; label: string; price: number }[]>(activeExtras);
 
   const openRatesModal = () => {
     setDraftRates({ ...activeRates });
     setDraftLabels({ ...activeLabels });
+    setDraftExtras([...activeExtras]);
     setShowRatesModal(true);
   };
 
   const saveRates = () => {
-    updateStoreSettings({ ...storeSettings, hotelRates: draftRates, hotelBookingTypeLabels: draftLabels });
+    updateStoreSettings({ ...storeSettings, hotelRates: draftRates, hotelBookingTypeLabels: draftLabels, hotelExtras: draftExtras });
     setShowRatesModal(false);
   };
 
@@ -1755,7 +1836,53 @@ const Hotel: React.FC = () => {
               })}
             </div>
 
-            {/* Footer */}
+            {/* Add-ons & Services Editor */}
+            <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
+              <div className="px-4 py-3 bg-white border-b border-amber-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-zinc-800">🍗 Add-ons &amp; Services</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">Meal Prep, Reheating, Special Instructions, etc.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDraftExtras(prev => [...prev, { id: `extra-${Date.now()}`, label: 'New Add-on', price: 0 }])}
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all"
+                >+ Add</button>
+              </div>
+              <div className="p-4 space-y-3">
+                {draftExtras.map((extra, idx) => (
+                  <div key={extra.id} className="flex items-center gap-3 bg-white rounded-xl border border-zinc-100 px-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={extra.label}
+                        onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                        placeholder="Add-on name"
+                        className="w-full text-sm font-semibold text-zinc-800 border-0 outline-none bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="text-xs text-zinc-400">₱</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={extra.price}
+                        onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))}
+                        className="w-20 border border-zinc-200 rounded-lg px-2 py-1 text-center text-sm font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDraftExtras(prev => prev.filter((_, i) => i !== idx))}
+                      className="text-red-400 hover:text-red-600 transition-colors text-lg leading-none ml-1"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+
             <div className="px-6 py-4 border-t border-zinc-100 flex gap-3">
               <button onClick={() => setShowRatesModal(false)} className="flex-1 py-3 rounded-2xl font-semibold text-sm border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
                 Cancel

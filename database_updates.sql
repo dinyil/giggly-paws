@@ -23,6 +23,15 @@ ALTER TABLE store_settings
 ALTER TABLE store_settings
   ADD COLUMN IF NOT EXISTS hotel_booking_type_labels JSONB;
 
+-- ── 3. Hotel Add-ons & Services ────────────────────────────
+-- Stores the editable list of add-ons (Meal Prep, Reheating, etc.)
+ALTER TABLE store_settings
+  ADD COLUMN IF NOT EXISTS hotel_extras JSONB;
+
+-- Stores selected add-ons per booking (which add-ons + quantity)
+ALTER TABLE hotel_bookings
+  ADD COLUMN IF NOT EXISTS hotel_extras JSONB DEFAULT '[]'::jsonb;
+
 -- ============================================================
 -- That's it! Here's what each column does:
 --
