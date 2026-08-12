@@ -892,8 +892,12 @@ const BookingConfirmationModal: React.FC<{
   isEdit: boolean;
   onClose: () => void;
 }> = ({ booking, isEdit, onClose }) => {
-  const { hotelRooms } = useStore();
+  const { hotelRooms, storeSettings } = useStore();
   const room = hotelRooms.find(r => r.id === booking.room_id);
+  const activeLabels: Record<BookingTypeKey, string> = {
+    ...BOOKING_TYPE_LABELS,
+    ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
+  } as Record<BookingTypeKey, string>;
   const btype = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const psize = (booking.pet_size as PetSizeKey) || 'S';
   const emoji = ['XS','S','M'].includes(psize) ? '🐶' : psize === 'L' ? '🐕' : '🐺';
