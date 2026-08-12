@@ -990,8 +990,18 @@ const CheckoutModal: React.FC<{
   onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
   onClose: () => void;
 }> = ({ booking, onConfirm, onClose }) => {
-  const { hotelRooms } = useStore();
+  const { hotelRooms, storeSettings } = useStore();
   const room = hotelRooms.find(r => r.id === booking.room_id);
+
+  // Live rates with DB overrides
+  const activeRates: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
+    ...HOTEL_RATES,
+    ...(storeSettings.hotelRates as Record<BookingTypeKey, Record<PetSizeKey, number>> | undefined),
+  } as Record<BookingTypeKey, Record<PetSizeKey, number>>;
+  const activeLabels: Record<BookingTypeKey, string> = {
+    ...BOOKING_TYPE_LABELS,
+    ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
+  } as Record<BookingTypeKey, string>;
 
   // Package rate (flat — not per-night multiply)
   const packageRate = booking.daily_rate;
