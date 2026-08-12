@@ -846,8 +846,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         if (isValid) {
-            // Block unapproved users — but always allow ADMIN and super-admin
-            if (user.is_approved === false && user.role !== Role.ADMIN && user.id !== 'super-admin') {
+            // Only block if auto-approve is explicitly disabled AND user is flagged as not approved
+            // ADMIN role and super-admin are NEVER blocked
+            const autoApproveOff = storeSettings.autoApproveUsers === false;
+            if (autoApproveOff && user.is_approved === false && user.role !== Role.ADMIN && user.id !== 'super-admin') {
                 return 'PENDING' as any; // Signal pending approval to Login page
             }
             // Upgrade Legacy PINs

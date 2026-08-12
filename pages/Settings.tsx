@@ -79,6 +79,7 @@ const Settings: React.FC = () => {
         contactNumber: formData.contactNumber,
         vatRate: formData.vatRate,
         hotelVatEnabled: formData.hotelVatEnabled,
+        autoApproveUsers: formData.autoApproveUsers !== false, // explicit boolean
         gcashNumber: formData.gcashNumber,
         receiptHeader: formData.receiptHeader,
         receiptFooter: formData.receiptFooter,
