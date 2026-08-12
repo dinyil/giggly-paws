@@ -11,6 +11,7 @@ export interface User {
   pin: string; // Stores "SALT:HASH" string
   salt?: string; // Optional: Transient property, not stored in DB
   role: Role | string;
+  is_approved?: boolean; // null/undefined = approved (for legacy/admin), false = pending
 }
 
 export interface SmsUsage {
@@ -235,6 +236,9 @@ export interface StoreSettings {
   smsTemplateHotelCheckout?: string;
   emailSubjectHotelCheckout?: string;
   emailBodyHotelCheckout?: string;
+
+  // User Access Control
+  autoApproveUsers?: boolean; // If true, new users are auto-approved; if false, admin must approve
 }
 
 // --- HOTEL MODULE TYPES ---

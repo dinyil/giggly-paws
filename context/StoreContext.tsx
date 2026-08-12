@@ -195,6 +195,7 @@ const mapSettingsPayload = (s: StoreSettings) => ({
     "contactNumber": s.contactNumber, // Quoted CamelCase
     "vatRate": s.vatRate,             // Quoted CamelCase
     hotel_vat_enabled: s.hotelVatEnabled ?? false,
+    auto_approve_users: s.autoApproveUsers ?? true,
     "gcashNumber": s.gcashNumber,     // Quoted CamelCase
     "gcashQr": s.gcashQr,             // Quoted CamelCase
     "receiptHeader": s.receiptHeader, // Quoted CamelCase
@@ -250,6 +251,7 @@ const mapSettingsFromDb = (s: any): Partial<StoreSettings> => ({
     contactNumber: s.contactNumber, // CamelCase from DB
     vatRate: s.vatRate,             // CamelCase from DB
     hotelVatEnabled: s.hotel_vat_enabled ?? false,
+    autoApproveUsers: s.auto_approve_users ?? true,
     gcashNumber: s.gcashNumber,     // CamelCase from DB
     gcashQr: s.gcashQr,             // CamelCase from DB
     receiptHeader: s.receiptHeader, // CamelCase from DB
@@ -380,6 +382,8 @@ interface StoreContextType {
   addUser: (user: User) => void;
   editUser: (user: User) => void;
   deleteUser: (id: string) => void;
+  approveUser: (id: string) => void;
+  rejectUser: (id: string) => void;
   
   // Device Management
   registerDevice: () => Promise<void>;
@@ -842,6 +846,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         if (isValid) {
+            // Block unapproved users — but always allow ADMIN and super-admin
+            if (user.is_approved === false && user.role !== Role.ADMIN && user.id !== 'super-admin') {
+                return 'PENDING' as any; // Signal pending approval to Login page
+            }
             // Upgrade Legacy PINs
             if (isLegacy) {
                 const newSalt = generateSalt();
@@ -880,11 +888,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addUser = (user: User) => {
-    const dbUser = { ...user };
-    delete dbUser.salt; 
+    const isAutoApprove = storeSettings.autoApproveUsers !== false; // default true
+    const dbUser = { ...user, is_approved: isAutoApprove ? true : false };
+    delete dbUser.salt;
     setUsers(prev => [...prev, dbUser]);
     upsertData('users', dbUser);
-    addLog('USER_MGMT', `Created new user: ${user.name}`);
+    addLog('USER_MGMT', `Created new user: ${user.name} (${isAutoApprove ? 'auto-approved' : 'pending approval'})`);
   };
 
   const editUser = (updatedUser: User) => {
@@ -895,6 +904,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addLog('USER_MGMT', `Updated user: ${updatedUser.name}`);
   };
 
+  const approveUser = (id: string) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, is_approved: true } : u));
+    upsertData('users', { id, is_approved: true });
+    const user = users.find(u => u.id === id);
+    if (user) addLog('USER_MGMT', `Approved user access: ${user.name}`);
+  };
+
+  const rejectUser = (id: string) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, is_approved: false } : u));
+    upsertData('users', { id, is_approved: false });
+    const user = users.find(u => u.id === id);
+    if (user) addLog('USER_MGMT', `Rejected user access: ${user.name}`);
+  };
+
   const deleteUser = async (id: string) => {
     const prev = [...users];
     const user = users.find(u => u.id === id);
@@ -903,6 +926,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (error) setUsers(prev);
     else if (user) addLog('USER_MGMT', `Deleted user: ${user.name}`);
   };
+
 
   const addProduct = (product: Product) => {
     setProducts(prev => [product, ...prev]);
@@ -1356,7 +1380,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       storeSettings, updateStoreSettings,
       productCategories, serviceCategories,
       smsUsage, checkAndIncrementSms,
-      login, logout, addUser, editUser, deleteUser,
+      login, logout, addUser, editUser, deleteUser, approveUser, rejectUser,
       registerDevice, updateDeviceStatus, deleteDevice,
       addProduct, updateProduct, deleteProduct,
       adjustStock, 

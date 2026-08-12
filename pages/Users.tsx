@@ -7,7 +7,7 @@ import { Dialog } from '@headlessui/react';
 import { generateSalt, hashPin } from '../services/crypto';
 
 const Users: React.FC = () => {
-  const { users, addUser, editUser, deleteUser, devices, updateDeviceStatus, deleteDevice, currentDeviceId } = useStore();
+  const { users, addUser, editUser, deleteUser, approveUser, rejectUser, devices, updateDeviceStatus, deleteDevice, currentDeviceId } = useStore();
   
   // UI States
   const [activeTab, setActiveTab] = useState<'USERS' | 'DEVICES'>('USERS');
@@ -306,6 +306,11 @@ const Users: React.FC = () => {
                 className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-white shadow-sm text-purple-900' : 'text-gray-500 hover:text-purple-900'}`}
             >
                 <UserIcon className="w-4 h-4" /> Users
+                {users.filter(u => u.is_approved === false).length > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {users.filter(u => u.is_approved === false).length}
+                  </span>
+                )}
             </button>
             <button 
                 onClick={() => setActiveTab('DEVICES')}
@@ -321,6 +326,18 @@ const Users: React.FC = () => {
 
       {activeTab === 'USERS' && (
       <div className="flex-1 overflow-auto flex flex-col">
+        {/* Pending Approvals Banner */}
+        {users.filter(u => u.is_approved === false).length > 0 && (
+          <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-2xl mt-0.5">⏳</span>
+            <div className="flex-1">
+              <p className="text-sm font-black text-amber-800">
+                {users.filter(u => u.is_approved === false).length} User{users.filter(u => u.is_approved === false).length !== 1 ? 's' : ''} Pending Approval
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">These users have the correct PIN but cannot log in until you approve them.</p>
+            </div>
+          </div>
+        )}
         <div className="p-4 flex justify-end">
             <Button onClick={openAddModal}><Plus className="w-4 h-4" /> Add User</Button>
         </div>
@@ -330,12 +347,13 @@ const Users: React.FC = () => {
               <th className="p-4 text-xs font-bold text-gray-500 uppercase">Name</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase">Role</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase">Security Status</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase">Access</th>
               <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {users.map(user => (
-              <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
+              <tr key={user.id} className={`hover:bg-zinc-50 transition-colors ${user.is_approved === false ? 'bg-amber-50/50' : ''}`}>
                 <td className="p-4 font-bold text-zinc-900">{user.name}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
@@ -367,15 +385,37 @@ const Users: React.FC = () => {
                     <span className="text-xs text-gray-300 italic">No Login Access</span>
                   )}
                 </td>
+                <td className="p-4">
+                  {user.is_approved === false ? (
+                    <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-lg">⏳ Pending</span>
+                  ) : (
+                    <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-lg">✓ Approved</span>
+                  )}
+                </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => openEditModal(user)}>
-                      <EditIcon className="w-4 h-4" />
-                    </Button>
-                    {user.id !== 'super-admin' && (
-                      <Button size="sm" variant="danger" onClick={() => handleDeleteClick(user)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    {user.is_approved === false && (
+                      <>
+                        <Button size="sm" variant="primary" onClick={() => approveUser(user.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white">
+                          <Check className="w-4 h-4" /> Approve
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => rejectUser(user.id)}>
+                          <Ban className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                    {user.is_approved !== false && (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => openEditModal(user)}>
+                          <EditIcon className="w-4 h-4" />
+                        </Button>
+                        {user.id !== 'super-admin' && (
+                          <Button size="sm" variant="danger" onClick={() => handleDeleteClick(user)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>

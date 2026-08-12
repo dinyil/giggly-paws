@@ -471,8 +471,32 @@ const Settings: React.FC = () => {
                         </button>
                     </div>
 
+                    {/* Auto Approve Users Toggle */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl border border-purple-100 mt-3" style={{background: '#FAF7FF'}}>
+                        <div>
+                            <p className="font-bold text-sm" style={{color: '#4A2D7A'}}>Auto-Approve New Users</p>
+                            <p className="text-xs text-purple-300 mt-0.5">
+                                {formData.autoApproveUsers !== false
+                                    ? 'New users can log in immediately after being added'
+                                    : 'New users must be approved by an admin before they can log in'}
+                            </p>
+                        </div>
+                        <button
+                            disabled={!isEditingGeneral}
+                            onClick={() => setFormData({...formData, autoApproveUsers: !(formData.autoApproveUsers !== false)})}
+                            className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                                formData.autoApproveUsers !== false ? 'bg-purple-600' : 'bg-gray-200'
+                            }`}
+                        >
+                            <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                formData.autoApproveUsers !== false ? 'translate-x-5' : 'translate-x-0'
+                            }`} />
+                        </button>
+                    </div>
+
                     <div className="pt-4 border-t border-zinc-100 mt-4">
                         <h3 className="font-bold text-gray-500 uppercase text-xs mb-3">Receipt Customization</h3>
+
                         
                         {/* Paper Size Selector */}
                         <div className="mb-4">
