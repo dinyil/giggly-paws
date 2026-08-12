@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../context/StoreContext';
 import { HotelRoom, HotelBooking, HotelBookingStatus, Role, Client, Pet, Transaction } from '../types';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import {
   BedDouble, Plus, X, Pencil, Trash2, Search, Calendar, CalendarDays,
   CheckCircle, Clock, Ban, Building2, ConciergeBell, LogIn, ChevronLeft,
@@ -1187,6 +1188,7 @@ const Hotel: React.FC = () => {
   const [checkoutBooking, setCheckoutBooking] = useState<HotelBooking | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<{ booking: HotelBooking; isEdit: boolean } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
+  const [deleteRoomConfirm, setDeleteRoomConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [isQrZoomed, setIsQrZoomed] = useState(false);
@@ -1498,7 +1500,7 @@ const Hotel: React.FC = () => {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setEditRoom(r)} className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50"><Pencil className="w-4 h-4 text-zinc-500" /></button>
-                      <button onClick={() => { if (window.confirm(`Delete Room ${r.room_number}?`)) deleteHotelRoom(r.id); }} className="p-2 rounded-xl border border-red-100 hover:bg-red-50"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                      <button onClick={() => setDeleteRoomConfirm({ open: true, id: r.id, name: r.room_number })} className="p-2 rounded-xl border border-red-100 hover:bg-red-50"><Trash2 className="w-4 h-4 text-red-400" /></button>
                     </div>
                   </div>
                 ))}
@@ -1622,20 +1624,25 @@ const Hotel: React.FC = () => {
         </div>
       )}
 
-      {/* Delete confirmation */}
-      {deleteConfirm.open && (
-        <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-            <h3 className="text-lg font-bold mb-2">Delete Booking?</h3>
-            <p className="text-zinc-500 text-sm mb-6">Are you sure you want to delete the booking for <strong>{deleteConfirm.name}</strong>? This cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm({ open: false, id: '', name: '' })} className="flex-1 border border-zinc-200 py-2.5 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-              <button onClick={() => { deleteHotelBooking(deleteConfirm.id); setDeleteConfirm({ open: false, id: '', name: '' }); }} className="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-semibold hover:bg-red-700">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title="Delete Booking?"
+        message={`Are you sure you want to delete the booking for ${deleteConfirm.name}? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { deleteHotelBooking(deleteConfirm.id); setDeleteConfirm({ open: false, id: '', name: '' }); }}
+        onCancel={() => setDeleteConfirm({ open: false, id: '', name: '' })}
+      />
+
+      <ConfirmModal
+        isOpen={deleteRoomConfirm.open}
+        title="Delete Room?"
+        message={`Delete Room ${deleteRoomConfirm.name}? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { deleteHotelRoom(deleteRoomConfirm.id); setDeleteRoomConfirm({ open: false, id: '', name: '' }); }}
+        onCancel={() => setDeleteRoomConfirm({ open: false, id: '', name: '' })}
+      />
     </div>
   );
 };

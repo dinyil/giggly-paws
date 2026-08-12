@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { User, Role, Device } from '../types';
 import Button from '../components/ui/Button';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import { Plus, User as UserIcon, Trash2, Settings as EditIcon, CheckCircle, Eye, ShieldCheck, Lock, X as XIcon, Copy, AlertCircle, Smartphone, Tablet, Monitor, Check, Ban, Cloud, Tag } from '../components/ui/Icons';
 import { Dialog } from '@headlessui/react';
 import { generateSalt, hashPin } from '../services/crypto';
@@ -38,6 +39,8 @@ const Users: React.FC = () => {
   const [deviceDeleteConfirmation, setDeviceDeleteConfirmation] = useState<{isOpen: boolean, id: string | null, name: string}>({
     isOpen: false, id: null, name: ''
   });
+  // Device Block Confirm State
+  const [blockDeviceConfirm, setBlockDeviceConfirm] = useState<{isOpen: boolean, id: string, name: string}>({ isOpen: false, id: '', name: '' });
 
   // Device Approval Modal
   const [deviceApprovalOpen, setDeviceApprovalOpen] = useState(false);
@@ -505,11 +508,7 @@ const Users: React.FC = () => {
                             {/* Hide Block button for the current device */}
                             {device.status !== 'BLOCKED' && device.id !== currentDeviceId && (
                                 <button 
-                                    onClick={() => {
-                                        if(confirm(`Block ${device.name}? They will lose access immediately.`)) {
-                                            updateDeviceStatus(device.id, 'BLOCKED');
-                                        }
-                                    }}
+                                    onClick={() => setBlockDeviceConfirm({ isOpen: true, id: device.id, name: device.custom_name || device.name })}
                                     className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg text-xs font-bold flex items-center gap-1"
                                     title="Block Device"
                                 >
@@ -839,58 +838,35 @@ const Users: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* User Delete Confirmation Modal */}
-      <Dialog open={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-            <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
-                <div className="flex flex-col items-center text-center mb-6">
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
-                        <Trash2 className="w-6 h-6" />
-                    </div>
-                    <Dialog.Title className="text-xl font-bold text-zinc-900">Delete User?</Dialog.Title>
-                    <p className="text-sm text-gray-500 mt-2">
-                        Are you sure you want to delete <span className="font-bold text-zinc-800">"{deleteConfirmation.name}"</span>? This action cannot be undone.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <Button variant="ghost" onClick={() => setDeleteConfirmation({...deleteConfirmation, isOpen: false})} className="flex-1">
-                        Cancel
-                    </Button>
-                    <Button variant="danger" onClick={confirmDelete} className="flex-1">
-                        Delete
-                    </Button>
-                </div>
-            </Dialog.Panel>
-        </div>
-      </Dialog>
+      <ConfirmModal
+        isOpen={deleteConfirmation.isOpen}
+        title="Delete User?"
+        message={`Are you sure you want to delete "${deleteConfirmation.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmation({ ...deleteConfirmation, isOpen: false })}
+      />
 
-      {/* Device Delete Confirmation Modal */}
-      <Dialog open={deviceDeleteConfirmation.isOpen} onClose={() => setDeviceDeleteConfirmation({...deviceDeleteConfirmation, isOpen: false})} className="relative z-50">
-        <div className="fixed inset-0 bg-purple-700/30 backdrop-blur-sm" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-            <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-fade-in">
-                <div className="flex flex-col items-center text-center mb-6">
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
-                        <Trash2 className="w-6 h-6" />
-                    </div>
-                    <Dialog.Title className="text-xl font-bold text-zinc-900">Remove Device?</Dialog.Title>
-                    <p className="text-sm text-gray-500 mt-2">
-                        Are you sure you want to remove <span className="font-bold text-zinc-800">"{deviceDeleteConfirmation.name}"</span>? 
-                        They will need to request approval again to access the system.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <Button variant="ghost" onClick={() => setDeviceDeleteConfirmation({...deviceDeleteConfirmation, isOpen: false})} className="flex-1">
-                        Cancel
-                    </Button>
-                    <Button variant="danger" onClick={confirmDeviceDelete} className="flex-1">
-                        Remove
-                    </Button>
-                </div>
-            </Dialog.Panel>
-        </div>
-      </Dialog>
+      <ConfirmModal
+        isOpen={deviceDeleteConfirmation.isOpen}
+        title="Remove Device?"
+        message={`Are you sure you want to remove "${deviceDeleteConfirmation.name}"? They will need to request approval again.`}
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={confirmDeviceDelete}
+        onCancel={() => setDeviceDeleteConfirmation({ ...deviceDeleteConfirmation, isOpen: false })}
+      />
+
+      <ConfirmModal
+        isOpen={blockDeviceConfirm.isOpen}
+        title="Block Device?"
+        message={`Block "${blockDeviceConfirm.name}"? They will lose access immediately.`}
+        confirmLabel="Block"
+        variant="warning"
+        onConfirm={() => { updateDeviceStatus(blockDeviceConfirm.id, 'BLOCKED'); setBlockDeviceConfirm({ isOpen: false, id: '', name: '' }); }}
+        onCancel={() => setBlockDeviceConfirm({ isOpen: false, id: '', name: '' })}
+      />
     </div>
   );
 };
