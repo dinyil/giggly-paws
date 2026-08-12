@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../context/StoreContext';
 import { HotelRoom, HotelBooking, HotelBookingStatus, Role, Client, Pet, Transaction } from '../types';
 import ReceiptTemplate from '../components/ReceiptTemplate';
@@ -226,6 +227,9 @@ const BookingForm: React.FC<{
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const clientRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<{top:number;left:number;width:number} | null>(null);
 
   useEffect(() => {
     if (booking?.client_id) {
@@ -241,7 +245,10 @@ const BookingForm: React.FC<{
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (clientRef.current && !clientRef.current.contains(e.target as Node)) setShowClientSugg(false);
+      const target = e.target as Node;
+      const insideInput = clientRef.current && clientRef.current.contains(target);
+      const insideDropdown = dropdownRef.current && dropdownRef.current.contains(target);
+      if (!insideInput && !insideDropdown) setShowClientSugg(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -364,282 +371,21 @@ const BookingForm: React.FC<{
     });
   };
 
-  // ──────────────────────────────────────────────────────────
-  // STEP INDICATOR
-  // ──────────────────────────────────────────────────────────
-  const StepIndicator = () => (
-    <div className="flex items-start gap-0 px-6 py-4">
-      <div className="flex flex-col items-center">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow transition-all ${step >= 1 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-          {step > 1 ? '✓' : '1'}
-        </div>
-        <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 1 ? 'text-purple-700' : 'text-zinc-400'}`}>Client & Pet</span>
-      </div>
-      <div className="flex-1 mx-2 mt-4">
-        <div className="h-0.5 bg-zinc-200 relative overflow-hidden">
-          <div className={`absolute inset-y-0 left-0 bg-purple-700 transition-all duration-500 ${step >= 2 ? 'w-full' : 'w-0'}`} />
-        </div>
-      </div>
-      <div className="flex flex-col items-center">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow transition-all ${step >= 2 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-          2
-        </div>
-        <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 2 ? 'text-purple-700' : 'text-zinc-400'}`}>Booking</span>
-      </div>
-    </div>
-  );
+  // Update dropdown fixed position whenever it opens or the input moves
+  useLayoutEffect(() => {
+    if (showClientSugg && searchInputRef.current) {
+      const r = searchInputRef.current.getBoundingClientRect();
+      setDropdownRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    } else {
+      setDropdownRect(null);
+    }
+  }, [showClientSugg, clientSearch]);
 
   // ──────────────────────────────────────────────────────────
-  // STEP 1: Client & Pet
+  // WIZARD RETURN — all JSX inlined, no inner components
   // ──────────────────────────────────────────────────────────
-  const Step1Content = () => (
-    <div className="space-y-4">
-      <div>
-        <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Client Type</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button"
-            onClick={() => { setClientMode('EXISTING'); setSelectedClient(null); setSelectedPet(null); setClientSearch(''); }}
-            className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'EXISTING' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
-            🔍 Existing Client
-          </button>
-          <button type="button"
-            onClick={() => { setClientMode('NEW'); setSelectedClient(null); setSelectedPet(null); }}
-            className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'NEW' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
-            ✨ New Client
-          </button>
-        </div>
-      </div>
 
-      {clientMode === 'EXISTING' && (
-        <div className="space-y-3">
-          <div ref={clientRef} className="relative">
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Search Owner *</label>
-            <input
-              value={clientSearch}
-              onChange={e => { setClientSearch(e.target.value); setSelectedClient(null); setSelectedPet(null); setShowClientSugg(true); }}
-              onFocus={() => setShowClientSugg(true)}
-              placeholder="Type owner name or contact..."
-              className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-            />
-            {showClientSugg && filteredClients.length > 0 && (
-              <div className="absolute z-20 w-full bg-white border border-zinc-200 rounded-xl shadow-lg mt-1 overflow-hidden">
-                {filteredClients.map(c => (
-                  <button key={c.id} onMouseDown={() => handleSelectClient(c)} className="w-full text-left px-4 py-3 hover:bg-purple-50 text-sm border-b border-zinc-100 last:border-0">
-                    <div className="font-semibold text-zinc-900">{c.name}</div>
-                    <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` · ${c.pets.map(p => p.name).join(', ')}` : ' · No pets on record'}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {selectedClient && (
-            <>
-              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm text-green-800 flex items-center justify-between">
-                <div className="flex items-center gap-2 font-medium">
-                  <span>✅</span>
-                  <span>{selectedClient.name}</span>
-                  {selectedClient.contactNumber && <span className="text-green-600 text-xs">({selectedClient.contactNumber})</span>}
-                </div>
-                <button type="button" onMouseDown={() => { setSelectedClient(null); setSelectedPet(null); setClientSearch(''); }}
-                  className="text-green-500 hover:text-green-700 text-xs underline">Change</button>
-              </div>
-
-              {selectedClient.pets.length > 0 ? (
-                <div>
-                  <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Select Pet *</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selectedClient.pets.map(p => {
-                      const autoSize = getSizeFromWeight(p.weightSize || '');
-                      const isSel = selectedPet?.id === p.id;
-                      return (
-                        <button key={p.id} type="button"
-                          onMouseDown={e => { e.preventDefault(); handleSelectPet(p); }}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all select-none ${isSel ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'border-zinc-200 hover:border-purple-400 hover:bg-purple-50'}`}>
-                          <span className="text-xl flex-shrink-0">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold">{p.name}</div>
-                            {p.breed && <div className={`text-xs truncate ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>{p.breed}</div>}
-                          </div>
-                          {p.weightSize && (
-                            <div className="text-right flex-shrink-0">
-                              <div className={`text-xs font-bold px-2 py-0.5 rounded-lg ${isSel ? 'bg-white/25 text-white' : 'bg-zinc-100 text-zinc-600'}`}>{p.weightSize}</div>
-                              {autoSize && <div className={`text-[10px] mt-0.5 ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>Size {autoSize}</div>}
-                            </div>
-                          )}
-                          {isSel && <span className="text-white text-lg flex-shrink-0">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700">⚠️ No pets on record — enter pet name manually</div>
-                  <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
-                    <input value={selectedPet?.name || ''} onChange={e => setSelectedPet({ id: '', name: e.target.value, species: 'DOG' })}
-                      placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {clientMode === 'NEW' && (
-        <div className="space-y-4">
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
-            <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">Owner Info</p>
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Full Name *</label>
-              <input value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Juan dela Cruz"
-                className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Contact No.</label>
-                <input value={ncContact} onChange={e => setNcContact(e.target.value)} placeholder="09XX..."
-                  className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Email</label>
-                <input type="email" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@..."
-                  className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
-            <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">🐾 Pet Info</p>
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
-              <input value={ncPetName} onChange={e => setNcPetName(e.target.value)} placeholder="Buddy"
-                className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Species</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['DOG','CAT','OTHER'] as const).map(sp => (
-                  <button key={sp} type="button" onClick={() => setNcPetSpecies(sp)}
-                    className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${ncPetSpecies === sp ? 'bg-purple-700 text-white border-purple-700' : 'border-zinc-200 bg-white hover:border-purple-300'}`}>
-                    {sp === 'DOG' ? '🐶 Dog' : sp === 'CAT' ? '🐱 Cat' : '🐾 Other'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Breed</label>
-                <input value={ncPetBreed} onChange={e => setNcPetBreed(e.target.value)} placeholder="Shih Tzu"
-                  className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Color</label>
-                <input value={ncPetColor} onChange={e => setNcPetColor(e.target.value)} placeholder="Brown & White"
-                  className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Weight / Size</label>
-              <input value={ncPetWeight} onChange={e => setNcPetWeight(e.target.value)} placeholder="e.g. 3.5kg or S or M"
-                className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
-              {ncPetWeight && getSizeFromWeight(ncPetWeight) && (
-                <p className="text-xs text-purple-600 mt-1 font-bold">→ Auto-size: <span className="bg-purple-100 px-2 py-0.5 rounded">{getSizeFromWeight(ncPetWeight)}</span></p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // ──────────────────────────────────────────────────────────
-  // STEP 2: Booking Details
-  // ──────────────────────────────────────────────────────────
-  const Step2Content = () => (
-    <div className="space-y-4">
-      {/* Summary card */}
-      <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-2xl p-4 text-white">
-        <p className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-2">Booking For</p>
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
-            {clientMode === 'NEW' ? '🐾' : selectedPet?.species === 'CAT' ? '🐱' : selectedPet?.species === 'OTHER' ? '🐾' : '🐶'}
-          </div>
-          <div>
-            <p className="font-black text-xl leading-tight">{petName || '—'}</p>
-            <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
-          </div>
-        </div>
-      </div>
-
-      {/* Booking Type */}
-      <div>
-        <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
-        <div className="grid grid-cols-1 gap-2">
-          {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
-            <button key={type} type="button" onClick={() => setBookingType(type)}
-              className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
-              <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
-              {BOOKING_TYPE_LABELS[type]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Rate summary */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
-            <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
-            <p className="text-xs text-purple-400">package rate</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Dates */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
-          <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
-          <input type="date" value={checkOut} min={addDays(checkIn, 1)} onChange={e => setCheckOut(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
-        </div>
-      </div>
-
-      {/* Room */}
-      {activeRooms.length > 0 && (
-        <div>
-          <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
-          <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none">
-            <option value="">No specific room</option>
-            {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
-          </select>
-        </div>
-      )}
-
-      {conflict && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
-        </div>
-      )}
-
-      {/* Notes */}
-      <div>
-        <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
-      </div>
-    </div>
-  );
-
-  // ── EDIT MODE: no wizard, show booking fields directly ──
+  // ── EDIT MODE ──
   if (booking) {
     return (
       <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -648,8 +394,75 @@ const BookingForm: React.FC<{
             <h2 className="text-xl font-bold text-zinc-900">Edit Booking</h2>
             <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
           </div>
-          <div className="p-6">
-            <Step2Content />
+          <div className="p-6 space-y-4">
+            {/* Summary */}
+            <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-2xl p-4 text-white">
+              <p className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-2">Booking For</p>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">{selectedPet?.species === 'CAT' ? '🐱' : '🐶'}</div>
+                <div>
+                  <p className="font-black text-xl leading-tight">{petName || '—'}</p>
+                  <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
+                </div>
+              </div>
+            </div>
+            {/* Booking Type */}
+            <div>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
+              <div className="grid grid-cols-1 gap-2">
+                {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
+                  <button key={type} type="button" onClick={() => setBookingType(type)}
+                    className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
+                    <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
+                    {BOOKING_TYPE_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Rate */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
+                  <p className="text-xs text-purple-400">package rate</p>
+                </div>
+              </div>
+            </div>
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
+                <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
+                <input type="date" value={checkOut} min={addDays(checkIn, 1)} onChange={e => setCheckOut(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+              </div>
+            </div>
+            {/* Room */}
+            {activeRooms.length > 0 && (
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
+                <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none">
+                  <option value="">No specific room</option>
+                  {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
+                </select>
+              </div>
+            )}
+            {conflict && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
+              </div>
+            )}
+            {/* Notes */}
+            <div>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
+            </div>
           </div>
           <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-white border-t border-zinc-100">
             <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
@@ -663,6 +476,23 @@ const BookingForm: React.FC<{
   // ── NEW BOOKING WIZARD ──
   return (
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {/* Portal dropdown — fixed, escapes overflow clipping */}
+      {showClientSugg && filteredClients.length > 0 && dropdownRect && createPortal(
+        <div ref={dropdownRef}
+          style={{ position: 'fixed', top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, zIndex: 9999 }}
+          className="bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden">
+          {filteredClients.map(c => (
+            <button key={c.id}
+              onMouseDown={e => { e.preventDefault(); handleSelectClient(c); }}
+              className="w-full text-left px-4 py-3 hover:bg-purple-50 text-sm border-b border-zinc-100 last:border-0">
+              <div className="font-semibold text-zinc-900">{c.name}</div>
+              <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` · ${c.pets.map(p => p.name).join(', ')}` : ' · No pets on record'}</div>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
 
         {/* Header */}
@@ -671,41 +501,268 @@ const BookingForm: React.FC<{
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex-shrink-0">
-          <div className="flex items-start gap-0 px-6 py-4">
-            <div className="flex flex-col items-center">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm transition-all ${step >= 1 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-                {step > 1 ? '✓' : '1'}
-              </div>
-              <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 1 ? 'text-purple-700' : 'text-zinc-400'}`}>Client & Pet</span>
+        {/* Step indicator — inlined, no inner component */}
+        <div className="flex items-start px-6 py-4 flex-shrink-0">
+          <div className="flex flex-col items-center">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm transition-all ${step >= 1 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
+              {step > 1 ? '✓' : '1'}
             </div>
-            <div className="flex-1 mx-2 mt-4">
-              <div className="h-0.5 bg-zinc-200 relative overflow-hidden rounded-full">
-                <div className={`absolute inset-y-0 left-0 bg-purple-700 transition-all duration-500 ${step >= 2 ? 'w-full' : 'w-0'}`} />
-              </div>
+            <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 1 ? 'text-purple-700' : 'text-zinc-400'}`}>Client & Pet</span>
+          </div>
+          <div className="flex-1 mx-2 mt-4">
+            <div className="h-0.5 bg-zinc-200 relative overflow-hidden rounded-full">
+              <div className={`absolute inset-y-0 left-0 bg-purple-700 transition-all duration-500 ${step >= 2 ? 'w-full' : 'w-0'}`} />
             </div>
-            <div className="flex flex-col items-center">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm transition-all ${step >= 2 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-                2
-              </div>
-              <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 2 ? 'text-purple-700' : 'text-zinc-400'}`}>Booking</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm transition-all ${step >= 2 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
+              2
             </div>
+            <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 2 ? 'text-purple-700' : 'text-zinc-400'}`}>Booking</span>
           </div>
         </div>
 
-        {/* Scrollable body */}
+        {/* Scrollable body — inlined step JSX, NO inner component functions */}
         <div className="flex-1 overflow-y-auto px-6 pb-2">
-          {step === 1 ? <Step1Content /> : <Step2Content />}
+
+          {/* ══ STEP 1 ══ */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Client Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button"
+                    onClick={() => { setClientMode('EXISTING'); setSelectedClient(null); setSelectedPet(null); setClientSearch(''); setShowClientSugg(false); }}
+                    className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'EXISTING' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
+                    🔍 Existing Client
+                  </button>
+                  <button type="button"
+                    onClick={() => { setClientMode('NEW'); setSelectedClient(null); setSelectedPet(null); setShowClientSugg(false); }}
+                    className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'NEW' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
+                    ✨ New Client
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Existing Client ── */}
+              {clientMode === 'EXISTING' && (
+                <div className="space-y-3">
+                  <div ref={clientRef}>
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Search Owner *</label>
+                    <input
+                      ref={searchInputRef}
+                      value={clientSearch}
+                      onChange={e => { setClientSearch(e.target.value); setSelectedClient(null); setSelectedPet(null); setShowClientSugg(true); }}
+                      onFocus={() => setShowClientSugg(true)}
+                      placeholder="Type owner name or contact..."
+                      className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    />
+                  </div>
+
+                  {selectedClient && (
+                    <>
+                      <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm text-green-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-medium">
+                          <span>✅</span>
+                          <span>{selectedClient.name}</span>
+                          {selectedClient.contactNumber && <span className="text-green-600 text-xs">({selectedClient.contactNumber})</span>}
+                        </div>
+                        <button type="button" onMouseDown={() => { setSelectedClient(null); setSelectedPet(null); setClientSearch(''); }}
+                          className="text-green-500 hover:text-green-700 text-xs underline">Change</button>
+                      </div>
+
+                      {selectedClient.pets.length > 0 ? (
+                        <div>
+                          <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Select Pet *</label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {selectedClient.pets.map(p => {
+                              const autoSize = getSizeFromWeight(p.weightSize || '');
+                              const isSel = selectedPet?.id === p.id;
+                              return (
+                                <button key={p.id} type="button"
+                                  onMouseDown={e => { e.preventDefault(); handleSelectPet(p); }}
+                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all select-none ${isSel ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'border-zinc-200 hover:border-purple-400 hover:bg-purple-50'}`}>
+                                  <span className="text-xl flex-shrink-0">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold">{p.name}</div>
+                                    {p.breed && <div className={`text-xs truncate ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>{p.breed}</div>}
+                                  </div>
+                                  {p.weightSize && (
+                                    <div className="text-right flex-shrink-0">
+                                      <div className={`text-xs font-bold px-2 py-0.5 rounded-lg ${isSel ? 'bg-white/25 text-white' : 'bg-zinc-100 text-zinc-600'}`}>{p.weightSize}</div>
+                                      {autoSize && <div className={`text-[10px] mt-0.5 ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>Size {autoSize}</div>}
+                                    </div>
+                                  )}
+                                  {isSel && <span className="text-white text-lg flex-shrink-0">✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700">⚠️ No pets on record — enter pet name manually</div>
+                          <div>
+                            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
+                            <input value={selectedPet?.name || ''} onChange={e => setSelectedPet({ id: '', name: e.target.value, species: 'DOG' })}
+                              placeholder="Buddy" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── New Client ── */}
+              {clientMode === 'NEW' && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">Owner Info</p>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Full Name *</label>
+                      <input value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Juan dela Cruz"
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Contact No.</label>
+                        <input value={ncContact} onChange={e => setNcContact(e.target.value)} placeholder="09XX..."
+                          className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Email</label>
+                        <input type="email" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@..."
+                          className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">🐾 Pet Info</p>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
+                      <input value={ncPetName} onChange={e => setNcPetName(e.target.value)} placeholder="Buddy"
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Species</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['DOG','CAT','OTHER'] as const).map(sp => (
+                          <button key={sp} type="button" onClick={() => setNcPetSpecies(sp)}
+                            className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${ncPetSpecies === sp ? 'bg-purple-700 text-white border-purple-700' : 'border-zinc-200 bg-white hover:border-purple-300'}`}>
+                            {sp === 'DOG' ? '🐶 Dog' : sp === 'CAT' ? '🐱 Cat' : '🐾 Other'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Breed</label>
+                        <input value={ncPetBreed} onChange={e => setNcPetBreed(e.target.value)} placeholder="Shih Tzu"
+                          className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Color</label>
+                        <input value={ncPetColor} onChange={e => setNcPetColor(e.target.value)} placeholder="Brown & White"
+                          className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Weight / Size</label>
+                      <input value={ncPetWeight} onChange={e => setNcPetWeight(e.target.value)} placeholder="e.g. 3.5kg or S or M"
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
+                      {ncPetWeight && getSizeFromWeight(ncPetWeight) && (
+                        <p className="text-xs text-purple-600 mt-1 font-bold">→ Auto-size: <span className="bg-purple-100 px-2 py-0.5 rounded">{getSizeFromWeight(ncPetWeight)}</span></p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══ STEP 2 ══ */}
+          {step === 2 && (
+            <div className="space-y-4">
+              {/* Summary card */}
+              <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-2xl p-4 text-white">
+                <p className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-2">Booking For</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
+                    {clientMode === 'NEW' ? '🐾' : selectedPet?.species === 'CAT' ? '🐱' : selectedPet?.species === 'OTHER' ? '🐾' : '🐶'}
+                  </div>
+                  <div>
+                    <p className="font-black text-xl leading-tight">{petName || '—'}</p>
+                    <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
+                  </div>
+                </div>
+              </div>
+              {/* Booking Type */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
+                    <button key={type} type="button" onClick={() => setBookingType(type)}
+                      className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
+                      <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
+                      {BOOKING_TYPE_LABELS[type]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Rate */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                    <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
+                    <p className="text-xs text-purple-400">package rate</p>
+                  </div>
+                </div>
+              </div>
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
+                  <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
+                  <input type="date" value={checkOut} min={addDays(checkIn, 1)} onChange={e => setCheckOut(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+                </div>
+              </div>
+              {/* Room */}
+              {activeRooms.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
+                  <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none">
+                    <option value="">No specific room</option>
+                    {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
+                  </select>
+                </div>
+              )}
+              {conflict && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />This room is already booked for these dates.
+                </div>
+              )}
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="p-6 pt-4 flex gap-3 flex-shrink-0 border-t border-zinc-100 bg-white rounded-b-3xl">
           {step === 1 ? (
             <>
-              <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">
-                Cancel
-              </button>
+              <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
               <button onClick={() => setStep(2)} disabled={!step1Valid}
                 className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40 flex items-center justify-center gap-2">
                 Next <span>→</span>
@@ -713,8 +770,7 @@ const BookingForm: React.FC<{
             </>
           ) : (
             <>
-              <button onClick={() => setStep(1)}
-                className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50 flex items-center justify-center gap-2">
+              <button onClick={() => setStep(1)} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50 flex items-center justify-center gap-2">
                 <span>←</span> Back
               </button>
               <button onClick={handleSave} disabled={!canSave}
@@ -728,8 +784,6 @@ const BookingForm: React.FC<{
     </div>
   );
 };
-// ─── Checkout Modal ───────────────────────────────────────────────────────────
-
 const CheckoutModal: React.FC<{
   booking: HotelBooking;
   onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
