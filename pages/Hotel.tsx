@@ -1834,50 +1834,50 @@ const Hotel: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
 
-            {/* Add-ons & Services Editor */}
-            <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
-              <div className="px-4 py-3 bg-white border-b border-amber-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-zinc-800">🍗 Add-ons &amp; Services</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">Meal Prep, Reheating, Special Instructions, etc.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDraftExtras(prev => [...prev, { id: `extra-${Date.now()}`, label: 'New Add-on', price: 0 }])}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all"
-                >+ Add</button>
-              </div>
-              <div className="p-4 space-y-3">
-                {draftExtras.map((extra, idx) => (
-                  <div key={extra.id} className="flex items-center gap-3 bg-white rounded-xl border border-zinc-100 px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <input
-                        type="text"
-                        value={extra.label}
-                        onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
-                        placeholder="Add-on name"
-                        className="w-full text-sm font-semibold text-zinc-800 border-0 outline-none bg-transparent"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <span className="text-xs text-zinc-400">₱</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={extra.price}
-                        onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))}
-                        className="w-20 border border-zinc-200 rounded-lg px-2 py-1 text-center text-sm font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDraftExtras(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-red-400 hover:text-red-600 transition-colors text-lg leading-none ml-1"
-                    >×</button>
+              {/* Add-ons & Services Editor — inside scrollable body */}
+              <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
+                <div className="px-4 py-3 bg-white border-b border-amber-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-800">🍗 Add-ons &amp; Services</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">Meal Prep, Reheating, Special Instructions, etc.</p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setDraftExtras(prev => [...prev, { id: `extra-${Date.now()}`, label: 'New Add-on', price: 0 }])}
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all"
+                  >+ Add</button>
+                </div>
+                <div className="p-4 space-y-3">
+                  {draftExtras.map((extra, idx) => (
+                    <div key={extra.id} className="flex items-center gap-3 bg-white rounded-xl border border-zinc-100 px-3 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={extra.label}
+                          onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                          placeholder="Add-on name"
+                          className="w-full text-sm font-semibold text-zinc-800 border-0 outline-none bg-transparent"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="text-xs text-zinc-400">₱</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={extra.price}
+                          onChange={e => setDraftExtras(prev => prev.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))}
+                          className="w-20 border border-zinc-200 rounded-lg px-2 py-1 text-center text-sm font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDraftExtras(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-red-400 hover:text-red-600 transition-colors text-lg leading-none ml-1"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
