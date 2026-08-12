@@ -1049,7 +1049,7 @@ const BookingConfirmationModal: React.FC<{
 
 const CheckoutModal: React.FC<{
   booking: HotelBooking;
-  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
+  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => void;
   onClose: () => void;
 }> = ({ booking, onConfirm, onClose }) => {
   const { hotelRooms, storeSettings } = useStore();
@@ -1175,7 +1175,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref, grandTotal)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button onClick={() => onConfirm(method, cash, ref, grandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>
@@ -1690,7 +1690,7 @@ const Hotel: React.FC = () => {
       {checkoutBooking && (
         <CheckoutModal
           booking={checkoutBooking}
-          onConfirm={async (method, cash, ref, recalcTotal) => {
+          onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel) => {
             const bk = checkoutBooking; // capture before clearing
             await checkOutGuest(bk.id, method, cash, ref, recalcTotal);
             setCheckoutBooking(null);
@@ -1699,9 +1699,42 @@ const Hotel: React.FC = () => {
             const bkType = bk.booking_type as BookingTypeKey | undefined;
             const bkSize = bk.pet_size || '';
             const stayLabel = bkType ? `${activeLabels[bkType] || bkType} · ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` – ${room.room_name}` : ''}`;
-            const packageTotal = recalcTotal !== undefined ? recalcTotal : bk.daily_rate;
+            // packageTotal = base package rate only (extras are separate line items below)
+            const packageTotal = bk.daily_rate;
             const nightlyItem = { id: `hotel-stay-${bk.id}`, name: stayLabel, price: packageTotal, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
-            const allItems = [nightlyItem];
+            const allItems: typeof nightlyItem[] = [nightlyItem];
+
+            // Add hotel_extras as separate line items
+            const extrasLookup: { id: string; label: string; price: number }[] =
+              storeSettings.hotelExtras && storeSettings.hotelExtras.length > 0
+                ? storeSettings.hotelExtras as { id: string; label: string; price: number }[]
+                : HOTEL_EXTRAS;
+            (bk.hotel_extras || []).forEach(e => {
+              const extraDef = extrasLookup.find(x => x.id === e.id);
+              if (extraDef && e.qty > 0) {
+                allItems.push({
+                  id: `hotel-extra-${e.id}-${bk.id}`,
+                  name: `${extraDef.label}${e.qty > 1 ? ` ×${e.qty}` : ''}`,
+                  price: extraDef.price * e.qty,
+                  cost: 0, stock: 1, category: 'HOTEL', isService: true,
+                  quantity: e.qty,
+                  appliedDiscounts: [],
+                });
+              }
+            });
+
+            // Add late checkout fee as a separate line item
+            if (lateAmount && lateAmount > 0 && lateLabel) {
+              allItems.push({
+                id: `hotel-late-${bk.id}`,
+                name: `Late Check-Out: ${lateLabel}`,
+                price: lateAmount,
+                cost: 0, stock: 1, category: 'HOTEL', isService: true,
+                quantity: 1,
+                appliedDiscounts: [],
+              });
+            }
+
             const subtotal = allItems.reduce((s, i) => s + i.price, 0);
             const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) / 100 : 0;
             const vat = parseFloat((subtotal * vatRate).toFixed(2));
