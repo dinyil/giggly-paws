@@ -228,9 +228,19 @@ const BookingForm: React.FC<{
   onSave: (b: HotelBooking) => void;
   onClose: () => void;
 }> = ({ booking, preselectedRoomId, preselectedDate, onSave, onClose }) => {
-  const { hotelRooms, hotelBookings, clients, currentUser, addClient } = useStore();
+  const { hotelRooms, hotelBookings, clients, currentUser, addClient, storeSettings } = useStore();
   const today = getPhToday();
   const activeRooms = hotelRooms.filter(r => r.is_active);
+
+  // Live rates with DB overrides
+  const activeRates: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
+    ...HOTEL_RATES,
+    ...(storeSettings.hotelRates as Record<BookingTypeKey, Record<PetSizeKey, number>> | undefined),
+  } as Record<BookingTypeKey, Record<PetSizeKey, number>>;
+  const activeLabels: Record<BookingTypeKey, string> = {
+    ...BOOKING_TYPE_LABELS,
+    ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
+  } as Record<BookingTypeKey, string>;
 
   // ── Wizard step ──
   const [step, setStep] = useState<1 | 2>(1);
@@ -326,7 +336,7 @@ const BookingForm: React.FC<{
   }, [ncPetWeight]);
 
   // ── Derived ──
-  const rate = HOTEL_RATES[bookingType][petSize];
+  const rate = activeRates[bookingType][petSize];
   const nights = diffDays(checkIn, checkOut);
   const ownerName = clientMode === 'EXISTING' ? (selectedClient?.name || '') : ncName;
   const contactNumber = clientMode === 'EXISTING' ? (selectedClient?.contactNumber || '') : ncContact;
@@ -446,7 +456,7 @@ const BookingForm: React.FC<{
                   <button key={type} type="button" onClick={() => setBookingType(type)}
                     className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
                     <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
-                    {BOOKING_TYPE_LABELS[type]}
+                    {activeLabels[type]}
                   </button>
                 ))}
               </div>
@@ -455,7 +465,7 @@ const BookingForm: React.FC<{
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                  <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
                   <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
                 </div>
                 <div className="text-right">
@@ -737,7 +747,7 @@ const BookingForm: React.FC<{
                     <button key={type} type="button" onClick={() => setBookingType(type)}
                       className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
                       <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
-                      {BOOKING_TYPE_LABELS[type]}
+                      {activeLabels[type]}
                     </button>
                   ))}
                 </div>
@@ -746,7 +756,7 @@ const BookingForm: React.FC<{
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-bold text-purple-900">{BOOKING_TYPE_LABELS[bookingType]}</p>
+                    <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
                     <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
                   </div>
                   <div className="text-right">
@@ -882,7 +892,7 @@ const BookingConfirmationModal: React.FC<{
           <div className="flex justify-center mb-4">
             <span className="bg-purple-100 text-purple-800 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wide">
               {btype === 'DAYCARE' ? '☀️' : btype === 'OVERNIGHT' ? '🌙' : btype === 'STAYCATION_3D2N' ? '🏠' : btype === 'STAYCATION_4D3N' ? '🏡' : '🌴'}
-              {' '}{BOOKING_TYPE_LABELS[btype]}
+              {' '}{activeLabels[btype]}
             </span>
           </div>
 
@@ -949,7 +959,7 @@ const BookingConfirmationModal: React.FC<{
           <div className="mt-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100 flex items-center justify-between">
             <div>
               <p className="text-xs text-purple-500 font-semibold uppercase tracking-wide">Package Rate</p>
-              <p className="text-xs text-zinc-400 mt-0.5">{BOOKING_TYPE_LABELS[btype]}</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{activeLabels[btype]}</p>
             </div>
             <p className="text-3xl font-black text-purple-700">₱{(booking.daily_rate || 0).toLocaleString()}</p>
           </div>
@@ -991,7 +1001,7 @@ const CheckoutModal: React.FC<{
 
   // Late checkout add-on
   const [lateCheckout, setLateCheckout] = useState<number | null>(null); // index of LATE_CHECKOUT_RATES
-  const daycareRate = HOTEL_RATES['DAYCARE'][petSize];
+  const daycareRate = activeRates['DAYCARE'][petSize];
   const getLateRate = (idx: number) => {
     const slot = LATE_CHECKOUT_RATES[idx];
     const raw = isSmallSize ? slot.small : slot.large;
@@ -1022,7 +1032,7 @@ const CheckoutModal: React.FC<{
               <span className="text-zinc-500">{room ? `Room ${room.room_number}` : 'Hotel'}</span>
             </div>
             <div className="flex justify-between text-zinc-600">
-              <span>{BOOKING_TYPE_LABELS[bookingType] || bookingType} · <strong>{petSize}</strong></span>
+              <span>{activeLabels[bookingType] || bookingType} · <strong>{petSize}</strong></span>
               <span className="font-bold">₱{packageRate.toLocaleString()}</span>
             </div>
             {lateAmount > 0 && (
@@ -1172,7 +1182,7 @@ const Hotel: React.FC = () => {
     addHotelRoom, updateHotelRoom, deleteHotelRoom,
     addHotelBooking, updateHotelBooking, deleteHotelBooking,
     checkInGuest, checkOutGuest,
-    currentUser, products, transactions, storeSettings
+    currentUser, products, transactions, storeSettings, updateStoreSettings
   } = useStore();
 
   const isAdmin = currentUser?.role === Role.ADMIN;
@@ -1192,6 +1202,32 @@ const Hotel: React.FC = () => {
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [isQrZoomed, setIsQrZoomed] = useState(false);
+  const [showRatesModal, setShowRatesModal] = useState(false);
+
+  // Live rates — DB overrides, fallback to hardcoded constants
+  const activeRates: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
+    ...HOTEL_RATES,
+    ...(storeSettings.hotelRates as Record<BookingTypeKey, Record<PetSizeKey, number>> | undefined),
+  } as Record<BookingTypeKey, Record<PetSizeKey, number>>;
+  const activeLabels: Record<BookingTypeKey, string> = {
+    ...BOOKING_TYPE_LABELS,
+    ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
+  } as Record<BookingTypeKey, string>;
+
+  // Rates editor local state
+  const [draftRates, setDraftRates] = useState<Record<string, Record<string, number>>>(activeRates);
+  const [draftLabels, setDraftLabels] = useState<Record<string, string>>(activeLabels);
+
+  const openRatesModal = () => {
+    setDraftRates({ ...activeRates });
+    setDraftLabels({ ...activeLabels });
+    setShowRatesModal(true);
+  };
+
+  const saveRates = () => {
+    updateStoreSettings({ ...storeSettings, hotelRates: draftRates, hotelBookingTypeLabels: draftLabels });
+    setShowRatesModal(false);
+  };
 
   // History filters
   const [historySearch, setHistorySearch] = useState('');
@@ -1294,9 +1330,14 @@ const Hotel: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
-            <button onClick={() => { setEditRoom(null); setShowRoomForm(true); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors" style={{background: '#EDE0F7', color: '#6B4FA0'}}>
-              <Building2 className="w-4 h-4" />Manage Rooms
-            </button>
+            <>
+              <button onClick={openRatesModal} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors" style={{background: '#FFF3E0', color: '#E67E00'}}>
+                <Star className="w-4 h-4" />Edit Rates
+              </button>
+              <button onClick={() => { setEditRoom(null); setShowRoomForm(true); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors" style={{background: '#EDE0F7', color: '#6B4FA0'}}>
+                <Building2 className="w-4 h-4" />Manage Rooms
+              </button>
+            </>
           )}
           <button onClick={() => openNewBooking()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-colors text-white" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
             <Plus className="w-4 h-4" />Book Room
@@ -1562,7 +1603,7 @@ const Hotel: React.FC = () => {
             const room = hotelRooms.find(r => r.id === bk.room_id);
             const bkType = bk.booking_type as BookingTypeKey | undefined;
             const bkSize = bk.pet_size || '';
-            const stayLabel = bkType ? `${BOOKING_TYPE_LABELS[bkType] || bkType} · ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` – ${room.room_name}` : ''}`;
+            const stayLabel = bkType ? `${activeLabels[bkType] || bkType} · ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` – ${room.room_name}` : ''}`;
             const packageTotal = recalcTotal !== undefined ? recalcTotal : bk.daily_rate;
             const nightlyItem = { id: `hotel-stay-${bk.id}`, name: stayLabel, price: packageTotal, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
             const allItems = [nightlyItem];
@@ -1643,6 +1684,79 @@ const Hotel: React.FC = () => {
         onConfirm={() => { deleteHotelRoom(deleteRoomConfirm.id); setDeleteRoomConfirm({ open: false, id: '', name: '' }); }}
         onCancel={() => setDeleteRoomConfirm({ open: false, id: '', name: '' })}
       />
+
+      {/* ── Edit Rates & Packages Modal ──────────────────────────────── */}
+      {showRatesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setShowRatesModal(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-zinc-100 flex items-center justify-between" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
+              <div>
+                <h2 className="text-xl font-black text-white flex items-center gap-2"><Star className="w-5 h-5 text-yellow-300" /> Edit Rates & Packages</h2>
+                <p className="text-purple-200 text-xs mt-0.5">Edit package names and prices per pet size. Changes save immediately.</p>
+              </div>
+              <button onClick={() => setShowRatesModal(false)} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {(Object.keys(HOTEL_RATES) as BookingTypeKey[]).map((typeKey) => {
+                const emoji = typeKey === 'DAYCARE' ? '🌞' : typeKey === 'OVERNIGHT' ? '🌙' : typeKey === 'STAYCATION_3D2N' ? '🏠' : typeKey === 'STAYCATION_4D3N' ? '🏡' : '🌴';
+                return (
+                  <div key={typeKey} className="bg-zinc-50 rounded-2xl border border-zinc-100 overflow-hidden">
+                    {/* Package name edit */}
+                    <div className="px-4 py-3 bg-white border-b border-zinc-100">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide block mb-1">Package Name</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{emoji}</span>
+                        <input
+                          type="text"
+                          value={draftLabels[typeKey] ?? BOOKING_TYPE_LABELS[typeKey]}
+                          onChange={e => setDraftLabels(prev => ({ ...prev, [typeKey]: e.target.value }))}
+                          className="flex-1 border border-zinc-200 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                      </div>
+                    </div>
+                    {/* Price grid */}
+                    <div className="p-4">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide block mb-3">Price per Pet Size (₱)</label>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                        {PET_SIZES.map(size => (
+                          <div key={size} className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded-lg">{size}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={draftRates[typeKey]?.[size] ?? HOTEL_RATES[typeKey][size]}
+                              onChange={e => setDraftRates(prev => ({
+                                ...prev,
+                                [typeKey]: { ...(prev[typeKey] || HOTEL_RATES[typeKey]), [size]: Number(e.target.value) }
+                              }))}
+                              className="w-full border border-zinc-200 rounded-xl px-2 py-2 text-center text-sm font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-zinc-100 flex gap-3">
+              <button onClick={() => setShowRatesModal(false)} className="flex-1 py-3 rounded-2xl font-semibold text-sm border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
+                Cancel
+              </button>
+              <button onClick={saveRates} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white transition-all shadow-lg" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
+                ✓ Save Rates
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

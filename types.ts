@@ -239,6 +239,10 @@ export interface StoreSettings {
 
   // User Access Control
   autoApproveUsers?: boolean; // If true, new users are auto-approved; if false, admin must approve
+
+  // Hotel Rate Matrix (overrides hardcoded defaults if set)
+  hotelRates?: Record<string, Record<string, number>>; // BookingTypeKey → PetSizeKey → price
+  hotelBookingTypeLabels?: Record<string, string>;      // BookingTypeKey → display label
 }
 
 // --- HOTEL MODULE TYPES ---

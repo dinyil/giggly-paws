@@ -196,6 +196,8 @@ const mapSettingsPayload = (s: StoreSettings) => ({
     "vatRate": s.vatRate,             // Quoted CamelCase
     hotel_vat_enabled: s.hotelVatEnabled ?? false,
     auto_approve_users: s.autoApproveUsers ?? true,
+    hotel_rates: s.hotelRates ? JSON.stringify(s.hotelRates) : null,
+    hotel_booking_type_labels: s.hotelBookingTypeLabels ? JSON.stringify(s.hotelBookingTypeLabels) : null,
     "gcashNumber": s.gcashNumber,     // Quoted CamelCase
     "gcashQr": s.gcashQr,             // Quoted CamelCase
     "receiptHeader": s.receiptHeader, // Quoted CamelCase
@@ -252,6 +254,8 @@ const mapSettingsFromDb = (s: any): Partial<StoreSettings> => ({
     vatRate: s.vatRate,             // CamelCase from DB
     hotelVatEnabled: s.hotel_vat_enabled ?? false,
     autoApproveUsers: s.auto_approve_users ?? true,
+    hotelRates: s.hotel_rates ? (typeof s.hotel_rates === 'string' ? JSON.parse(s.hotel_rates) : s.hotel_rates) : undefined,
+    hotelBookingTypeLabels: s.hotel_booking_type_labels ? (typeof s.hotel_booking_type_labels === 'string' ? JSON.parse(s.hotel_booking_type_labels) : s.hotel_booking_type_labels) : undefined,
     gcashNumber: s.gcashNumber,     // CamelCase from DB
     gcashQr: s.gcashQr,             // CamelCase from DB
     receiptHeader: s.receiptHeader, // CamelCase from DB
