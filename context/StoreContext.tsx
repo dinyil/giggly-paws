@@ -771,6 +771,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const registerDevice = useCallback(async () => {
      const networkInfo = await getNetworkInfo();
      const deviceInfo = getDeviceInfo();
+     // Auto-approve device if setting is enabled (or not explicitly disabled)
+     const defaultStatus = storeSettings.autoApproveUsers !== false ? 'APPROVED' : 'PENDING';
 
      setDevices(prev => {
          const existing = prev.find(d => d.id === currentDeviceId);
@@ -783,7 +785,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              device_type: deviceInfo.device_type,
              ip: networkInfo.ip,
              location: networkInfo.location,
-             status: existing ? existing.status : 'PENDING', 
+             status: existing ? existing.status : defaultStatus,
              lastActive: new Date().toISOString()
          };
          upsertData('devices', mapDevicePayload(device));
@@ -791,7 +793,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
          if (existing) return prev.map(d => d.id === currentDeviceId ? device : d);
          return [...prev, device];
      });
-  }, [currentDeviceId]);
+  }, [currentDeviceId, storeSettings.autoApproveUsers]);
 
   const updateDeviceStatus = async (deviceId: string, status: 'APPROVED' | 'BLOCKED', customName?: string) => {
       const dev = devices.find(d => d.id === deviceId);

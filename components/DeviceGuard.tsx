@@ -8,7 +8,7 @@ import Button from './ui/Button';
 import { fetchTable } from '../services/supabase';
 
 export const DeviceGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoading, isSystemSetup, currentDeviceStatus, registerDevice, storeSettings, devices, currentDeviceId, updateStoreSettings } = useStore();
+  const { isLoading, isSystemSetup, currentDeviceStatus, registerDevice, storeSettings, devices, currentDeviceId, updateStoreSettings, updateDeviceStatus } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,6 +36,14 @@ export const DeviceGuard: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isLoading, isSystemSetup, location.pathname, registerDevice, devices, currentDeviceId]);
 
+  // Auto-approve device if it's PENDING but autoApproveUsers is enabled
+  useEffect(() => {
+    if (isLoading) return;
+    if (currentDeviceStatus === 'PENDING' && storeSettings.autoApproveUsers !== false && currentDeviceId) {
+      updateDeviceStatus(currentDeviceId, 'APPROVED');
+    }
+  }, [currentDeviceStatus, storeSettings.autoApproveUsers, currentDeviceId, isLoading]);
+
   // Monitor status changes for the Welcome Modal & Polling
   useEffect(() => {
       if (isLoading) return;
@@ -51,16 +59,6 @@ export const DeviceGuard: React.FC<{ children: React.ReactNode }> = ({ children 
                   if (data) {
                       const myDevice = data.find((d: any) => d.id === currentDeviceId);
                       if (myDevice && myDevice.status === 'APPROVED') {
-                          // Force a window reload or state update if Context didn't catch it
-                          // But ideally, we just update a local trigger to re-sync
-                          // Since we can't easily force-update Context from here without exposing a method,
-                          // we rely on the fact that if we see Approved, we can set local state to unblock visually
-                          // However, context needs to be in sync for the rest of the app.
-                          // Triggering a 'soft' reload of context would be best, but window.location.reload() is nuclear.
-                          
-                          // Let's assume the subscription WILL pick it up, but if it's stuck,
-                          // we can manually force a reload if we detect a mismatch.
-                          // Actually, we can just reload the page if we detect approval but context is stale.
                           window.location.reload(); 
                       }
                   }
@@ -152,6 +150,11 @@ export const DeviceGuard: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
         </div>
       );
+  }
+
+  // If auto-approve is ON, bypass the pending screen entirely
+  if (currentDeviceStatus === 'PENDING' && storeSettings.autoApproveUsers !== false) {
+    return <>{children}</>;
   }
 
   if (currentDeviceStatus === 'PENDING') {
