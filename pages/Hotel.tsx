@@ -784,6 +784,165 @@ const BookingForm: React.FC<{
     </div>
   );
 };
+
+// ─── Booking Confirmation Modal ────────────────────────────────────────────────
+
+const BookingConfirmationModal: React.FC<{
+  booking: HotelBooking;
+  isEdit: boolean;
+  onClose: () => void;
+}> = ({ booking, isEdit, onClose }) => {
+  const { hotelRooms } = useStore();
+  const room = hotelRooms.find(r => r.id === booking.room_id);
+  const btype = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
+  const psize = (booking.pet_size as PetSizeKey) || 'S';
+  const emoji = ['XS','S','M'].includes(psize) ? '🐶' : psize === 'L' ? '🐕' : '🐺';
+  const speciesEmoji = booking.pet_name ? emoji : '🐾';
+
+  const nights = (() => {
+    try {
+      const d1 = new Date(booking.check_in);
+      const d2 = new Date(booking.check_out);
+      return Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+    } catch { return 1; }
+  })();
+
+  const formatDate = (d: string) => {
+    try { return new Date(d).toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return d; }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+
+        {/* Header banner */}
+        <div className="bg-gradient-to-br from-purple-700 via-indigo-700 to-violet-800 px-6 pt-8 pb-10 text-white relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute -top-8 -right-8 w-36 h-36 bg-white/10 rounded-full" />
+          <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full" />
+          <div className="absolute top-4 right-16 w-10 h-10 bg-white/10 rounded-full" />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-2xl">{isEdit ? '✏️' : '✨'}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-purple-200">
+                {isEdit ? 'Booking Updated' : 'Booking Confirmed!'}
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0 shadow-inner">
+                {speciesEmoji}
+              </div>
+              <div>
+                <p className="text-2xl font-black leading-tight">{booking.pet_name}</p>
+                <p className="text-purple-200 text-sm mt-0.5">{booking.owner_name}</p>
+                {booking.contact_number && <p className="text-purple-300 text-xs">{booking.contact_number}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pull-up content card */}
+        <div className="-mt-4 bg-white rounded-t-3xl px-6 pt-5 pb-2">
+
+          {/* Booking type pill */}
+          <div className="flex justify-center mb-4">
+            <span className="bg-purple-100 text-purple-800 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wide">
+              {btype === 'DAYCARE' ? '☀️' : btype === 'OVERNIGHT' ? '🌙' : btype === 'STAYCATION_3D2N' ? '🏠' : btype === 'STAYCATION_4D3N' ? '🏡' : '🌴'}
+              {' '}{BOOKING_TYPE_LABELS[btype]}
+            </span>
+          </div>
+
+          {/* Details grid */}
+          <div className="space-y-0 divide-y divide-zinc-100">
+
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2 text-zinc-500">
+                <span className="text-base">📍</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">Pet Size</span>
+              </div>
+              <span className="font-black text-purple-700 bg-purple-50 px-3 py-1 rounded-xl text-sm">{psize}</span>
+            </div>
+
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2 text-zinc-500">
+                <span className="text-base">📅</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">Check-In</span>
+              </div>
+              <span className="font-bold text-zinc-800 text-sm">{formatDate(booking.check_in)}</span>
+            </div>
+
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2 text-zinc-500">
+                <span className="text-base">📅</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">Check-Out</span>
+              </div>
+              <span className="font-bold text-zinc-800 text-sm">{formatDate(booking.check_out)}</span>
+            </div>
+
+            {btype !== 'DAYCARE' && (
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-2 text-zinc-500">
+                  <span className="text-base">🌙</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide">Duration</span>
+                </div>
+                <span className="font-bold text-zinc-800 text-sm">{nights} night{nights !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+
+            {room && (
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-2 text-zinc-500">
+                  <span className="text-base">🏨</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide">Room / Slot</span>
+                </div>
+                <span className="font-bold text-zinc-800 text-sm">{room.room_number} – {room.room_name}</span>
+              </div>
+            )}
+
+            {booking.notes && (
+              <div className="py-3">
+                <div className="flex items-center gap-2 text-zinc-500 mb-1">
+                  <span className="text-base">📝</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide">Special Instructions</span>
+                </div>
+                <p className="text-sm text-zinc-700 bg-zinc-50 rounded-xl px-3 py-2 leading-relaxed">{booking.notes}</p>
+              </div>
+            )}
+
+          </div>
+
+          {/* Rate summary */}
+          <div className="mt-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-purple-500 font-semibold uppercase tracking-wide">Package Rate</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{BOOKING_TYPE_LABELS[btype]}</p>
+            </div>
+            <p className="text-3xl font-black text-purple-700">₱{(booking.daily_rate || 0).toLocaleString()}</p>
+          </div>
+
+          {/* Status badge */}
+          <div className="flex justify-center mt-3 mb-1">
+            <span className="bg-amber-100 text-amber-700 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest">
+              ⏳ RESERVED
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-3">
+          <button
+            onClick={onClose}
+            className="w-full bg-purple-700 hover:bg-purple-800 text-white py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-purple-200">
+            ✔ Got it!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CheckoutModal: React.FC<{
   booking: HotelBooking;
   onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number) => void;
@@ -995,6 +1154,7 @@ const Hotel: React.FC = () => {
   const [preselectedRoomId, setPreselectedRoomId] = useState('');
   const [preselectedDate, setPreselectedDate] = useState('');
   const [checkoutBooking, setCheckoutBooking] = useState<HotelBooking | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<{ booking: HotelBooking; isEdit: boolean } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
@@ -1328,8 +1488,26 @@ const Hotel: React.FC = () => {
           booking={editBooking}
           preselectedRoomId={preselectedRoomId}
           preselectedDate={preselectedDate}
-          onSave={async b => { editBooking ? await updateHotelBooking(b) : await addHotelBooking(b); setShowBookingForm(false); setEditBooking(null); }}
+          onSave={async b => {
+            if (editBooking) {
+              await updateHotelBooking(b);
+              setConfirmedBooking({ booking: b, isEdit: true });
+            } else {
+              await addHotelBooking(b);
+              setConfirmedBooking({ booking: b, isEdit: false });
+            }
+            setShowBookingForm(false);
+            setEditBooking(null);
+          }}
           onClose={() => { setShowBookingForm(false); setEditBooking(null); }}
+        />
+      )}
+
+      {confirmedBooking && (
+        <BookingConfirmationModal
+          booking={confirmedBooking.booking}
+          isEdit={confirmedBooking.isEdit}
+          onClose={() => setConfirmedBooking(null)}
         />
       )}
 
