@@ -300,34 +300,42 @@ const Grooming: React.FC = () => {
   };
 
   // --- VIRTUAL CARD EXPANSION ---
-  // For SCHEDULED: explode multi-pet appointments into per-(date,time)-group cards
-  // For ONGOING / COMPLETED: always show as 1 card
+  // For split-time bookings (different date/time per pet), each time-group gets its own card with its own status.
+  // Same date+time → grouped in 1 card. ONGOING/COMPLETED without splits → single card as before.
   type VirtualCard = {
-      key: string;           // unique render key
-      apt: GroomingAppointment;  // original appointment (for all actions)
+      key: string;
+      apt: GroomingAppointment;
       displayDate: string;
       displayTime: string;
       displayPets: Array<{
           petName: string; petBreed?: string; petColor?: string;
           petSpecies?: 'DOG'|'CAT'|'OTHER'; serviceId: string;
           hairCut?: string; addonIds: string[]; groomerId?: string;
-          isPrimary: boolean;
+          isPrimary: boolean; petId?: string; // petId = AdditionalPet.id for non-primary
       }>;
       displayTotal: number;
-      isMultiTimeBooking: boolean; // true if this apt has pets with different times
+      isMultiTimeBooking: boolean;
+      hasPrimary: boolean;     // does this card contain the primary pet?
+      cardStatus: 'SCHEDULED' | 'ONGOING' | 'COMPLETED'; // independent per-card status
+      petIds: string[];        // ids of AdditionalPet entries in this card (for status update)
   };
 
   const expandAppointment = (apt: GroomingAppointment): VirtualCard[] => {
-      if (apt.status !== 'SCHEDULED') {
-          // ONGOING / COMPLETED — single card, all pets
+      const additionalPets = apt.pets || [];
+      const isMultiTime = additionalPets.some(p =>
+          (p.date && p.date !== apt.date) || (p.time && p.time !== apt.time)
+      );
+
+      if (!isMultiTime) {
+          // Single-time booking OR ONGOING/COMPLETED — one card, all pets
           const allPets = [
               { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
                 petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
                 addonIds: apt.addonIds || [], groomerId: apt.groomerId, isPrimary: true },
-              ...(apt.pets || []).map(p => ({
+              ...additionalPets.map(p => ({
                   petName: p.petName, petBreed: p.petBreed, petColor: p.petColor,
                   petSpecies: p.petSpecies, serviceId: p.serviceId, hairCut: p.hairCut,
-                  addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false
+                  addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false, petId: p.id
               }))
           ];
           const total = allPets.reduce((s, p) => {
@@ -336,24 +344,26 @@ const Grooming: React.FC = () => {
               return s + ps + pa;
           }, 0);
           return [{ key: apt.id, apt, displayDate: apt.date, displayTime: apt.time,
-              displayPets: allPets, displayTotal: total, isMultiTimeBooking: false }];
+              displayPets: allPets, displayTotal: total, isMultiTimeBooking: false,
+              hasPrimary: true, cardStatus: apt.status, petIds: additionalPets.map(p => p.id) }];
       }
 
-      // SCHEDULED — group pets by (date, time)
+      // Multi-time booking — group pets by (date, time)
       const petsWithTime = [
           { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
             petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
             addonIds: apt.addonIds || [], groomerId: apt.groomerId, isPrimary: true,
-            date: apt.date, time: apt.time },
-          ...(apt.pets || []).map(p => ({
+            date: apt.date, time: apt.time, petId: undefined as string | undefined,
+            status: apt.status as 'SCHEDULED'|'ONGOING'|'COMPLETED' },
+          ...additionalPets.map(p => ({
               petName: p.petName, petBreed: p.petBreed, petColor: p.petColor,
               petSpecies: p.petSpecies, serviceId: p.serviceId, hairCut: p.hairCut,
               addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false,
-              date: p.date || apt.date, time: p.time || apt.time
+              date: p.date || apt.date, time: p.time || apt.time, petId: p.id,
+              status: (p.status || apt.status) as 'SCHEDULED'|'ONGOING'|'COMPLETED'
           }))
       ];
 
-      // Group by date+time
       const groups = new Map<string, typeof petsWithTime>();
       for (const pet of petsWithTime) {
           const key = `${pet.date}|${pet.time}`;
@@ -361,7 +371,6 @@ const Grooming: React.FC = () => {
           groups.get(key)!.push(pet);
       }
 
-      const isMultiTimeBooking = groups.size > 1;
       const cards: VirtualCard[] = [];
       let i = 0;
       for (const [groupKey, pets] of groups) {
@@ -371,27 +380,33 @@ const Grooming: React.FC = () => {
               const pa = p.addonIds.reduce((ss, id) => ss + (products.find(pr => pr.id === id)?.price || 0), 0);
               return s + ps + pa;
           }, 0);
+          const hasPrimary = pets.some(p => p.isPrimary);
+          // Card status: primary pet uses apt.status; additional-pet-only cards use their own pet.status
+          const cardStatus = hasPrimary ? apt.status : pets[0].status;
           cards.push({
               key: `${apt.id}-slot${i++}`,
               apt, displayDate: date, displayTime: time,
-              displayPets: pets, displayTotal: total, isMultiTimeBooking
+              displayPets: pets, displayTotal: total, isMultiTimeBooking: true,
+              hasPrimary, cardStatus, petIds: pets.filter(p => !p.isPrimary).map(p => p.petId!)
           });
       }
       return cards;
   };
 
+
   const filteredAppointments = useMemo(() => {
       const allVirtual = appointments.flatMap(expandAppointment);
       return allVirtual.filter(card => {
           const apt = card.apt;
-          if (activeTab === 'UPCOMING') return apt.status === 'SCHEDULED' && card.displayDate > today;
-          if (activeTab === 'WAITING') return apt.status === 'SCHEDULED' && card.displayDate === today;
-          if (activeTab === 'ONGOING') return apt.status === 'ONGOING';
+          if (activeTab === 'UPCOMING') return card.cardStatus === 'SCHEDULED' && card.displayDate > today;
+          if (activeTab === 'WAITING') return card.cardStatus === 'SCHEDULED' && card.displayDate === today;
+          if (activeTab === 'ONGOING') return card.cardStatus === 'ONGOING';
           if (activeTab === 'COMPLETED') {
-              if (apt.status !== 'COMPLETED') return false;
-              if (!isInHistoryRange(apt.date)) return false;
+              if (card.cardStatus !== 'COMPLETED') return false;
+              if (!isInHistoryRange(card.displayDate)) return false;
               if (historySearch) {
                   const searchNorm = normalizeText(historySearch);
+                  const apt = card.apt;
                   const matches =
                       normalizeText(apt.petName).includes(searchNorm) ||
                       normalizeText(apt.ownerName).includes(searchNorm) ||
@@ -1065,19 +1080,52 @@ const Grooming: React.FC = () => {
 
                                 {/* Action buttons */}
                                 <div className="mt-auto relative z-10">
-                                    {apt.status === 'SCHEDULED' && (
+                                    {card.cardStatus === 'SCHEDULED' && (
                                         card.displayDate === today ? (
-                                            <button className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" onClick={() => updateAppointmentStatus(apt.id, 'ONGOING')}>
+                                            <button className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" onClick={() => {
+                                                if (card.hasPrimary) {
+                                                    updateAppointmentStatus(apt.id, 'ONGOING');
+                                                } else {
+                                                    // Non-primary card: update only those pets' status
+                                                    const updated = { ...apt, pets: (apt.pets || []).map(p =>
+                                                        card.petIds.includes(p.id) ? { ...p, status: 'ONGOING' as const } : p
+                                                    )};
+                                                    updateAppointment(updated);
+                                                }
+                                            }}>
                                                 Start Session <ArrowRight className="w-4 h-4" />
                                             </button>
                                         ) : <div className="w-full text-center py-2 text-sm text-gray-400 font-medium bg-zinc-50 rounded-xl border border-zinc-100">Scheduled</div>
                                     )}
-                                    {apt.status === 'ONGOING' && (
-                                        <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100" onClick={() => handleProceedToPayment(apt)}>
+                                    {card.cardStatus === 'ONGOING' && (
+                                        <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100" onClick={() => {
+                                            if (card.hasPrimary) {
+                                                handleProceedToPayment(apt);
+                                            } else {
+                                                // Non-primary card: mark pets COMPLETED, show per-card receipt
+                                                const updated = { ...apt, pets: (apt.pets || []).map(p =>
+                                                    card.petIds.includes(p.id) ? { ...p, status: 'COMPLETED' as const } : p
+                                                )};
+                                                updateAppointment(updated);
+                                                // Build a synthetic apt for receipt with only these pets
+                                                const syntheticApt = {
+                                                    ...apt,
+                                                    petName: displayPets[0]?.petName || apt.petName,
+                                                    petBreed: displayPets[0]?.petBreed,
+                                                    serviceId: displayPets[0]?.serviceId || '',
+                                                    addonIds: displayPets[0]?.addonIds || [],
+                                                    groomerId: displayPets[0]?.groomerId || apt.groomerId,
+                                                    date: card.displayDate,
+                                                    time: card.displayTime,
+                                                    pets: displayPets.slice(1).map(p => ({ id: p.petId || '', petName: p.petName, petBreed: p.petBreed, petSpecies: p.petSpecies, serviceId: p.serviceId, addonIds: p.addonIds, groomerId: p.groomerId }))
+                                                };
+                                                setTimeout(() => handlePrintReceipt(syntheticApt as any), 150);
+                                            }
+                                        }}>
                                             Complete Grooming
                                         </button>
                                     )}
-                                    {apt.status === 'COMPLETED' && (
+                                    {card.cardStatus === 'COMPLETED' && (
                                         <div className="flex gap-2">
                                             <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-green-700 font-bold bg-green-50 rounded-xl border border-green-100">
                                                 <CheckCircle className="w-4 h-4" /> Finished

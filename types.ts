@@ -96,6 +96,7 @@ export interface AdditionalPet {
   addonIds?: string[];
   date?: string;      // per-pet schedule date (defaults to primary pet date)
   time?: string;      // per-pet schedule time (defaults to primary pet time)
+  status?: 'SCHEDULED' | 'ONGOING' | 'COMPLETED'; // independent status for split-time bookings
   // UI-only state (not saved to DB)
   _serviceSearch?: string;
   _showServiceSug?: boolean;
