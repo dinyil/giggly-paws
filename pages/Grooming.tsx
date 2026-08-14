@@ -299,57 +299,124 @@ const Grooming: React.FC = () => {
       return false;
   };
 
+  // --- VIRTUAL CARD EXPANSION ---
+  // For SCHEDULED: explode multi-pet appointments into per-(date,time)-group cards
+  // For ONGOING / COMPLETED: always show as 1 card
+  type VirtualCard = {
+      key: string;           // unique render key
+      apt: GroomingAppointment;  // original appointment (for all actions)
+      displayDate: string;
+      displayTime: string;
+      displayPets: Array<{
+          petName: string; petBreed?: string; petColor?: string;
+          petSpecies?: 'DOG'|'CAT'|'OTHER'; serviceId: string;
+          hairCut?: string; addonIds: string[]; groomerId?: string;
+          isPrimary: boolean;
+      }>;
+      displayTotal: number;
+      isMultiTimeBooking: boolean; // true if this apt has pets with different times
+  };
+
+  const expandAppointment = (apt: GroomingAppointment): VirtualCard[] => {
+      if (apt.status !== 'SCHEDULED') {
+          // ONGOING / COMPLETED — single card, all pets
+          const allPets = [
+              { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
+                petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
+                addonIds: apt.addonIds || [], groomerId: apt.groomerId, isPrimary: true },
+              ...(apt.pets || []).map(p => ({
+                  petName: p.petName, petBreed: p.petBreed, petColor: p.petColor,
+                  petSpecies: p.petSpecies, serviceId: p.serviceId, hairCut: p.hairCut,
+                  addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false
+              }))
+          ];
+          const total = allPets.reduce((s, p) => {
+              const ps = products.find(pr => pr.id === p.serviceId)?.price || 0;
+              const pa = p.addonIds.reduce((ss, id) => ss + (products.find(pr => pr.id === id)?.price || 0), 0);
+              return s + ps + pa;
+          }, 0);
+          return [{ key: apt.id, apt, displayDate: apt.date, displayTime: apt.time,
+              displayPets: allPets, displayTotal: total, isMultiTimeBooking: false }];
+      }
+
+      // SCHEDULED — group pets by (date, time)
+      const petsWithTime = [
+          { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
+            petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
+            addonIds: apt.addonIds || [], groomerId: apt.groomerId, isPrimary: true,
+            date: apt.date, time: apt.time },
+          ...(apt.pets || []).map(p => ({
+              petName: p.petName, petBreed: p.petBreed, petColor: p.petColor,
+              petSpecies: p.petSpecies, serviceId: p.serviceId, hairCut: p.hairCut,
+              addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false,
+              date: p.date || apt.date, time: p.time || apt.time
+          }))
+      ];
+
+      // Group by date+time
+      const groups = new Map<string, typeof petsWithTime>();
+      for (const pet of petsWithTime) {
+          const key = `${pet.date}|${pet.time}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(pet);
+      }
+
+      const isMultiTimeBooking = groups.size > 1;
+      const cards: VirtualCard[] = [];
+      let i = 0;
+      for (const [groupKey, pets] of groups) {
+          const [date, time] = groupKey.split('|');
+          const total = pets.reduce((s, p) => {
+              const ps = products.find(pr => pr.id === p.serviceId)?.price || 0;
+              const pa = p.addonIds.reduce((ss, id) => ss + (products.find(pr => pr.id === id)?.price || 0), 0);
+              return s + ps + pa;
+          }, 0);
+          cards.push({
+              key: `${apt.id}-slot${i++}`,
+              apt, displayDate: date, displayTime: time,
+              displayPets: pets, displayTotal: total, isMultiTimeBooking
+          });
+      }
+      return cards;
+  };
+
   const filteredAppointments = useMemo(() => {
-    return appointments.filter(apt => {
-        if (activeTab === 'UPCOMING') return apt.status === 'SCHEDULED' && apt.date > today;
-        // 'WAITING' strictly matches 'today' (PH Time)
-        if (activeTab === 'WAITING') return apt.status === 'SCHEDULED' && apt.date === today;
-        if (activeTab === 'ONGOING') return apt.status === 'ONGOING';
-        
-        if (activeTab === 'COMPLETED') {
-            if (apt.status !== 'COMPLETED') return false;
-            
-            // Apply Date Filter
-            if (!isInHistoryRange(apt.date)) return false;
-
-            // Apply Search Filter
-            if (historySearch) {
-                const searchNorm = normalizeText(historySearch);
-                const matches = 
-                    normalizeText(apt.petName).includes(searchNorm) ||
-                    normalizeText(apt.ownerName).includes(searchNorm) ||
-                    normalizeText(apt.groomerId || '').includes(searchNorm);
-                if (!matches) return false;
-            }
-            return true;
-        }
-        return false;
-    }).sort((a, b) => {
-        // Special Sort for WAITING: Scheduled First, then Walk-ins, both Sequential by Time
-        if (activeTab === 'WAITING') {
-            const isWalkInA = (a.hairCut || '').includes('Paid at POS');
-            const isWalkInB = (b.hairCut || '').includes('Paid at POS');
-
-            // 1. Prioritize Scheduled (Non-Walkin)
-            // If A is Walk-in (True) and B is Scheduled (False) -> B comes first (1)
-            // If A is Scheduled (False) and B is Walk-in (True) -> A comes first (-1)
-            if (isWalkInA !== isWalkInB) {
-                return isWalkInA ? 1 : -1;
-            }
-
-            // 2. Sequential Time Sort (Earliest First)
-            return a.time.localeCompare(b.time);
-        }
-
-        // Sort descending date for history, ascending for upcoming
-        if (activeTab === 'COMPLETED') {
-             if (a.date !== b.date) return b.date.localeCompare(a.date);
-             return b.time.localeCompare(a.time);
-        }
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        return a.time.localeCompare(b.time);
-    });
-  }, [appointments, activeTab, today, historyTimeRange, historySearch]);
+      const allVirtual = appointments.flatMap(expandAppointment);
+      return allVirtual.filter(card => {
+          const apt = card.apt;
+          if (activeTab === 'UPCOMING') return apt.status === 'SCHEDULED' && card.displayDate > today;
+          if (activeTab === 'WAITING') return apt.status === 'SCHEDULED' && card.displayDate === today;
+          if (activeTab === 'ONGOING') return apt.status === 'ONGOING';
+          if (activeTab === 'COMPLETED') {
+              if (apt.status !== 'COMPLETED') return false;
+              if (!isInHistoryRange(apt.date)) return false;
+              if (historySearch) {
+                  const searchNorm = normalizeText(historySearch);
+                  const matches =
+                      normalizeText(apt.petName).includes(searchNorm) ||
+                      normalizeText(apt.ownerName).includes(searchNorm) ||
+                      normalizeText(apt.groomerId || '').includes(searchNorm);
+                  if (!matches) return false;
+              }
+              return true;
+          }
+          return false;
+      }).sort((a, b) => {
+          if (activeTab === 'WAITING') {
+              const isWalkInA = (a.apt.hairCut || '').includes('Paid at POS');
+              const isWalkInB = (b.apt.hairCut || '').includes('Paid at POS');
+              if (isWalkInA !== isWalkInB) return isWalkInA ? 1 : -1;
+              if (a.displayDate !== b.displayDate) return a.displayDate.localeCompare(b.displayDate);
+              return a.displayTime.localeCompare(b.displayTime);
+          }
+          if (activeTab === 'COMPLETED') {
+              if (a.displayDate !== b.displayDate) return b.displayDate.localeCompare(a.displayDate);
+              return b.displayTime.localeCompare(a.displayTime);
+          }
+          if (a.displayDate !== b.displayDate) return a.displayDate.localeCompare(b.displayDate);
+          return a.displayTime.localeCompare(b.displayTime);
+      });
+  }, [appointments, activeTab, today, historyTimeRange, historySearch, products]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
@@ -357,6 +424,7 @@ const Grooming: React.FC = () => {
       const start = (currentPage - 1) * itemsPerPage;
       return filteredAppointments.slice(start, start + itemsPerPage);
   }, [filteredAppointments, currentPage]);
+
 
   useEffect(() => {
       setCurrentPage(1);
@@ -748,8 +816,8 @@ const Grooming: React.FC = () => {
 
   const getCount = (tab: GroomingTab) => {
       // Use dynamic 'today' (PH Time) for filtering
-      if (tab === 'UPCOMING') return appointments.filter(a => a.status === 'SCHEDULED' && a.date > today).length;
-      if (tab === 'WAITING') return appointments.filter(a => a.status === 'SCHEDULED' && a.date === today).length;
+      if (tab === 'UPCOMING') return appointments.flatMap(expandAppointment).filter(c => c.apt.status === 'SCHEDULED' && c.displayDate > today).length;
+      if (tab === 'WAITING') return appointments.flatMap(expandAppointment).filter(c => c.apt.status === 'SCHEDULED' && c.displayDate === today).length;
       if (tab === 'ONGOING') return appointments.filter(a => a.status === 'ONGOING').length;
       if (tab === 'COMPLETED') {
           if (activeTab === 'COMPLETED') return filteredAppointments.length;
@@ -894,23 +962,18 @@ const Grooming: React.FC = () => {
                </div>
            ) : (
                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
-                   {paginatedAppointments.map(apt => {
+                   {paginatedAppointments.map(card => {
+                        const apt = card.apt;
                         const isWalkIn = (apt.hairCut || '').includes('Paid at POS');
-                        const baseServicePrice = products.find(p => p.id === apt.serviceId)?.price || 0;
-                        const aptAddonTotal = (apt.addonIds || []).reduce((sum, id) => sum + (products.find(p => p.id === id)?.price || 0), 0);
-                        const extraPetsTotal = (apt.pets || []).reduce((sum, pet) => {
-                            const ps = products.find(p => p.id === pet.serviceId)?.price || 0;
-                            const pa = (pet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
-                            return sum + ps + pa;
-                        }, 0);
-                        const aptTotal = baseServicePrice + aptAddonTotal + extraPetsTotal;
+                        const aptTotal = card.displayTotal;
+                        const displayPets = card.displayPets;
 
                         return (
-                            <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div key={card.key} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                                 {/* Date + status */}
                                 <div className="flex justify-between items-start mb-3 relative z-10">
-                                    <div className={`text-xs font-bold px-3 py-1 rounded-full border ${apt.date === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
-                                        {apt.date === today ? 'TODAY' : new Date(apt.date).toLocaleDateString()} • {formatTime(apt.time)}
+                                    <div className={`text-xs font-bold px-3 py-1 rounded-full border ${card.displayDate === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
+                                        {card.displayDate === today ? 'TODAY' : new Date(card.displayDate + 'T00:00:00').toLocaleDateString()} • {formatTime(card.displayTime)}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
@@ -931,16 +994,14 @@ const Grooming: React.FC = () => {
                                         {apt.ownerName}
                                         {apt.contactNumber && <span className="text-gray-400">({apt.contactNumber})</span>}
                                         {isWalkIn && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 uppercase">Walk-in</span>}
-                                        {(apt.pets || []).length > 0 && <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">{(apt.pets || []).length + 1} Pets</span>}
+                                        {displayPets.length > 1 && <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">{displayPets.length} Pets</span>}
+                                        {card.isMultiTimeBooking && <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100">Split Booking</span>}
                                     </p>
                                 </div>
 
                                 {/* Pets — primary + additional */}
                                 <div className="space-y-2 mb-4 relative z-10">
-                                    {[
-                                        { petName: apt.petName, petBreed: apt.petBreed, serviceId: apt.serviceId, hairCut: apt.hairCut, addonIds: apt.addonIds || [] },
-                                        ...(apt.pets || [])
-                                    ].map((pet, pi) => {
+                                    {displayPets.map((pet, pi) => {
                                         const petSvc = products.find(p => p.id === pet.serviceId);
                                         const petAddons = (pet.addonIds || []).map(id => products.find(p => p.id === id)).filter(Boolean);
                                         const petTotal = (petSvc?.price || 0) + petAddons.reduce((s, p) => s + (p!.price || 0), 0);
@@ -1005,7 +1066,7 @@ const Grooming: React.FC = () => {
                                 {/* Action buttons */}
                                 <div className="mt-auto relative z-10">
                                     {apt.status === 'SCHEDULED' && (
-                                        apt.date === today ? (
+                                        card.displayDate === today ? (
                                             <button className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" onClick={() => updateAppointmentStatus(apt.id, 'ONGOING')}>
                                                 Start Session <ArrowRight className="w-4 h-4" />
                                             </button>
