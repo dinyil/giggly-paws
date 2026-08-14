@@ -660,7 +660,11 @@ const Grooming: React.FC = () => {
       }
       
       setCompletionModal({ isOpen: false, apt: null });
+
+      // Auto-open receipt preview after completion
+      setTimeout(() => handlePrintReceipt(apt), 150);
   };
+
 
   // --- PRINT RECEIPT LOGIC ---
   const handlePrintReceipt = (apt: GroomingAppointment) => {
