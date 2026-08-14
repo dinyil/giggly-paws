@@ -94,6 +94,12 @@ export interface AdditionalPet {
   hairCut?: string;
   groomerId?: string; // can override groomer per pet (optional)
   addonIds?: string[];
+  // UI-only state (not saved to DB)
+  _serviceSearch?: string;
+  _showServiceSug?: boolean;
+  _addonSearch?: string;
+  _showAddonSug?: boolean;
+  _addonFilter?: 'ALL' | 'SERVICE' | 'PRODUCT';
 }
 
 export interface GroomingAppointment {

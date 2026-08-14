@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
@@ -1722,11 +1722,11 @@ const Grooming: React.FC = () => {
               </div>
 
               {/* ADDITIONAL PETS SECTION */}
-              <div className="space-y-3 pt-2 border-t-2 border-dashed border-purple-100">
+              <div className="space-y-4 pt-2 border-t-2 border-dashed border-purple-100">
                   <div className="flex justify-between items-center">
                       <h4 className="text-xs font-bold text-purple-500 uppercase flex items-center gap-1.5">
                           <Dog className="w-3.5 h-3.5" /> Additional Pets
-                          <span className="text-purple-300 font-normal normal-case text-[10px]">— same owner, separate service each</span>
+                          <span className="text-purple-300 font-normal normal-case text-[10px]">— same owner, each pet billed separately</span>
                       </h4>
                       <button
                           type="button"
@@ -1734,35 +1734,44 @@ const Grooming: React.FC = () => {
                               id: Date.now().toString(),
                               petName: '', petBreed: '', petColor: '', weightSize: '',
                               petSpecies: 'DOG', serviceId: '', hairCut: '',
-                              groomerId: formData.groomerId || '',
-                              addonIds: []
+                              groomerId: '',
+                              addonIds: [],
+                              _serviceSearch: '',
+                              _showServiceSug: false,
+                              _addonSearch: '',
+                              _showAddonSug: false,
+                              _addonFilter: 'ALL'
                           }])}
-                          className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors"
                       >
                           <Plus className="w-3 h-3" /> Add Another Pet
                       </button>
                   </div>
 
                   {additionalPets.map((pet, idx) => {
-                      const updatePet = (field: keyof typeof pet, val: string | string[]) =>
+                      const updatePet = (field: keyof typeof pet, val: any) =>
                           setAdditionalPets(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
 
                       const petWeightKg = parseWeightKg(pet.weightSize || '');
                       const petDetectedSize = pet.petSpecies === 'DOG' && petWeightKg !== null ? detectSizeFromWeight(petWeightKg) : null;
 
-                      const petGroomingServices = products.filter(p => p.isService && p.category === 'GROOMING');
-                      const filteredPetServices = petGroomingServices.filter(s => {
+                      // Filtered services — same logic as primary pet
+                      const filteredPetServices = groomingServices.filter(s => {
+                          const nameMatch = normalizeText(s.name).includes(normalizeText(pet._serviceSearch || ''));
                           const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies;
                           const sizeMatch = !petDetectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === petDetectedSize;
-                          return speciesMatch && sizeMatch;
+                          return nameMatch && speciesMatch && sizeMatch;
                       });
 
-                      const petAddonProducts = products.filter(p => {
-                          const notMainService = p.id !== pet.serviceId;
+                      // Filtered add-ons — same logic as primary pet
+                      const filteredPetAddons = products.filter(p => {
+                          const notSelected = p.id !== pet.serviceId;
                           const notAdded = !(pet.addonIds || []).includes(p.id);
+                          const nameMatch = normalizeText(p.name).includes(normalizeText(pet._addonSearch || ''));
+                          const typeMatch = (pet._addonFilter || 'ALL') === 'ALL' || ((pet._addonFilter || 'ALL') === 'SERVICE' ? p.isService : !p.isService);
                           const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === pet.petSpecies || !p.petSpecies;
                           const sizeMatch = !petDetectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === petDetectedSize;
-                          return notMainService && notAdded && speciesMatch && sizeMatch;
+                          return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
                       });
 
                       const petSvc = products.find(p => p.id === pet.serviceId);
@@ -1770,9 +1779,9 @@ const Grooming: React.FC = () => {
                       const petTotal = (petSvc?.price || 0) + petAddonTotal;
 
                       return (
-                          <div key={pet.id} className="border-2 border-purple-100 rounded-2xl overflow-hidden bg-white">
-                              {/* Pet header */}
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-100">
+                          <div key={pet.id} className="border-2 border-purple-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                              {/* ── Pet Header ── */}
+                              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-100">
                                   <span className="text-xs font-black text-purple-700 uppercase tracking-wide flex items-center gap-1.5">
                                       🐾 Pet #{idx + 2}
                                       {pet.petName && <span className="font-bold text-purple-500 normal-case tracking-normal">— {pet.petName}</span>}
@@ -1787,31 +1796,40 @@ const Grooming: React.FC = () => {
                               </div>
 
                               <div className="p-4 space-y-4">
-                                  {/* ── Pet Details ── */}
-                                  <div className="space-y-2">
-                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Pet Details</h5>
+                                  {/* ── PET DETAILS ── */}
+                                  <div className="space-y-3">
+                                      <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Pet Details</h5>
 
-                                      {/* Species */}
-                                      <div className="grid grid-cols-3 gap-1.5">
-                                          {(['DOG', 'CAT', 'OTHER'] as const).map(sp => (
-                                              <button key={sp} type="button"
-                                                  onClick={() => { updatePet('petSpecies', sp); updatePet('serviceId', ''); updatePet('addonIds', []); }}
-                                                  className={`flex flex-col items-center py-2 rounded-xl border-2 text-xs font-bold transition-all ${
-                                                      pet.petSpecies === sp
-                                                          ? sp === 'DOG' ? 'border-amber-400 bg-amber-50 text-amber-700' : sp === 'CAT' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-zinc-700 bg-zinc-100 text-zinc-800'
-                                                          : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-300'
-                                                  }`}>
-                                                  <span className="text-lg">{sp === 'DOG' ? '🐶' : sp === 'CAT' ? '🐱' : '🐾'}</span>
-                                                  <span>{sp === 'DOG' ? 'Dog' : sp === 'CAT' ? 'Cat' : 'Other'}</span>
-                                              </button>
-                                          ))}
+                                      {/* Species — identical to primary */}
+                                      <div>
+                                          <label className={labelClass}>Pet Species</label>
+                                          <div className="grid grid-cols-3 gap-2 mt-1">
+                                              {([
+                                                  { key: 'DOG', emoji: '🐶', label: 'Dog', color: 'amber' },
+                                                  { key: 'CAT', emoji: '🐱', label: 'Cat', color: 'purple' },
+                                                  { key: 'OTHER', emoji: '🐾', label: 'Other', color: 'zinc' },
+                                              ] as const).map(({ key, emoji, label, color }) => (
+                                                  <button key={key} type="button"
+                                                      onClick={() => { updatePet('petSpecies', key); updatePet('serviceId', ''); updatePet('_serviceSearch', ''); updatePet('addonIds', []); }}
+                                                      className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                                                          pet.petSpecies === key
+                                                              ? color === 'amber' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-sm scale-[1.02]'
+                                                              : color === 'purple' ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm scale-[1.02]'
+                                                              : 'border-zinc-700 bg-zinc-100 text-zinc-800 shadow-sm scale-[1.02]'
+                                                              : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-300'
+                                                      }`}>
+                                                      <span className="text-xl">{emoji}</span>
+                                                      <span>{label}</span>
+                                                  </button>
+                                              ))}
+                                          </div>
                                       </div>
 
-                                      {/* Name + Breed */}
-                                      <div className="grid grid-cols-2 gap-2">
+                                      {/* Name + Breed + Color + Weight — identical grid */}
+                                      <div className="grid grid-cols-2 gap-4">
                                           <div>
-                                              <label className={labelClass}>Pet Name *</label>
-                                              <input required className={inputClass} value={pet.petName} onChange={e => updatePet('petName', e.target.value)} placeholder="Pet's name" />
+                                              <label className={labelClass}>Pet Name</label>
+                                              <input required className={inputClass} value={pet.petName} onChange={e => updatePet('petName', e.target.value)} placeholder="Pet's Name" />
                                           </div>
                                           <div>
                                               <label className={labelClass}>Breed</label>
@@ -1825,71 +1843,108 @@ const Grooming: React.FC = () => {
                                               <label className={labelClass}>
                                                   Weight (kg)
                                                   {petDetectedSize && (
-                                                      <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                                                      <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                                          petDetectedSize === 'XS' ? 'bg-sky-50 text-sky-600 border-sky-200' :
                                                           petDetectedSize === 'S' ? 'bg-green-50 text-green-600 border-green-200' :
                                                           petDetectedSize === 'M' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
                                                           petDetectedSize === 'L' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                                                          'bg-sky-50 text-sky-600 border-sky-200'
+                                                          petDetectedSize === 'XL' ? 'bg-red-50 text-red-600 border-red-200' :
+                                                          'bg-purple-50 text-purple-600 border-purple-200'
                                                       }`}>→ {petDetectedSize}</span>
                                                   )}
                                               </label>
-                                              <input type="number" min="0" step="0.1" className={inputClass} value={pet.weightSize || ''} onChange={e => updatePet('weightSize', e.target.value)} placeholder="e.g. 3.5" />
+                                              <input type="number" min="0" step="0.1" className={inputClass}
+                                                  value={pet.weightSize || ''}
+                                                  onChange={e => updatePet('weightSize', e.target.value)}
+                                                  placeholder={pet.petSpecies === 'DOG' ? 'e.g. 3.5 → auto-detects size' : 'e.g. 4.2'} />
+                                              {petDetectedSize && <p className="text-[10px] text-gray-400 mt-1 font-medium">Services & add-ons filtered to: <span className="font-bold text-purple-700">{pet.petSpecies} · {petDetectedSize}</span></p>}
                                           </div>
                                       </div>
                                   </div>
 
-                                  {/* ── Service & Style ── */}
-                                  <div className="space-y-2 pt-2 border-t border-zinc-100">
-                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Scissors className="w-3 h-3" /> Service & Style</h5>
+                                  {/* ── SERVICE & STYLE ── */}
+                                  <div className="space-y-3 pt-2 border-t border-zinc-100">
+                                      <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Scissors className="w-3 h-3" /> Service & Style</h5>
 
-                                      {/* Service dropdown */}
-                                      <div>
-                                          <label className={labelClass}>Service *</label>
+                                      <div className="grid grid-cols-2 gap-4">
+                                          {/* Searchable Service — identical to primary */}
                                           <div className="relative">
-                                              <select required className={inputClass} value={pet.serviceId} onChange={e => updatePet('serviceId', e.target.value)}>
-                                                  <option value="">
-                                                      {filteredPetServices.length === 0
-                                                          ? `No services for ${pet.petSpecies}${petDetectedSize ? ` · ${petDetectedSize}` : ''}`
-                                                          : 'Select service...'}
-                                                  </option>
-                                                  {filteredPetServices.map(s => (
-                                                      <option key={s.id} value={s.id}>{s.name} — ₱{s.price}</option>
-                                                  ))}
+                                              <label className={labelClass}>Service</label>
+                                              <div className="relative">
+                                                  <input
+                                                      required
+                                                      className={`${inputClass} pl-9`}
+                                                      value={pet._serviceSearch ?? (petSvc?.name || '')}
+                                                      onChange={e => { updatePet('_serviceSearch', e.target.value); updatePet('_showServiceSug', true); }}
+                                                      onFocus={() => updatePet('_showServiceSug', true)}
+                                                      placeholder="Select or search..."
+                                                      autoComplete="off"
+                                                  />
+                                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                              </div>
+                                              {pet._showServiceSug && (
+                                                  <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                      <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                                                          <span>{pet.petSpecies === 'DOG' ? '🐶' : pet.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                                          <span className="uppercase tracking-wider">{pet.petSpecies}</span>
+                                                          {petDetectedSize && <><span>·</span><span className="text-purple-600">{petDetectedSize}</span></>}
+                                                          <span className="ml-auto normal-case">Filtered</span>
+                                                      </div>
+                                                      <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                          {filteredPetServices.length === 0 ? (
+                                                              <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
+                                                                  <Search className="w-5 h-5 opacity-20" />
+                                                                  {pet._serviceSearch ? `No services match "${pet._serviceSearch}"` : `No services for ${pet.petSpecies}${petDetectedSize ? ` · ${petDetectedSize}` : ''}`}
+                                                              </div>
+                                                          ) : filteredPetServices.map(s => (
+                                                              <div key={s.id}
+                                                                  onClick={() => { updatePet('serviceId', s.id); updatePet('_serviceSearch', s.name); updatePet('_showServiceSug', false); }}
+                                                                  className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors">
+                                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
+                                                                  <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
+                                                              </div>
+                                                          ))}
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </div>
+
+                                          {/* Groomer — required, same select style as primary */}
+                                          <div>
+                                              <label className={labelClass}>Groomer</label>
+                                              <select required className={inputClass} value={pet.groomerId || ''} onChange={e => updatePet('groomerId', e.target.value)} disabled={groomers.length === 0}>
+                                                  <option value="">{groomers.length === 0 ? 'No Groomers Available' : 'Select Groomer'}</option>
+                                                  {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                                               </select>
                                           </div>
-                                          {petDetectedSize && <p className="text-[10px] text-gray-400 mt-1">Filtered for: <span className="font-bold text-purple-700">{pet.petSpecies} · {petDetectedSize}</span></p>}
                                       </div>
 
-                                      {/* Groomer */}
-                                      <div>
-                                          <label className={labelClass}>Groomer</label>
-                                          <select className={inputClass} value={pet.groomerId || ''} onChange={e => updatePet('groomerId', e.target.value)}>
-                                              <option value="">Same as main ({formData.groomerId || 'None selected'})</option>
-                                              {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
-                                          </select>
-                                      </div>
-
-                                      {/* Haircut instructions */}
+                                      {/* Hair Cut / Instructions — identical */}
                                       <div>
                                           <label className={labelClass}>Hair Cut / Instructions</label>
-                                          <textarea className={`${inputClass} resize-none`} rows={2} value={pet.hairCut || ''} onChange={e => updatePet('hairCut', e.target.value)} placeholder="e.g. Summer cut, keep ears trimmed..." />
+                                          <textarea className={`${inputClass} resize-none`} rows={2} value={pet.hairCut || ''} onChange={e => updatePet('hairCut', e.target.value)} placeholder="e.g. Summer cut..." />
                                       </div>
                                   </div>
 
-                                  {/* ── Add-Ons ── */}
-                                  <div className="space-y-2 pt-2 border-t border-zinc-100">
-                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Plus className="w-3 h-3" /> Add-Ons <span className="text-gray-300 font-normal lowercase">(optional)</span></h5>
+                                  {/* ── ADD-ONS — identical to primary ── */}
+                                  <div className="space-y-3 pt-2 border-t border-zinc-100">
+                                      <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                                          <Plus className="w-3 h-3" /> Add-Ons
+                                          <span className="text-gray-300 font-normal lowercase">(optional)</span>
+                                      </h5>
 
-                                      {/* Selected add-ons */}
+                                      {/* Selected add-ons list */}
                                       {(pet.addonIds || []).length > 0 && (
-                                          <div className="space-y-1">
+                                          <div className="space-y-1.5">
                                               {(pet.addonIds || []).map((productId) => {
                                                   const p = products.find(pr => pr.id === productId);
                                                   if (!p) return null;
                                                   return (
                                                       <div key={productId} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2 border border-zinc-100">
                                                           <div className="flex items-center gap-2 min-w-0">
-                                                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{p.isService ? 'SVC' : 'PROD'}</span>
+                                                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                  {p.isService ? 'SERVICE' : 'PRODUCT'}
+                                                              </span>
                                                               <span className="text-sm font-bold text-zinc-800 truncate">{p.name}</span>
                                                               <span className="text-xs text-gray-400 flex-shrink-0">₱{p.price.toFixed(2)}</span>
                                                           </div>
@@ -1903,29 +1958,79 @@ const Grooming: React.FC = () => {
                                           </div>
                                       )}
 
-                                      {/* Add-on quick picker */}
-                                      {petAddonProducts.length > 0 && (
-                                          <div className="max-h-32 overflow-y-auto rounded-xl border border-zinc-100 bg-zinc-50/50 divide-y divide-zinc-100">
-                                              {petAddonProducts.slice(0, 8).map(p => (
-                                                  <button key={p.id} type="button"
-                                                      onClick={() => updatePet('addonIds', [...(pet.addonIds || []), p.id])}
-                                                      className="w-full flex justify-between items-center px-3 py-2 hover:bg-white transition-colors text-left group">
-                                                      <div className="flex items-center gap-2 min-w-0">
-                                                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{p.isService ? 'SVC' : 'PROD'}</span>
-                                                          <span className="text-xs font-bold text-zinc-700 group-hover:text-purple-900 truncate">{p.name}</span>
-                                                      </div>
-                                                      <span className="text-xs text-gray-400 flex-shrink-0 ml-2">₱{p.price} <span className="text-purple-500 font-bold">+</span></span>
-                                                  </button>
-                                              ))}
-                                              {petAddonProducts.length > 8 && <p className="text-center text-xs text-gray-400 py-2">+{petAddonProducts.length - 8} more available</p>}
+                                      {/* Searchable add-on input — identical to primary */}
+                                      <div className="relative">
+                                          <div className="relative">
+                                              <input
+                                                  type="text"
+                                                  className={`${inputClass} pl-9`}
+                                                  value={pet._addonSearch || ''}
+                                                  onChange={e => { updatePet('_addonSearch', e.target.value); updatePet('_showAddonSug', true); }}
+                                                  onFocus={() => updatePet('_showAddonSug', true)}
+                                                  placeholder="Search products or services to add..."
+                                                  autoComplete="off"
+                                              />
+                                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                           </div>
-                                      )}
+                                          {pet._showAddonSug && (
+                                              <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                  {/* Filter tabs — ALL / SERVICE / PRODUCT */}
+                                                  <div className="flex border-b border-zinc-100 bg-zinc-50">
+                                                      {(['ALL', 'SERVICE', 'PRODUCT'] as const).map(f => (
+                                                          <button key={f} type="button" onClick={() => updatePet('_addonFilter', f)}
+                                                              className={`flex-1 py-2 text-[11px] font-bold transition-all ${
+                                                                  (pet._addonFilter || 'ALL') === f
+                                                                      ? f === 'SERVICE' ? 'text-purple-600 border-b-2 border-purple-500 bg-white'
+                                                                      : f === 'PRODUCT' ? 'text-blue-600 border-b-2 border-blue-500 bg-white'
+                                                                      : 'text-zinc-900 border-b-2 border-zinc-900 bg-white'
+                                                                      : 'text-gray-400 hover:text-gray-600'
+                                                              }`}>
+                                                              {f === 'ALL' ? 'All' : f === 'SERVICE' ? '✂️ Services' : '🛍️ Products'}
+                                                          </button>
+                                                      ))}
+                                                  </div>
+                                                  {/* Species + size badge */}
+                                                  <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                                                      <span>{pet.petSpecies === 'DOG' ? '🐶' : pet.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                                      <span className="uppercase tracking-wider">{pet.petSpecies}</span>
+                                                      {petDetectedSize && <><span>·</span><span className="text-purple-600">{petDetectedSize}</span></>}
+                                                      <span className="ml-auto normal-case">Showing matching items</span>
+                                                  </div>
+                                                  <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                      {filteredPetAddons.length === 0 ? (
+                                                          <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
+                                                              <Search className="w-5 h-5 opacity-20" />
+                                                              {pet._addonSearch ? `No results for "${pet._addonSearch}"` : 'All available items already added or none match the filter'}
+                                                          </div>
+                                                      ) : filteredPetAddons.map(p => (
+                                                          <div key={p.id}
+                                                              onClick={() => { updatePet('addonIds', [...(pet.addonIds || []), p.id]); updatePet('_addonSearch', ''); updatePet('_showAddonSug', false); }}
+                                                              className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors">
+                                                              <div className="flex items-center gap-2">
+                                                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                      {p.isService ? 'SERVICE' : 'PRODUCT'}
+                                                                  </span>
+                                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                                              </div>
+                                                              <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
+                                                          </div>
+                                                      ))}
+                                                  </div>
+                                              </div>
+                                          )}
+                                      </div>
                                   </div>
                               </div>
                           </div>
                       );
                   })}
               </div>
+
+
+
+
+
+
 
               <div className="flex gap-3 pt-4 border-t border-zinc-100">
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsModalOpen(false)}>Cancel</Button>
