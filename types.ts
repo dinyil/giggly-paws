@@ -94,6 +94,8 @@ export interface AdditionalPet {
   hairCut?: string;
   groomerId?: string; // can override groomer per pet (optional)
   addonIds?: string[];
+  date?: string;      // per-pet schedule date (defaults to primary pet date)
+  time?: string;      // per-pet schedule time (defaults to primary pet time)
   // UI-only state (not saved to DB)
   _serviceSearch?: string;
   _showServiceSug?: boolean;

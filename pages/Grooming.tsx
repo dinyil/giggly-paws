@@ -948,7 +948,25 @@ const Grooming: React.FC = () => {
                                             <div key={pi} className={`rounded-2xl border p-3 ${pi === 0 ? 'border-purple-100 bg-purple-50/40' : 'border-zinc-100 bg-zinc-50/50'}`}>
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="font-bold text-zinc-900 text-sm">🐾 {pet.petName}</span>
-                                                    {pet.petBreed && <span className="text-xs text-gray-400 bg-white border border-zinc-100 px-2 py-0.5 rounded-lg">{pet.petBreed}</span>}
+                                                    <div className="flex items-center gap-1.5">
+                                                        {pet.petBreed && <span className="text-xs text-gray-400 bg-white border border-zinc-100 px-2 py-0.5 rounded-lg">{pet.petBreed}</span>}
+                                                        {/* Per-pet time badge — only show if different from primary */}
+                                                        {pi > 0 && (() => {
+                                                            const petDate = (pet as any).date || apt.date;
+                                                            const petTime = (pet as any).time || apt.time;
+                                                            const diffDate = petDate !== apt.date;
+                                                            const diffTime = petTime !== apt.time;
+                                                            if (!diffDate && !diffTime) return null;
+                                                            return (
+                                                                <span className="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+                                                                    <Clock className="w-2.5 h-2.5" />
+                                                                    {diffDate ? new Date(petDate + 'T00:00:00').toLocaleDateString('en-PH', {month:'short',day:'numeric'}) : ''}
+                                                                    {diffDate && diffTime ? ' ' : ''}
+                                                                    {diffTime ? formatTime(petTime) : ''}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-center text-xs text-gray-500">
                                                     <span>{petSvc?.name || '—'}</span>
@@ -2054,6 +2072,30 @@ const Grooming: React.FC = () => {
                                           <label className={labelClass}>Hair Cut / Instructions</label>
                                           <textarea className={`${inputClass} resize-none`} rows={2} value={pet.hairCut || ''} onChange={e => updatePet('hairCut', e.target.value)} placeholder="e.g. Summer cut..." />
                                       </div>
+
+                                      {/* Schedule — per-pet date & time */}
+                                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-100">
+                                          <div>
+                                              <label className={labelClass}>Date</label>
+                                              <input
+                                                  type="date"
+                                                  required
+                                                  className={inputClass}
+                                                  value={pet.date || formData.date || ''}
+                                                  onChange={e => updatePet('date', e.target.value)}
+                                              />
+                                          </div>
+                                          <div>
+                                              <label className={labelClass}>Time</label>
+                                              <input
+                                                  type="time"
+                                                  required
+                                                  className={inputClass}
+                                                  value={pet.time || formData.time || ''}
+                                                  onChange={e => updatePet('time', e.target.value)}
+                                              />
+                                          </div>
+                                      </div>
                                   </div>
 
                                   {/* ── ADD-ONS — identical to primary ── */}
@@ -2164,6 +2206,8 @@ const Grooming: React.FC = () => {
                           petSpecies: 'DOG', serviceId: '', hairCut: '',
                           groomerId: '',
                           addonIds: [],
+                          date: formData.date || '',
+                          time: formData.time || '',
                           _serviceSearch: '',
                           _showServiceSug: false,
                           _addonSearch: '',
