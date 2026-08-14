@@ -582,7 +582,8 @@ const Grooming: React.FC = () => {
         status: 'SCHEDULED',
         groomerId: finalFormData.groomerId!,
         addonIds: addonItems,
-        pets: additionalPets
+        pets: additionalPets,
+        downpayment: finalFormData.downpayment || 0,
       };
       addAppointment(apt);
     }
