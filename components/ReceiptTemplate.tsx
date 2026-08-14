@@ -104,10 +104,30 @@ const ReceiptTemplate: React.FC<ReceiptTemplateProps> = ({ transaction, settings
         {row('Subtotal', transaction.subtotal.toFixed(2))}
         {transaction.discount > 0 && row('Discount', `-${transaction.discount.toFixed(2)}`)}
         {row(`VAT (${settings.vatRate}%)`, transaction.vat.toFixed(2))}
-        <div style={{ borderTop: '1px solid #000', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: totalFontSize }}>
-          <span>TOTAL</span>
-          <span>₱{transaction.total.toFixed(2)}</span>
-        </div>
+        {transaction.downpayment && transaction.downpayment > 0 ? (
+          <>
+            {/* Full total before downpayment */}
+            <div style={{ borderTop: '1px dashed #000', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Full Total</span>
+              <span>₱{(transaction.total + transaction.downpayment).toFixed(2)}</span>
+            </div>
+            {/* Downpayment deduction */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic' }}>
+              <span>Downpayment Paid</span>
+              <span>-₱{transaction.downpayment.toFixed(2)}</span>
+            </div>
+            {/* Balance to pay */}
+            <div style={{ borderTop: '1px solid #000', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: totalFontSize }}>
+              <span>BALANCE TO PAY</span>
+              <span>₱{transaction.total.toFixed(2)}</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ borderTop: '1px solid #000', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: totalFontSize }}>
+            <span>TOTAL</span>
+            <span>₱{transaction.total.toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       {/* Payment */}

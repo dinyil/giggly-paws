@@ -75,7 +75,8 @@ export interface Transaction {
   subtotal: number;
   vat: number;
   total: number;
-  discount: number;
+  discount: number;       // promo/coupon discount
+  downpayment?: number;   // advance payment already collected, deducted from total
   paymentMethod: 'CASH' | 'GCASH' | 'SPLIT';
   gcashRef?: string;
   cashReceived?: number; // Stores the Cash portion if SPLIT

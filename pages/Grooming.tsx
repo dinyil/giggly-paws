@@ -693,6 +693,7 @@ const Grooming: React.FC = () => {
           vat: vatAmount,
           total,
           discount: discountAmount,
+          downpayment: downpayment > 0 ? downpayment : undefined,
           paymentMethod,
           gcashRef: (paymentMethod === 'GCASH' || paymentMethod === 'SPLIT') ? gcashRef : undefined,
           cashReceived: paymentMethod === 'SPLIT' ? Number(splitCashAmount) : undefined,
