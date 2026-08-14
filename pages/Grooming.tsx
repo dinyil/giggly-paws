@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
@@ -688,7 +688,20 @@ const Grooming: React.FC = () => {
           return [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }];
       });
       const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price, 0);
-      const combinedPrice = price + addonTotal;
+
+      // Include additional pets in fallback receipt
+      const extraPetItems = (apt.pets || []).flatMap(pet => {
+          const petService = products.find(p => p.id === pet.serviceId);
+          const petAddons = (pet.addonIds || []).flatMap(id => {
+              const p = products.find(prod => prod.id === id);
+              return p ? [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }] : [];
+          });
+          return petService
+              ? [{ ...petService, name: `${petService.name} (${pet.petName})`, quantity: 1, appliedDiscounts: [] as Discount[] }, ...petAddons]
+              : petAddons;
+      });
+      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price, 0);
+      const combinedPrice = price + addonTotal + extraPetTotal;
 
       const vatRate = storeSettings.vatRate / 100;
       const total = combinedPrice;
@@ -699,7 +712,8 @@ const Grooming: React.FC = () => {
           id: `A-${apt.id.slice(-6)}`,
           items: [
               { ...service!, quantity: 1, appliedDiscounts: [] },
-              ...addonCartItems
+              ...addonCartItems,
+              ...extraPetItems
           ],
           subtotal,
           vat,
@@ -742,17 +756,27 @@ const Grooming: React.FC = () => {
 
   // Helper for Payment Modal Display
   const getPaymentServiceDetails = () => {
-      if (!paymentApt) return { name: '', price: 0, discount: 0, finalTotal: 0, addonTotal: 0 };
+      if (!paymentApt) return { name: '', price: 0, discount: 0, finalTotal: 0, addonTotal: 0, extraPetTotal: 0 };
       const s = products.find(p => p.id === paymentApt.serviceId);
       const basePrice = s?.price || 0;
 
-      // Sum up add-ons
+      // Sum up primary pet add-ons
       const addonTotal = (paymentApt.addonIds || []).reduce((sum, id) => {
           const product = products.find(p => p.id === id);
           return sum + (product ? product.price : 0);
       }, 0);
 
-      const combinedPrice = basePrice + addonTotal;
+      // Sum up additional pets (service + add-ons each)
+      const extraPetTotal = (paymentApt.pets || []).reduce((sum, pet) => {
+          const petSvc = products.find(p => p.id === pet.serviceId);
+          const petAddonTotal = (pet.addonIds || []).reduce((s2, id) => {
+              const p = products.find(pr => pr.id === id);
+              return s2 + (p ? p.price : 0);
+          }, 0);
+          return sum + (petSvc ? petSvc.price : 0) + petAddonTotal;
+      }, 0);
+
+      const combinedPrice = basePrice + addonTotal + extraPetTotal;
       
       let discountValue = 0;
       if (selectedDiscount) {
@@ -765,6 +789,7 @@ const Grooming: React.FC = () => {
           name: s?.name || 'Unknown Service', 
           price: basePrice,
           addonTotal,
+          extraPetTotal,
           discount: discountValue,
           finalTotal: Math.max(0, combinedPrice - discountValue)
       };
@@ -1029,11 +1054,15 @@ const Grooming: React.FC = () => {
                 {/* Order Summary Section */}
                 <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100">
                     <div className="space-y-1 text-sm text-zinc-600 mb-2 border-b border-zinc-200 pb-2">
+                        {/* ── Primary Pet ── */}
+                        {(paymentApt?.pets || []).length > 0 && (
+                            <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">🐾 {paymentApt?.petName || 'Pet 1'}</p>
+                        )}
                         <div className="flex justify-between font-medium">
                             <span>{paymentDetails.name}</span>
                             <span>₱{paymentDetails.price.toFixed(2)}</span>
                         </div>
-                        {/* Add-on line items */}
+                        {/* Primary pet add-ons */}
                         {(paymentApt?.addonIds || []).map(id => {
                             const product = products.find(p => p.id === id);
                             if (!product) return null;
@@ -1046,8 +1075,44 @@ const Grooming: React.FC = () => {
                                 </div>
                             );
                         })}
+
+                        {/* ── Additional Pets ── */}
+                        {(paymentApt?.pets || []).map((extraPet, pi) => {
+                            const petSvc = products.find(p => p.id === extraPet.serviceId);
+                            const petAddonTotal = (extraPet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
+                            const petSubtotal = (petSvc?.price || 0) + petAddonTotal;
+                            return (
+                                <div key={pi} className="mt-2 pt-2 border-t border-zinc-200">
+                                    <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">🐾 {extraPet.petName || `Pet ${pi + 2}`}</p>
+                                    {petSvc && (
+                                        <div className="flex justify-between font-medium">
+                                            <span>{petSvc.name}</span>
+                                            <span>₱{petSvc.price.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {(extraPet.addonIds || []).map(id => {
+                                        const p = products.find(pr => pr.id === id);
+                                        if (!p) return null;
+                                        return (
+                                            <div key={id} className="flex justify-between text-zinc-500">
+                                                <span className="flex items-center gap-1 pl-2">
+                                                    <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />{p.name}
+                                                </span>
+                                                <span>₱{p.price.toFixed(2)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                    <div className="flex justify-between text-xs text-zinc-400 mt-0.5">
+                                        <span>Subtotal</span>
+                                        <span>₱{petSubtotal.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Discount */}
                         {selectedDiscount && (
-                            <div className="flex justify-between text-green-600 font-bold">
+                            <div className="flex justify-between text-green-600 font-bold mt-2 pt-2 border-t border-zinc-200">
                                 <span className="flex items-center gap-1"><Tag className="w-3 h-3"/> {selectedDiscount.name}</span>
                                 <span>-₱{paymentDetails.discount.toFixed(2)}</span>
                             </div>
