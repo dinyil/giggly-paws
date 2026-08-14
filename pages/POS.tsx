@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import { Search, ShoppingBag, Trash2, Plus, Minus, CreditCard, Bone, Dog, Printer, Check, X, Settings, ArrowRight, Scissors, DollarSign, User, ChevronDown, Tag, Percent, Info, CheckCircle, AlertCircle, MapPin, Pencil, Users } from '../components/ui/Icons';
 import { Dialog } from '@headlessui/react';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import AdminPinModal from '../components/AdminPinModal';
 import { useNavigate } from 'react-router-dom';
 
 // Helper for loose search matching
@@ -283,6 +284,11 @@ const POS: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
   const [gcashRef, setGcashRef] = useState('');
   const [splitCashAmount, setSplitCashAmount] = useState<string>('');
+  // Special Discount (admin-authorized)
+  const [specialDiscountInput, setSpecialDiscountInput] = useState('');
+  const [specialDiscountType, setSpecialDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
+  const [appliedSpecialDiscount, setAppliedSpecialDiscount] = useState(0);
+  const [showAdminPinForDiscount, setShowAdminPinForDiscount] = useState(false);
   const [cashReceived, setCashReceived] = useState<string>(''); // For CASH payment change calc
   
   // Input Refs for Auto-Scroll Validation
@@ -605,9 +611,13 @@ const POS: React.FC = () => {
   }, 0);
   
   const vatRate       = storeSettings.vatRate / 100;
-  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount - appliedSpecialDiscount);
   const vatAmount     = subtotalAfterDiscount * vatRate;          // VAT added ON TOP
   const total         = subtotalAfterDiscount + vatAmount;        // Total includes VAT
+
+  const specialDiscountAmt = specialDiscountType === 'PERCENT'
+    ? subtotal * (Number(specialDiscountInput || 0) / 100)
+    : Number(specialDiscountInput || 0);
 
 
   // --- CHECKOUT HANDLERS ---
@@ -698,7 +708,7 @@ const POS: React.FC = () => {
       subtotal,
       vat: vatAmount,
       total,
-      discount: discountAmount,
+      discount: discountAmount + appliedSpecialDiscount,
       paymentMethod,
       gcashRef: (paymentMethod === 'GCASH' || paymentMethod === 'SPLIT') ? gcashRef : undefined,
       cashReceived: paymentMethod === 'CASH' ? Number(cashReceived) : paymentMethod === 'SPLIT' ? Number(splitCashAmount) : undefined,
@@ -753,6 +763,8 @@ const POS: React.FC = () => {
     setGcashRef('');
     setSplitCashAmount('');
     setCashReceived('');
+    setAppliedSpecialDiscount(0);
+    setSpecialDiscountInput('');
     setGroomingFormData({ ownerName: '', contactNumber: '', email: '', petName: '', petBreed: '', petColor: '', weightSize: '', groomerId: '', hairCut: '' });
     setSelectedClient(null);
 
@@ -1101,7 +1113,8 @@ const POS: React.FC = () => {
                 <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100">
                     <div className="space-y-1 text-sm text-zinc-600 mb-2 border-b border-zinc-200 pb-2">
                         <div className="flex justify-between"><span>Items ({totalItems})</span><span>₱{subtotal.toFixed(2)}</span></div>
-                        {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₱{discountAmount.toFixed(2)}</span></div>}
+                        {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Promo Discount</span><span>-₱{discountAmount.toFixed(2)}</span></div>}
+                        {appliedSpecialDiscount > 0 && <div className="flex justify-between text-amber-600 font-bold"><span>🏷 Special Discount</span><span>-₱{appliedSpecialDiscount.toFixed(2)}</span></div>}
                         <div className="flex justify-between text-zinc-400 text-xs"><span>VAT ({storeSettings.vatRate}%)</span><span>+₱{vatAmount.toFixed(2)}</span></div>
                     </div>
                     <div className="flex justify-between items-center mt-2">
@@ -1113,7 +1126,35 @@ const POS: React.FC = () => {
 
             {/* Scrollable Content */}
             <div ref={checkoutScrollRef} className="flex-1 overflow-y-auto p-6 pt-0 custom-scrollbar">
-                <p className="text-gray-500 text-sm font-bold mb-3 mt-4">Select Payment Method</p>
+
+                {/* SPECIAL DISCOUNT - Admin Only */}
+                <div className="mt-4 mb-4 p-3 rounded-xl border border-dashed border-amber-300 bg-amber-50">
+                  <p className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-2">🏷 Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span></p>
+                  {appliedSpecialDiscount > 0 ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-700 font-bold text-sm">✓ -₱{appliedSpecialDiscount.toFixed(2)} applied</span>
+                      <button onClick={() => { setAppliedSpecialDiscount(0); setSpecialDiscountInput(''); }} className="text-xs text-red-500 hover:text-red-700 font-bold">Remove</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      <div className="flex rounded-lg border border-amber-300 overflow-hidden">
+                        <button onClick={() => setSpecialDiscountType('AMOUNT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>₱</button>
+                        <button onClick={() => setSpecialDiscountType('PERCENT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>%</button>
+                      </div>
+                      <input type="number" min="0" step="0.01"
+                        placeholder={specialDiscountType === 'AMOUNT' ? 'e.g. 200' : 'e.g. 10'}
+                        value={specialDiscountInput}
+                        onChange={e => setSpecialDiscountInput(e.target.value)}
+                        className="flex-1 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      <button
+                        disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0}
+                        onClick={() => setShowAdminPinForDiscount(true)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-40 transition-all">Apply</button>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-gray-500 text-sm font-bold mb-3">Select Payment Method</p>
 
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <button 
@@ -1324,6 +1365,20 @@ const POS: React.FC = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Admin PIN Modal for Special Discount */}
+      <AdminPinModal
+        isOpen={showAdminPinForDiscount}
+        title="Apply Special Discount"
+        description="Enter admin PIN to authorize this discount."
+        onSuccess={() => {
+          const computed = specialDiscountType === 'PERCENT'
+            ? subtotal * (Number(specialDiscountInput || 0) / 100)
+            : Number(specialDiscountInput || 0);
+          setAppliedSpecialDiscount(Math.round(Math.min(computed, subtotal) * 100) / 100);
+        }}
+        onClose={() => setShowAdminPinForDiscount(false)}
+      />
 
       {/* Success / Receipt Modal */}
       <Dialog
