@@ -336,11 +336,42 @@ const Clients: React.FC = () => {
 
   const activePetHistory = useMemo(() => {
       if (!viewingClient || !activePet) return [];
-      return appointments.filter(a => 
-          a.ownerName.toLowerCase() === viewingClient.name.toLowerCase() &&
-          a.petName.toLowerCase() === activePet.name.toLowerCase()
-      ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      const results: typeof appointments = [];
+
+      for (const a of appointments) {
+          const ownerMatch = a.ownerName.toLowerCase() === viewingClient.name.toLowerCase();
+          if (!ownerMatch) continue;
+
+          // Primary pet match
+          if (a.petName.toLowerCase() === activePet.name.toLowerCase()) {
+              results.push(a);
+              continue;
+          }
+
+          // Additional pet match — build a synthetic appointment entry for display
+          const extraPet = (a.pets || []).find(p => p.petName.toLowerCase() === activePet.name.toLowerCase());
+          if (extraPet) {
+              results.push({
+                  ...a,
+                  petName: extraPet.petName,
+                  petBreed: extraPet.petBreed,
+                  petColor: extraPet.petColor,
+                  weightSize: extraPet.weightSize,
+                  petSpecies: extraPet.petSpecies,
+                  serviceId: extraPet.serviceId,
+                  hairCut: extraPet.hairCut,
+                  addonIds: extraPet.addonIds || [],
+                  groomerId: extraPet.groomerId || a.groomerId,
+                  date: extraPet.date || a.date,
+                  time: extraPet.time || a.time,
+              });
+          }
+      }
+
+      return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [appointments, viewingClient, activePet]);
+
 
   // Hotel bookings for this specific pet
   const activePetHotelHistory = useMemo(() => {
