@@ -218,28 +218,30 @@ const CartPanel: React.FC<CartPanelProps> = ({
                     )}
 
                     {/* Special Discount - Admin Only */}
-                    <div className="p-3 rounded-xl border border-dashed border-amber-400/60 bg-amber-500/10">
-                      <p className="text-amber-300 text-xs font-bold uppercase tracking-widest mb-2">🏷 Special Discount <span className="font-normal normal-case text-amber-400/80">(Admin PIN)</span></p>
+                    <div className="rounded-xl border border-dashed border-amber-400/60 bg-amber-500/10 overflow-hidden">
+                      <p className="text-amber-300 text-xs font-bold uppercase tracking-widest px-3 pt-3 pb-1">🏷 Special Discount <span className="font-normal normal-case text-amber-400/80">(Admin PIN)</span></p>
                       {appliedSpecialDiscount > 0 ? (
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between px-3 pb-3">
                           <span className="text-green-300 font-bold text-sm">✓ -₱{appliedSpecialDiscount.toFixed(2)} applied</span>
-                          <button onClick={onRemoveSpecialDiscount} className="text-xs text-red-400 hover:text-red-300 font-bold">Remove</button>
+                          <button onClick={onRemoveSpecialDiscount} className="text-sm text-red-300 font-bold px-4 py-2 rounded-xl bg-red-500/20 active:bg-red-500/40">Remove</button>
                         </div>
                       ) : (
-                        <div className="flex gap-2 items-center">
-                          <div className="flex rounded-lg border border-amber-400/50 overflow-hidden">
-                            <button onClick={() => onSpecialDiscountTypeChange('AMOUNT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white/10 text-amber-300'}`}>₱</button>
-                            <button onClick={() => onSpecialDiscountTypeChange('PERCENT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white' : 'bg-white/10 text-amber-300'}`}>%</button>
+                        <div className="p-3 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => onSpecialDiscountTypeChange('AMOUNT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white/10 text-amber-300 border-amber-400/50'}`}>₱ Fixed Amount</button>
+                            <button onClick={() => onSpecialDiscountTypeChange('PERCENT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white/10 text-amber-300 border-amber-400/50'}`}>% Percentage</button>
                           </div>
-                          <input type="number" min="0" step="0.01"
-                            placeholder={specialDiscountType === 'AMOUNT' ? 'Amount' : '%'}
-                            value={specialDiscountInput}
-                            onChange={e => onSpecialDiscountInputChange(e.target.value)}
-                            className="flex-1 border border-amber-400/50 rounded-lg px-2 py-1.5 text-xs bg-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-amber-400" />
-                          <button
-                            disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0 || cart.length === 0}
-                            onClick={onApplySpecialDiscount}
-                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-40 transition-all">Apply</button>
+                          <div className="flex gap-2">
+                            <input type="number" inputMode="decimal" min="0" step="1"
+                              placeholder={specialDiscountType === 'AMOUNT' ? '0.00' : '0'}
+                              value={specialDiscountInput}
+                              onChange={e => onSpecialDiscountInputChange(e.target.value)}
+                              className="flex-1 h-12 border border-amber-400/50 rounded-xl px-4 text-base bg-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            <button
+                              disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0 || cart.length === 0}
+                              onClick={onApplySpecialDiscount}
+                              className="h-12 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold disabled:opacity-40 transition-all text-sm">Apply</button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -248,20 +250,20 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
                 <div className="space-y-2 text-sm mb-4 border-t border-white/20 pt-4">
                     <div className="flex justify-between text-purple-200"><span>Subtotal</span><span>₱{subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-purple-200">
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-yellow-300">
                         <span>Promo Discount</span>
                         <div className="text-right">
-                            <span className="text-yellow-300 block">-₱{discountAmount.toFixed(2)}</span>
-                            {discountAmount > 0 && (
-                                <span className="text-[10px] text-purple-300 font-mono">({discountPercentage.toFixed(1)}%)</span>
-                            )}
+                          <span className="block">-₱{discountAmount.toFixed(2)}</span>
+                          <span className="text-[10px] text-purple-300 font-mono">({discountPercentage.toFixed(1)}%)</span>
                         </div>
-                    </div>
+                      </div>
+                    )}
                     {appliedSpecialDiscount > 0 && (
-                        <div className="flex justify-between text-amber-300 font-bold">
-                            <span>🏷 Special Discount</span>
-                            <span>-₱{appliedSpecialDiscount.toFixed(2)}</span>
-                        </div>
+                      <div className="flex justify-between text-amber-300 font-bold">
+                        <span>🏷 Special Discount</span>
+                        <span>-₱{appliedSpecialDiscount.toFixed(2)}</span>
+                      </div>
                     )}
                     <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-white/20">
                         <span>Total</span>
@@ -654,14 +656,10 @@ const POS: React.FC = () => {
       return sum + Math.min(itemDiscount, originalItemTotal);
   }, 0);
   
-  const vatRate       = storeSettings.vatRate / 100;
-  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount - appliedSpecialDiscount);
-  const vatAmount     = subtotalAfterDiscount * vatRate;          // VAT added ON TOP
-  const total         = subtotalAfterDiscount + vatAmount;        // Total includes VAT
-
-  const specialDiscountAmt = specialDiscountType === 'PERCENT'
-    ? subtotal * (Number(specialDiscountInput || 0) / 100)
-    : Number(specialDiscountInput || 0);
+  const vatRate           = storeSettings.vatRate / 100;
+  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const vatAmount          = subtotalAfterDiscount * vatRate;          // VAT on promo-discounted subtotal
+  const total              = Math.max(0, subtotalAfterDiscount + vatAmount - appliedSpecialDiscount); // Special discount off final total
 
 
   // --- CHECKOUT HANDLERS ---

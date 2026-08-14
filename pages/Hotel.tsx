@@ -1203,30 +1203,32 @@ const CheckoutModal: React.FC<{
 
           <div>
             {/* SPECIAL DISCOUNT - Admin Only */}
-            <div className="mb-4 p-3 rounded-xl border border-dashed border-amber-300 bg-amber-50">
-              <p className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-2">
+            <div className="mb-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 overflow-hidden">
+              <p className="text-amber-700 text-xs font-bold uppercase tracking-widest px-4 pt-4 pb-1">
                 🏷 Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span>
               </p>
               {appliedSpecialDiscount > 0 ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-green-700 font-bold text-sm">✓ -₱{appliedSpecialDiscount.toFixed(2)} applied</span>
-                  <button onClick={() => { setAppliedSpecialDiscount(0); setSpecialDiscountInput(''); }} className="text-xs text-red-500 hover:text-red-700 font-bold">Remove</button>
+                <div className="flex items-center justify-between px-4 pb-4">
+                  <span className="text-green-700 font-bold text-base">✓ -₱{appliedSpecialDiscount.toFixed(2)} applied</span>
+                  <button onClick={() => { setAppliedSpecialDiscount(0); setSpecialDiscountInput(''); }} className="text-sm text-red-500 font-bold px-4 py-2 rounded-xl bg-red-100 active:bg-red-200">Remove</button>
                 </div>
               ) : (
-                <div className="flex gap-2 items-center">
-                  <div className="flex rounded-lg border border-amber-300 overflow-hidden">
-                    <button onClick={() => setSpecialDiscountType('AMOUNT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>₱</button>
-                    <button onClick={() => setSpecialDiscountType('PERCENT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>%</button>
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setSpecialDiscountType('AMOUNT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>₱ Fixed Amount</button>
+                    <button onClick={() => setSpecialDiscountType('PERCENT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>% Percentage</button>
                   </div>
-                  <input type="number" min="0" step="0.01"
-                    placeholder={specialDiscountType === 'AMOUNT' ? 'e.g. 200' : 'e.g. 10'}
-                    value={specialDiscountInput}
-                    onChange={e => setSpecialDiscountInput(e.target.value)}
-                    className="flex-1 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                  <button
-                    disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0}
-                    onClick={() => setShowAdminPinForDiscount(true)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-40 transition-all">Apply</button>
+                  <div className="flex gap-2">
+                    <input type="number" inputMode="decimal" min="0" step="1"
+                      placeholder={specialDiscountType === 'AMOUNT' ? '0.00' : '0'}
+                      value={specialDiscountInput}
+                      onChange={e => setSpecialDiscountInput(e.target.value)}
+                      className="flex-1 h-12 border border-amber-300 rounded-xl px-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    <button
+                      disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0}
+                      onClick={() => setShowAdminPinForDiscount(true)}
+                      className="h-12 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold disabled:opacity-40 transition-all">Apply</button>
+                  </div>
                 </div>
               )}
             </div>
