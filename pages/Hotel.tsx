@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../context/StoreContext';
@@ -13,7 +13,7 @@ import {
   ArrowRight, RotateCcw, AlertCircle, Dog, Wallet, CreditCard, Star
 } from '../components/ui/Icons';
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 const getPhToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
@@ -27,21 +27,21 @@ const diffDays = (a: string, b: string) =>
   Math.max(1, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000));
 
 const fmtDate = (d: string) =>
-  d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ã¢â‚¬â€';
+  d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 const normalizeText = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Official Giggly Paws Hotel Rate Matrix Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Official Giggly Paws Hotel Rate Matrix ────────────────────────────────────
 
 export type BookingTypeKey = 'DAYCARE' | 'OVERNIGHT' | 'STAYCATION_3D2N' | 'STAYCATION_4D3N' | 'VACATION';
 export type PetSizeKey = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 
 export const BOOKING_TYPE_LABELS: Record<BookingTypeKey, string> = {
-  DAYCARE:          'Daycare (9AMÃ¢â‚¬â€œ5:30PM)',
-  OVERNIGHT:        'Overnight (9AMÃ¢â‚¬â€œ9AM)',
-  STAYCATION_3D2N:  'Staycation Ã‚Â· 3 Days & 2 Nights',
-  STAYCATION_4D3N:  'Staycation Ã‚Â· 4 Days & 3 Nights (FREE Basic Groom)',
-  VACATION:         'Vacation Ã‚Â· 7 Days & 6 Nights (FREE Luxury Groom)',
+  DAYCARE:          'Daycare (9AM–5:30PM)',
+  OVERNIGHT:        'Overnight (9AM–9AM)',
+  STAYCATION_3D2N:  'Staycation · 3 Days & 2 Nights',
+  STAYCATION_4D3N:  'Staycation · 4 Days & 3 Nights (FREE Basic Groom)',
+  VACATION:         'Vacation · 7 Days & 6 Nights (FREE Luxury Groom)',
 };
 
 export const BOOKING_TYPE_NIGHTS: Record<BookingTypeKey, number> = {
@@ -78,7 +78,7 @@ export const HOTEL_EXTRAS = [
 
 type HotelTab = 'UPCOMING' | 'ARRIVING' | 'OCCUPIED' | 'COMPLETED';
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Status Badge Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const StatusBadge: React.FC<{ status: HotelBookingStatus }> = ({ status }) => {
   const map: Record<HotelBookingStatus, { label: string; cls: string }> = {
@@ -91,7 +91,7 @@ const StatusBadge: React.FC<{ status: HotelBookingStatus }> = ({ status }) => {
   return <span className={`text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${cls}`}>{label}</span>;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Room Form Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Room Form Modal ─────────────────────────────────────────────────────────
 
 const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => void; onClose: () => void }> = ({ room, onSave, onClose }) => {
   const [form, setForm] = useState({
@@ -147,10 +147,10 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
               onClick={() => setShowRates(r => !r)}
               className="w-full flex items-center justify-between px-4 py-3 text-left">
               <div>
-                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">Ã°Å¸â€œÅ  Giggly Paws Rate Matrix</p>
-                <p className="text-xs text-purple-400 mt-0.5">Rates are auto-calculated by booking type Ãƒâ€” pet size</p>
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">📊 Giggly Paws Rate Matrix</p>
+                <p className="text-xs text-purple-400 mt-0.5">Rates are auto-calculated by booking type × pet size</p>
               </div>
-              <span className="text-purple-500 text-lg">{showRates ? 'Ã¢â€“Â²' : 'Ã¢â€“Â¼'}</span>
+              <span className="text-purple-500 text-lg">{showRates ? '▲' : '▼'}</span>
             </button>
             {showRates && (
               <div className="px-4 pb-4">
@@ -166,11 +166,11 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
                       {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
                         <tr key={type} className="border-b border-purple-50 last:border-0">
                           <td className="py-1.5 pr-2 text-zinc-600 font-medium whitespace-nowrap">
-                            {type === 'DAYCARE' ? 'Ã¢Ëœâ‚¬Ã¯Â¸Â' : type === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢' : type === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ ' : type === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡' : 'Ã°Å¸Å’Â´'}{' '}
+                            {type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'}{' '}
                             {type === 'DAYCARE' ? 'Daycare' : type === 'OVERNIGHT' ? 'Overnight' : type === 'STAYCATION_3D2N' ? '3D2N' : type === 'STAYCATION_4D3N' ? '4D3N' : 'Vacation'}
                           </td>
                           {PET_SIZES.map(s => (
-                            <td key={s} className="text-center py-1.5 px-1 text-zinc-700 font-semibold">Ã¢â€šÂ±{HOTEL_RATES[type][s].toLocaleString()}</td>
+                            <td key={s} className="text-center py-1.5 px-1 text-zinc-700 font-semibold">₱{HOTEL_RATES[type][s].toLocaleString()}</td>
                           ))}
                         </tr>
                       ))}
@@ -204,7 +204,7 @@ const RoomForm: React.FC<{ room?: HotelRoom | null; onSave: (r: HotelRoom) => vo
   );
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Size Helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Size Helper ─────────────────────────────────────────────────────────────
 
 const getSizeFromWeight = (weightSize: string): PetSizeKey | null => {
   if (!weightSize) return null;
@@ -220,7 +220,7 @@ const getSizeFromWeight = (weightSize: string): PetSizeKey | null => {
   return 'XXL';
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Booking Form Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Booking Form Modal ───────────────────────────────────────────────────────
 
 const BookingForm: React.FC<{
   booking?: HotelBooking | null;
@@ -247,10 +247,10 @@ const BookingForm: React.FC<{
       ? storeSettings.hotelExtras
       : HOTEL_EXTRAS;
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Wizard step Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Wizard step ──
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Booking type & size Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Booking type & size ──
   const existingType = (booking?.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const existingSize = (booking?.pet_size as PetSizeKey) || 'S';
   const [bookingType, setBookingType] = useState<BookingTypeKey>(existingType);
@@ -265,10 +265,10 @@ const BookingForm: React.FC<{
     setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[bookingType]));
   }, [bookingType]);
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Client mode Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Client mode ──
   const [clientMode, setClientMode] = useState<'EXISTING' | 'NEW'>(booking?.client_id ? 'EXISTING' : 'EXISTING');
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Existing client Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Existing client ──
   const [clientSearch, setClientSearch] = useState(booking?.owner_name || '');
   const [showClientSugg, setShowClientSugg] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -326,7 +326,7 @@ const BookingForm: React.FC<{
     if (s) setPetSize(s);
   };
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ New client Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── New client ──
   const [ncName, setNcName] = useState('');
   const [ncContact, setNcContact] = useState('');
   const [ncEmail, setNcEmail] = useState('');
@@ -340,7 +340,7 @@ const BookingForm: React.FC<{
     if (ncPetWeight) { const s = getSizeFromWeight(ncPetWeight); if (s) setPetSize(s); }
   }, [ncPetWeight]);
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Derived Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Derived ──
   const rate = activeRates[bookingType][petSize];
   const nights = diffDays(checkIn, checkOut);
   const ownerName = clientMode === 'EXISTING' ? (selectedClient?.name || '') : ncName;
@@ -448,11 +448,11 @@ const BookingForm: React.FC<{
     }
   }, [showClientSugg, clientSearch]);
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-  // WIZARD RETURN Ã¢â‚¬â€ all JSX inlined, no inner components
-  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  // ──────────────────────────────────────────────────────────
+  // WIZARD RETURN — all JSX inlined, no inner components
+  // ──────────────────────────────────────────────────────────
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ EDIT MODE Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── EDIT MODE ──
   if (booking) {
     return (
       <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -466,10 +466,10 @@ const BookingForm: React.FC<{
             <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-2xl p-4 text-white">
               <p className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-2">Booking For</p>
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">{selectedPet?.species === 'CAT' ? 'Ã°Å¸ÂÂ±' : 'Ã°Å¸ÂÂ¶'}</div>
+                <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">{selectedPet?.species === 'CAT' ? '🐱' : '🐶'}</div>
                 <div>
-                  <p className="font-black text-xl leading-tight">{petName || 'Ã¢â‚¬â€'}</p>
-                  <p className="text-purple-200 text-sm">{ownerName} Ã‚Â· Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
+                  <p className="font-black text-xl leading-tight">{petName || '—'}</p>
+                  <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
                 </div>
               </div>
             </div>
@@ -480,7 +480,7 @@ const BookingForm: React.FC<{
                 {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
                   <button key={type} type="button" onClick={() => setBookingType(type)}
                     className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
-                    <span className="font-bold">{type === 'DAYCARE' ? 'Ã¢Ëœâ‚¬Ã¯Â¸Â' : type === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢' : type === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ ' : type === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡' : 'Ã°Å¸Å’Â´'} </span>
+                    <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
                     {activeLabels[type]}
                   </button>
                 ))}
@@ -491,10 +491,10 @@ const BookingForm: React.FC<{
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
-                  <p className="text-xs text-purple-500 mt-0.5">Ã°Å¸ÂÂ¾ {petName} Ã‚Â· Size <strong>{petSize}</strong> Ã‚Â· {checkIn} Ã¢â€ â€™ {checkOut}</p>
+                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-purple-700">Ã¢â€šÂ±{rate.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
                   <p className="text-xs text-purple-400">package rate</p>
                 </div>
               </div>
@@ -516,7 +516,7 @@ const BookingForm: React.FC<{
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
                 <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none">
                   <option value="">No specific room</option>
-                  {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} Ã¢â‚¬â€œ {r.room_name} ({r.room_type})</option>)}
+                  {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
                 </select>
               </div>
             )}
@@ -532,7 +532,7 @@ const BookingForm: React.FC<{
             </div>
             {/* Downpayment */}
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (Ã¢â€šÂ±) <span className="normal-case font-normal text-zinc-400">(optional)</span></label>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (₱) <span className="normal-case font-normal text-zinc-400">(optional)</span></label>
               <input type="number" min="0" step="0.01" value={downpayment || ''} onChange={e => setDownpayment(e.target.value ? Number(e.target.value) : 0)} placeholder="e.g. 500" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
             </div>
           </div>
@@ -545,10 +545,10 @@ const BookingForm: React.FC<{
     );
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ NEW BOOKING WIZARD Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── NEW BOOKING WIZARD ──
   return (
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      {/* Portal dropdown Ã¢â‚¬â€ fixed, escapes overflow clipping */}
+      {/* Portal dropdown — fixed, escapes overflow clipping */}
       {showClientSugg && filteredClients.length > 0 && dropdownRect && createPortal(
         <div ref={dropdownRef}
           style={{ position: 'fixed', top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, zIndex: 9999 }}
@@ -558,7 +558,7 @@ const BookingForm: React.FC<{
               onMouseDown={e => { e.preventDefault(); handleSelectClient(c); }}
               className="w-full text-left px-4 py-3 hover:bg-purple-50 text-sm border-b border-zinc-100 last:border-0">
               <div className="font-semibold text-zinc-900">{c.name}</div>
-              <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` Ã‚Â· ${c.pets.map(p => p.name).join(', ')}` : ' Ã‚Â· No pets on record'}</div>
+              <div className="text-xs text-zinc-400">{c.contactNumber}{c.pets.length > 0 ? ` · ${c.pets.map(p => p.name).join(', ')}` : ' · No pets on record'}</div>
             </button>
           ))}
         </div>,
@@ -569,15 +569,15 @@ const BookingForm: React.FC<{
 
         {/* Header */}
         <div className="px-6 pt-6 pb-0 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-xl font-bold text-zinc-900">Ã°Å¸ÂÂ¾ New Hotel Booking</h2>
+          <h2 className="text-xl font-bold text-zinc-900">🐾 New Hotel Booking</h2>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-xl"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* Step indicator Ã¢â‚¬â€ inlined, no inner component */}
+        {/* Step indicator — inlined, no inner component */}
         <div className="flex items-start px-6 py-4 flex-shrink-0">
           <div className="flex flex-col items-center">
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm transition-all ${step >= 1 ? 'bg-purple-700 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-              {step > 1 ? 'Ã¢Å“â€œ' : '1'}
+              {step > 1 ? '✓' : '1'}
             </div>
             <span className={`text-[10px] font-bold mt-1.5 uppercase tracking-wide ${step >= 1 ? 'text-purple-700' : 'text-zinc-400'}`}>Client & Pet</span>
           </div>
@@ -594,10 +594,10 @@ const BookingForm: React.FC<{
           </div>
         </div>
 
-        {/* Scrollable body Ã¢â‚¬â€ inlined step JSX, NO inner component functions */}
+        {/* Scrollable body — inlined step JSX, NO inner component functions */}
         <div className="flex-1 overflow-y-auto px-6 pb-2">
 
-          {/* Ã¢â€¢ÂÃ¢â€¢Â STEP 1 Ã¢â€¢ÂÃ¢â€¢Â */}
+          {/* ══ STEP 1 ══ */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
@@ -606,17 +606,17 @@ const BookingForm: React.FC<{
                   <button type="button"
                     onClick={() => { setClientMode('EXISTING'); setSelectedClient(null); setSelectedPet(null); setClientSearch(''); setShowClientSugg(false); }}
                     className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'EXISTING' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
-                    Ã°Å¸â€Â Existing Client
+                    🔍 Existing Client
                   </button>
                   <button type="button"
                     onClick={() => { setClientMode('NEW'); setSelectedClient(null); setSelectedPet(null); setShowClientSugg(false); }}
                     className={`py-3 rounded-xl text-sm font-bold border transition-all ${clientMode === 'NEW' ? 'bg-purple-700 text-white border-purple-700 shadow' : 'border-zinc-200 hover:border-purple-300'}`}>
-                    Ã¢Å“Â¨ New Client
+                    ✨ New Client
                   </button>
                 </div>
               </div>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Existing Client Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Existing Client ── */}
               {clientMode === 'EXISTING' && (
                 <div className="space-y-3">
                   <div ref={clientRef}>
@@ -635,7 +635,7 @@ const BookingForm: React.FC<{
                     <>
                       <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm text-green-800 flex items-center justify-between">
                         <div className="flex items-center gap-2 font-medium">
-                          <span>Ã¢Å“â€¦</span>
+                          <span>✅</span>
                           <span>{selectedClient.name}</span>
                           {selectedClient.contactNumber && <span className="text-green-600 text-xs">({selectedClient.contactNumber})</span>}
                         </div>
@@ -654,7 +654,7 @@ const BookingForm: React.FC<{
                                 <button key={p.id} type="button"
                                   onMouseDown={e => { e.preventDefault(); handleSelectPet(p); }}
                                   className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all select-none ${isSel ? 'bg-purple-700 text-white border-purple-700 shadow-md' : 'border-zinc-200 hover:border-purple-400 hover:bg-purple-50'}`}>
-                                  <span className="text-xl flex-shrink-0">{p.species === 'CAT' ? 'Ã°Å¸ÂÂ±' : p.species === 'OTHER' ? 'Ã°Å¸ÂÂ¾' : 'Ã°Å¸ÂÂ¶'}</span>
+                                  <span className="text-xl flex-shrink-0">{p.species === 'CAT' ? '🐱' : p.species === 'OTHER' ? '🐾' : '🐶'}</span>
                                   <div className="flex-1 min-w-0">
                                     <div className="font-bold">{p.name}</div>
                                     {p.breed && <div className={`text-xs truncate ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>{p.breed}</div>}
@@ -665,7 +665,7 @@ const BookingForm: React.FC<{
                                       {autoSize && <div className={`text-[10px] mt-0.5 ${isSel ? 'text-purple-200' : 'text-zinc-400'}`}>Size {autoSize}</div>}
                                     </div>
                                   )}
-                                  {isSel && <span className="text-white text-lg flex-shrink-0">Ã¢Å“â€œ</span>}
+                                  {isSel && <span className="text-white text-lg flex-shrink-0">✓</span>}
                                 </button>
                               );
                             })}
@@ -673,7 +673,7 @@ const BookingForm: React.FC<{
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700">Ã¢Å¡Â Ã¯Â¸Â No pets on record Ã¢â‚¬â€ enter pet name manually</div>
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-xs text-amber-700">⚠️ No pets on record — enter pet name manually</div>
                           <div>
                             <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
                             <input value={selectedPet?.name || ''} onChange={e => setSelectedPet({ id: '', name: e.target.value, species: 'DOG' })}
@@ -686,7 +686,7 @@ const BookingForm: React.FC<{
                 </div>
               )}
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ New Client Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── New Client ── */}
               {clientMode === 'NEW' && (
                 <div className="space-y-4">
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
@@ -710,7 +710,7 @@ const BookingForm: React.FC<{
                     </div>
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">Ã°Å¸ÂÂ¾ Pet Info</p>
+                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">🐾 Pet Info</p>
                     <div>
                       <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Name *</label>
                       <input value={ncPetName} onChange={e => setNcPetName(e.target.value)} placeholder="Buddy"
@@ -722,7 +722,7 @@ const BookingForm: React.FC<{
                         {(['DOG','CAT','OTHER'] as const).map(sp => (
                           <button key={sp} type="button" onClick={() => setNcPetSpecies(sp)}
                             className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${ncPetSpecies === sp ? 'bg-purple-700 text-white border-purple-700' : 'border-zinc-200 bg-white hover:border-purple-300'}`}>
-                            {sp === 'DOG' ? 'Ã°Å¸ÂÂ¶ Dog' : sp === 'CAT' ? 'Ã°Å¸ÂÂ± Cat' : 'Ã°Å¸ÂÂ¾ Other'}
+                            {sp === 'DOG' ? '🐶 Dog' : sp === 'CAT' ? '🐱 Cat' : '🐾 Other'}
                           </button>
                         ))}
                       </div>
@@ -744,7 +744,7 @@ const BookingForm: React.FC<{
                       <input value={ncPetWeight} onChange={e => setNcPetWeight(e.target.value)} placeholder="e.g. 3.5kg or S or M"
                         className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white" />
                       {ncPetWeight && getSizeFromWeight(ncPetWeight) && (
-                        <p className="text-xs text-purple-600 mt-1 font-bold">Ã¢â€ â€™ Auto-size: <span className="bg-purple-100 px-2 py-0.5 rounded">{getSizeFromWeight(ncPetWeight)}</span></p>
+                        <p className="text-xs text-purple-600 mt-1 font-bold">→ Auto-size: <span className="bg-purple-100 px-2 py-0.5 rounded">{getSizeFromWeight(ncPetWeight)}</span></p>
                       )}
                     </div>
                   </div>
@@ -753,7 +753,7 @@ const BookingForm: React.FC<{
             </div>
           )}
 
-          {/* Ã¢â€¢ÂÃ¢â€¢Â STEP 2 Ã¢â€¢ÂÃ¢â€¢Â */}
+          {/* ══ STEP 2 ══ */}
           {step === 2 && (
             <div className="space-y-4">
               {/* Summary card */}
@@ -761,11 +761,11 @@ const BookingForm: React.FC<{
                 <p className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-2">Booking For</p>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
-                    {clientMode === 'NEW' ? 'Ã°Å¸ÂÂ¾' : selectedPet?.species === 'CAT' ? 'Ã°Å¸ÂÂ±' : selectedPet?.species === 'OTHER' ? 'Ã°Å¸ÂÂ¾' : 'Ã°Å¸ÂÂ¶'}
+                    {clientMode === 'NEW' ? '🐾' : selectedPet?.species === 'CAT' ? '🐱' : selectedPet?.species === 'OTHER' ? '🐾' : '🐶'}
                   </div>
                   <div>
-                    <p className="font-black text-xl leading-tight">{petName || 'Ã¢â‚¬â€'}</p>
-                    <p className="text-purple-200 text-sm">{ownerName} Ã‚Â· Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
+                    <p className="font-black text-xl leading-tight">{petName || '—'}</p>
+                    <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
                   </div>
                 </div>
               </div>
@@ -776,7 +776,7 @@ const BookingForm: React.FC<{
                   {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
                     <button key={type} type="button" onClick={() => setBookingType(type)}
                       className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
-                      <span className="font-bold">{type === 'DAYCARE' ? 'Ã¢Ëœâ‚¬Ã¯Â¸Â' : type === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢' : type === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ ' : type === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡' : 'Ã°Å¸Å’Â´'} </span>
+                      <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
                       {activeLabels[type]}
                     </button>
                   ))}
@@ -787,10 +787,10 @@ const BookingForm: React.FC<{
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
-                    <p className="text-xs text-purple-500 mt-0.5">Ã°Å¸ÂÂ¾ {petName} Ã‚Â· Size <strong>{petSize}</strong> Ã‚Â· {checkIn} Ã¢â€ â€™ {checkOut}</p>
+                    <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black text-purple-700">Ã¢â€šÂ±{rate.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
                     <p className="text-xs text-purple-400">package rate</p>
                   </div>
                 </div>
@@ -812,7 +812,7 @@ const BookingForm: React.FC<{
                   <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Assign Room / Slot</label>
                   <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none">
                     <option value="">No specific room</option>
-                    {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} Ã¢â‚¬â€œ {r.room_name} ({r.room_type})</option>)}
+                    {activeRooms.map(r => <option key={r.id} value={r.id}>{r.room_number} – {r.room_name} ({r.room_type})</option>)}
                   </select>
                 </div>
               )}
@@ -832,20 +832,20 @@ const BookingForm: React.FC<{
                       <div key={extra.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${checked ? 'border-purple-400 bg-purple-50' : 'border-zinc-200 hover:border-purple-200'}`}
                         onClick={() => toggleExtra(extra.id)}>
                         <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${checked ? 'bg-purple-700 border-purple-700' : 'border-zinc-300'}`}>
-                          {checked && <span className="text-white text-xs font-bold">Ã¢Å“â€œ</span>}
+                          {checked && <span className="text-white text-xs font-bold">✓</span>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-zinc-800">{extra.label}</p>
-                          <p className="text-xs text-purple-600 font-bold">Ã¢â€šÂ±{extra.price.toLocaleString()}</p>
+                          <p className="text-xs text-purple-600 font-bold">₱{extra.price.toLocaleString()}</p>
                         </div>
                         {checked && (
                           <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                            <button type="button" onClick={() => setExtraQty(extra.id, (sel?.qty || 1) - 1)} className="w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 font-bold">Ã¢Ë†â€™</button>
+                            <button type="button" onClick={() => setExtraQty(extra.id, (sel?.qty || 1) - 1)} className="w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 font-bold">−</button>
                             <span className="w-6 text-center text-sm font-bold">{sel?.qty || 1}</span>
                             <button type="button" onClick={() => setExtraQty(extra.id, (sel?.qty || 1) + 1)} className="w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 font-bold">+</button>
                           </div>
                         )}
-                        {checked && <span className="text-xs font-bold text-purple-700 flex-shrink-0">Ã¢â€šÂ±{((sel?.qty || 1) * extra.price).toLocaleString()}</span>}
+                        {checked && <span className="text-xs font-bold text-purple-700 flex-shrink-0">₱{((sel?.qty || 1) * extra.price).toLocaleString()}</span>}
                       </div>
                     );
                   })}
@@ -853,7 +853,7 @@ const BookingForm: React.FC<{
                 {extrasTotal > 0 && (
                   <div className="mt-2 flex justify-between items-center px-1">
                     <span className="text-xs text-zinc-400">Add-ons total</span>
-                    <span className="text-sm font-bold text-purple-700">+Ã¢â€šÂ±{extrasTotal.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-purple-700">+₱{extrasTotal.toLocaleString()}</span>
                   </div>
                 )}
               </div>
@@ -864,7 +864,7 @@ const BookingForm: React.FC<{
               </div>
               {/* Downpayment */}
               <div>
-                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (Ã¢â€šÂ±) <span className="normal-case font-normal text-zinc-400">(optional Ã¢â‚¬â€ auto-deducted at checkout)</span></label>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (₱) <span className="normal-case font-normal text-zinc-400">(optional — auto-deducted at checkout)</span></label>
                 <input type="number" min="0" step="0.01" value={downpayment || ''} onChange={e => setDownpayment(e.target.value ? Number(e.target.value) : 0)} placeholder="e.g. 500" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
               </div>
             </div>
@@ -878,17 +878,17 @@ const BookingForm: React.FC<{
               <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
               <button onClick={() => setStep(2)} disabled={!step1Valid}
                 className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40 flex items-center justify-center gap-2">
-                Next <span>Ã¢â€ â€™</span>
+                Next <span>→</span>
               </button>
             </>
           ) : (
             <>
               <button onClick={() => setStep(1)} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50 flex items-center justify-center gap-2">
-                <span>Ã¢â€ Â</span> Back
+                <span>←</span> Back
               </button>
               <button onClick={handleSave} disabled={!canSave}
                 className="flex-1 bg-purple-700 text-white py-3 rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-40">
-                Ã°Å¸ÂÂ¾ Book Room
+                🐾 Book Room
               </button>
             </>
           )}
@@ -898,7 +898,7 @@ const BookingForm: React.FC<{
   );
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Booking Confirmation Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Booking Confirmation Modal ────────────────────────────────────────────────
 
 const BookingConfirmationModal: React.FC<{
   booking: HotelBooking;
@@ -913,8 +913,8 @@ const BookingConfirmationModal: React.FC<{
   } as Record<BookingTypeKey, string>;
   const btype = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const psize = (booking.pet_size as PetSizeKey) || 'S';
-  const emoji = ['XS','S','M'].includes(psize) ? 'Ã°Å¸ÂÂ¶' : psize === 'L' ? 'Ã°Å¸Ââ€¢' : 'Ã°Å¸ÂÂº';
-  const speciesEmoji = booking.pet_name ? emoji : 'Ã°Å¸ÂÂ¾';
+  const emoji = ['XS','S','M'].includes(psize) ? '🐶' : psize === 'L' ? '🐕' : '🐺';
+  const speciesEmoji = booking.pet_name ? emoji : '🐾';
 
   const nights = (() => {
     try {
@@ -942,7 +942,7 @@ const BookingConfirmationModal: React.FC<{
 
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">{isEdit ? 'Ã¢Å“ÂÃ¯Â¸Â' : 'Ã¢Å“Â¨'}</span>
+              <span className="text-2xl">{isEdit ? '✏️' : '✨'}</span>
               <span className="text-xs font-bold uppercase tracking-widest text-purple-200">
                 {isEdit ? 'Booking Updated' : 'Booking Confirmed!'}
               </span>
@@ -966,7 +966,7 @@ const BookingConfirmationModal: React.FC<{
           {/* Booking type pill */}
           <div className="flex justify-center mb-4">
             <span className="bg-purple-100 text-purple-800 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wide">
-              {btype === 'DAYCARE' ? 'Ã¢Ëœâ‚¬Ã¯Â¸Â' : btype === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢' : btype === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ ' : btype === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡' : 'Ã°Å¸Å’Â´'}
+              {btype === 'DAYCARE' ? '☀️' : btype === 'OVERNIGHT' ? '🌙' : btype === 'STAYCATION_3D2N' ? '🏠' : btype === 'STAYCATION_4D3N' ? '🏡' : '🌴'}
               {' '}{activeLabels[btype]}
             </span>
           </div>
@@ -976,7 +976,7 @@ const BookingConfirmationModal: React.FC<{
 
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-2 text-zinc-500">
-                <span className="text-base">Ã°Å¸â€œÂ</span>
+                <span className="text-base">📍</span>
                 <span className="text-xs font-semibold uppercase tracking-wide">Pet Size</span>
               </div>
               <span className="font-black text-purple-700 bg-purple-50 px-3 py-1 rounded-xl text-sm">{psize}</span>
@@ -984,7 +984,7 @@ const BookingConfirmationModal: React.FC<{
 
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-2 text-zinc-500">
-                <span className="text-base">Ã°Å¸â€œâ€¦</span>
+                <span className="text-base">📅</span>
                 <span className="text-xs font-semibold uppercase tracking-wide">Check-In</span>
               </div>
               <span className="font-bold text-zinc-800 text-sm">{formatDate(booking.check_in)}</span>
@@ -992,7 +992,7 @@ const BookingConfirmationModal: React.FC<{
 
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-2 text-zinc-500">
-                <span className="text-base">Ã°Å¸â€œâ€¦</span>
+                <span className="text-base">📅</span>
                 <span className="text-xs font-semibold uppercase tracking-wide">Check-Out</span>
               </div>
               <span className="font-bold text-zinc-800 text-sm">{formatDate(booking.check_out)}</span>
@@ -1001,7 +1001,7 @@ const BookingConfirmationModal: React.FC<{
             {btype !== 'DAYCARE' && (
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-2 text-zinc-500">
-                  <span className="text-base">Ã°Å¸Å’â„¢</span>
+                  <span className="text-base">🌙</span>
                   <span className="text-xs font-semibold uppercase tracking-wide">Duration</span>
                 </div>
                 <span className="font-bold text-zinc-800 text-sm">{nights} night{nights !== 1 ? 's' : ''}</span>
@@ -1011,17 +1011,17 @@ const BookingConfirmationModal: React.FC<{
             {room && (
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-2 text-zinc-500">
-                  <span className="text-base">Ã°Å¸ÂÂ¨</span>
+                  <span className="text-base">🏨</span>
                   <span className="text-xs font-semibold uppercase tracking-wide">Room / Slot</span>
                 </div>
-                <span className="font-bold text-zinc-800 text-sm">{room.room_number} Ã¢â‚¬â€œ {room.room_name}</span>
+                <span className="font-bold text-zinc-800 text-sm">{room.room_number} – {room.room_name}</span>
               </div>
             )}
 
             {booking.notes && (
               <div className="py-3">
                 <div className="flex items-center gap-2 text-zinc-500 mb-1">
-                  <span className="text-base">Ã°Å¸â€œÂ</span>
+                  <span className="text-base">📝</span>
                   <span className="text-xs font-semibold uppercase tracking-wide">Special Instructions</span>
                 </div>
                 <p className="text-sm text-zinc-700 bg-zinc-50 rounded-xl px-3 py-2 leading-relaxed">{booking.notes}</p>
@@ -1036,13 +1036,13 @@ const BookingConfirmationModal: React.FC<{
               <p className="text-xs text-purple-500 font-semibold uppercase tracking-wide">Package Rate</p>
               <p className="text-xs text-zinc-400 mt-0.5">{activeLabels[btype]}</p>
             </div>
-            <p className="text-3xl font-black text-purple-700">Ã¢â€šÂ±{(booking.daily_rate || 0).toLocaleString()}</p>
+            <p className="text-3xl font-black text-purple-700">₱{(booking.daily_rate || 0).toLocaleString()}</p>
           </div>
 
           {/* Status badge */}
           <div className="flex justify-center mt-3 mb-1">
             <span className="bg-amber-100 text-amber-700 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest">
-              Ã¢ÂÂ³ RESERVED
+              ⏳ RESERVED
             </span>
           </div>
         </div>
@@ -1052,7 +1052,7 @@ const BookingConfirmationModal: React.FC<{
           <button
             onClick={onClose}
             className="w-full bg-purple-700 hover:bg-purple-800 text-white py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-purple-200">
-            Ã¢Å“â€ Got it!
+            ✔ Got it!
           </button>
         </div>
       </div>
@@ -1082,7 +1082,7 @@ const CheckoutModal: React.FC<{
       ? storeSettings.hotelExtras
       : HOTEL_EXTRAS;
 
-  // Package rate (flat Ã¢â‚¬â€ not per-night multiply)
+  // Package rate (flat — not per-night multiply)
   const packageRate = booking.daily_rate;
   const bookingType = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const petSize = (booking.pet_size as PetSizeKey) || 'S';
@@ -1126,9 +1126,12 @@ const CheckoutModal: React.FC<{
   const effectiveDp = Math.min(booking.downpayment || 0, effectiveGrandTotal);
   const effectiveBalance = Math.max(0, effectiveGrandTotal - effectiveDp);
 
+  // Update cash suggestion when balance changes
+  useEffect(() => { setCash(effectiveBalance); }, [effectiveBalance]);
+
   return (
     <React.Fragment>
-      <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
           <h2 className="text-xl font-bold text-zinc-900">Check Out &amp; Pay</h2>
@@ -1137,39 +1140,39 @@ const CheckoutModal: React.FC<{
         <div className="p-6 space-y-4">
           <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 space-y-2 text-sm">
             <div className="flex justify-between font-bold text-base">
-              <span>Ã°Å¸ÂÂ¾ {booking.pet_name}</span>
+              <span>🐾 {booking.pet_name}</span>
               <span className="text-zinc-500">{room ? `Room ${room.room_number}` : 'Hotel'}</span>
             </div>
             <div className="flex justify-between text-zinc-600">
-              <span>{activeLabels[bookingType] || bookingType} Ã‚Â· <strong>{petSize}</strong></span>
-              <span className="font-bold">Ã¢â€šÂ±{packageRate.toLocaleString()}</span>
+              <span>{activeLabels[bookingType] || bookingType} · <strong>{petSize}</strong></span>
+              <span className="font-bold">₱{packageRate.toLocaleString()}</span>
             </div>
             {bookingExtras.map(e => (
               <div key={e.id} className="flex justify-between text-green-700">
-                <span>Ã°Å¸Ââ€” {e.label}{e.qty > 1 ? ` Ãƒâ€”${e.qty}` : ''}</span>
-                <span>+Ã¢â€šÂ±{(e.price * e.qty).toLocaleString()}</span>
+                <span>🍗 {e.label}{e.qty > 1 ? ` ×${e.qty}` : ''}</span>
+                <span>+₱{(e.price * e.qty).toLocaleString()}</span>
               </div>
             ))}
             {lateAmount > 0 && (
               <div className="flex justify-between text-amber-700">
                 <span>{LATE_CHECKOUT_RATES[lateCheckout!].label}</span>
-                <span>+Ã¢â€šÂ±{lateAmount.toLocaleString()}</span>
+                <span>+₱{lateAmount.toLocaleString()}</span>
               </div>
             )}
             {dpAmount > 0 && (
               <div className="flex justify-between text-orange-600 font-bold">
                 <span>Downpayment Paid</span>
-                <span>-Ã¢â€šÂ±{dpAmount.toLocaleString()}</span>
+                <span>-₱{dpAmount.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2">
               <span>{dpAmount > 0 ? 'BALANCE TO PAY' : 'TOTAL'}</span>
-              <span className="text-green-700">Ã¢â€šÂ±{balanceToPay.toLocaleString()}</span>
+              <span className="text-green-700">₱{balanceToPay.toLocaleString()}</span>
             </div>
             {dpAmount > 0 && (
               <div className="flex justify-between text-xs text-zinc-400">
                 <span>Full Total</span>
-                <span>Ã¢â€šÂ±{grandTotal.toLocaleString()}</span>
+                <span>₱{grandTotal.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -1185,7 +1188,7 @@ const CheckoutModal: React.FC<{
                   <button key={idx} type="button" onClick={() => setLateCheckout(active ? null : idx)}
                     className={`w-full flex justify-between items-center px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${active ? 'bg-amber-500 text-white border-amber-500' : 'border-zinc-200 hover:border-amber-300'}`}>
                     <span>{slot.label}</span>
-                    <span className={active ? 'text-white font-bold' : 'text-zinc-500'}>+Ã¢â€šÂ±{fee.toLocaleString()}</span>
+                    <span className={active ? 'text-white font-bold' : 'text-zinc-500'}>+₱{fee.toLocaleString()}</span>
                   </button>
                 );
               })}
@@ -1195,16 +1198,18 @@ const CheckoutModal: React.FC<{
           <div>
             {/* SPECIAL DISCOUNT - Admin Only */}
             <div className="mb-4 p-3 rounded-xl border border-dashed border-amber-300 bg-amber-50">
-              <p className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-2">Ã°Å¸ÂÂ· Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span></p>
+              <p className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-2">
+                🏷 Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span>
+              </p>
               {appliedSpecialDiscount > 0 ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-green-700 font-bold text-sm">Ã¢Å“â€œ -Ã¢â€šÂ±{appliedSpecialDiscount.toFixed(2)} applied</span>
+                  <span className="text-green-700 font-bold text-sm">✓ -₱{appliedSpecialDiscount.toFixed(2)} applied</span>
                   <button onClick={() => { setAppliedSpecialDiscount(0); setSpecialDiscountInput(''); }} className="text-xs text-red-500 hover:text-red-700 font-bold">Remove</button>
                 </div>
               ) : (
                 <div className="flex gap-2 items-center">
                   <div className="flex rounded-lg border border-amber-300 overflow-hidden">
-                    <button onClick={() => setSpecialDiscountType('AMOUNT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>Ã¢â€šÂ±</button>
+                    <button onClick={() => setSpecialDiscountType('AMOUNT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>₱</button>
                     <button onClick={() => setSpecialDiscountType('PERCENT')} className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}>%</button>
                   </div>
                   <input type="number" min="0" step="0.01"
@@ -1228,9 +1233,9 @@ const CheckoutModal: React.FC<{
           </div>
           {(method === 'CASH' || method === 'SPLIT') && (
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Cash Received (Ã¢â€šÂ±)</label>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Cash Received (₱)</label>
               <input type="number" value={cash} onChange={e => setCash(parseFloat(e.target.value) || 0)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
-              {cash >= effectiveBalance && <p className="text-green-600 text-xs mt-1 font-bold">Change: Ã¢â€šÂ±{(cash - effectiveBalance).toLocaleString()}</p>}
+              {cash >= effectiveBalance && <p className="text-green-600 text-xs mt-1 font-bold">Change: ₱{(cash - effectiveBalance).toLocaleString()}</p>}
             </div>
           )}
           {(method === 'GCASH' || method === 'SPLIT') && (
@@ -1247,9 +1252,8 @@ const CheckoutModal: React.FC<{
           </button>
         </div>
       </div>
-      </div>
+    </div>
 
-      {/* Admin PIN Modal for Special Discount */}
       <AdminPinModal
         isOpen={showAdminPinForDiscount}
         title="Apply Special Discount"
@@ -1264,7 +1268,7 @@ const CheckoutModal: React.FC<{
   );
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Availability Calendar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Availability Calendar ─────────────────────────────────────────────────────
 
 const CalendarView: React.FC<{ onBook: (roomId: string, date: string) => void }> = ({ onBook }) => {
   const { hotelRooms, hotelBookings } = useStore();
@@ -1285,7 +1289,7 @@ const CalendarView: React.FC<{ onBook: (roomId: string, date: string) => void }>
         <button onClick={() => setStartDate(addDays(startDate, -7))} className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50"><ChevronLeft className="w-4 h-4" /></button>
         <button onClick={() => setStartDate(getPhToday())} className="px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium hover:bg-zinc-50">Today</button>
         <button onClick={() => setStartDate(addDays(startDate, 7))} className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50"><ChevronRight className="w-4 h-4" /></button>
-        <span className="text-sm text-zinc-500">{fmtDate(startDate)} Ã¢â‚¬â€œ {fmtDate(addDays(startDate, DAYS - 1))}</span>
+        <span className="text-sm text-zinc-500">{fmtDate(startDate)} – {fmtDate(addDays(startDate, DAYS - 1))}</span>
       </div>
       {activeRooms.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">No active rooms. Add rooms first.</div>
@@ -1343,7 +1347,7 @@ const CalendarView: React.FC<{ onBook: (roomId: string, date: string) => void }>
   );
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Main Hotel Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Main Hotel Page ──────────────────────────────────────────────────────────
 
 const Hotel: React.FC = () => {
   const {
@@ -1373,7 +1377,7 @@ const Hotel: React.FC = () => {
   const [isQrZoomed, setIsQrZoomed] = useState(false);
   const [showRatesModal, setShowRatesModal] = useState(false);
 
-  // Live rates Ã¢â‚¬â€ DB overrides, fallback to hardcoded constants
+  // Live rates — DB overrides, fallback to hardcoded constants
   const activeRates: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
     ...HOTEL_RATES,
     ...(storeSettings.hotelRates as Record<BookingTypeKey, Record<PetSizeKey, number>> | undefined),
@@ -1428,10 +1432,10 @@ const Hotel: React.FC = () => {
     COMPLETED: hotelBookings.filter(b => b.status === 'CHECKED_OUT' || b.status === 'CANCELLED').length,
   }), [hotelBookings, today]);
 
-  // Is in history range Ã¢â‚¬â€ uses actual_check_out (real checkout datetime) when available
+  // Is in history range — uses actual_check_out (real checkout datetime) when available
   const isInRange = (b: HotelBooking) => {
     if (historyRange === 'ALL') return true;
-    // Use actual checkout date (real) vs scheduled Ã¢â‚¬â€ actual_check_out is an ISO timestamp
+    // Use actual checkout date (real) vs scheduled — actual_check_out is an ISO timestamp
     const effectiveDateStr = b.actual_check_out
       ? new Date(b.actual_check_out).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
       : b.check_out;
@@ -1574,14 +1578,14 @@ const Hotel: React.FC = () => {
           {activeTab === 'OCCUPIED' && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-700 font-medium flex items-center gap-2">
               <BedDouble className="w-4 h-4 flex-shrink-0" />
-              Occupied rooms Ã¢â‚¬â€ click <strong>"Check Out"</strong> to process payment and complete the stay.
+              Occupied rooms — click <strong>"Check Out"</strong> to process payment and complete the stay.
             </div>
           )}
           {filteredBookings.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-zinc-400 min-h-48">
               <BedDouble className="w-16 h-16 mb-4 opacity-20" />
               <p className="font-medium">No bookings found.</p>
-              {activeTab === 'ARRIVING' && <p className="text-xs mt-1">No arrivals today Ã¢â‚¬â€ {today}</p>}
+              {activeTab === 'ARRIVING' && <p className="text-xs mt-1">No arrivals today — {today}</p>}
               {activeTab === 'COMPLETED' && <p className="text-xs mt-1">Try adjusting the time filter.</p>}
             </div>
           ) : (
@@ -1595,7 +1599,7 @@ const Hotel: React.FC = () => {
                     {/* Top row */}
                     <div className="flex justify-between items-start mb-3">
                       <div className={`text-xs font-bold px-3 py-1 rounded-full border ${booking.check_in === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
-                        {booking.check_in === today ? 'TODAY' : fmtDate(booking.check_in)} Ã¢â€ â€™ {fmtDate(booking.check_out)}
+                        {booking.check_in === today ? 'TODAY' : fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}
                       </div>
                       <div className="flex items-center gap-2">
                         {(booking.status === 'RESERVED' || booking.status === 'CHECKED_IN') && (
@@ -1611,9 +1615,9 @@ const Hotel: React.FC = () => {
 
                     {/* Pet info */}
                     <div className="mb-4">
-                      <h3 className="text-xl font-bold text-zinc-900 leading-tight">Ã°Å¸ÂÂ¾ {booking.pet_name}</h3>
+                      <h3 className="text-xl font-bold text-zinc-900 leading-tight">🐾 {booking.pet_name}</h3>
                       <p className="text-sm text-zinc-500 flex items-center gap-1 mt-1"><User className="w-3 h-3" />{booking.owner_name} {booking.contact_number && <span className="text-zinc-400">({booking.contact_number})</span>}</p>
-                      {booking.notes && <div className="mt-2 text-xs bg-amber-50 text-amber-800 p-2 rounded-lg border border-amber-100 italic"><span className="font-bold not-italic">Ã°Å¸â€œÂ Note:</span> {booking.notes}</div>}
+                      {booking.notes && <div className="mt-2 text-xs bg-amber-50 text-amber-800 p-2 rounded-lg border border-amber-100 italic"><span className="font-bold not-italic">📝 Note:</span> {booking.notes}</div>}
                     </div>
 
                     {/* Booking type + rate details */}
@@ -1621,28 +1625,28 @@ const Hotel: React.FC = () => {
                       {booking.booking_type && (
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded-lg">
-                            {booking.booking_type === 'DAYCARE' ? 'Ã¢Ëœâ‚¬Ã¯Â¸Â Daycare' : booking.booking_type === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢ Overnight' : booking.booking_type === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ  Staycation 3D2N' : booking.booking_type === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡ Staycation 4D3N' : 'Ã°Å¸Å’Â´ Vacation'}
+                            {booking.booking_type === 'DAYCARE' ? '☀️ Daycare' : booking.booking_type === 'OVERNIGHT' ? '🌙 Overnight' : booking.booking_type === 'STAYCATION_3D2N' ? '🏠 Staycation 3D2N' : booking.booking_type === 'STAYCATION_4D3N' ? '🏡 Staycation 4D3N' : '🌴 Vacation'}
                           </span>
                           {booking.pet_size && <span className="text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg">{booking.pet_size}</span>}
                         </div>
                       )}
                       <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3">
                         <span className="text-zinc-400">Rate</span>
-                        <span className="font-bold text-green-700">Ã¢â€šÂ±{booking.daily_rate.toLocaleString()}</span>
+                        <span className="font-bold text-green-700">₱{booking.daily_rate.toLocaleString()}</span>
                       </div>
                       {room && (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-zinc-400">Room</span>
-                          <span className="font-bold text-zinc-800">{room.room_number} Ã¢â‚¬â€ {room.room_name}</span>
+                          <span className="font-bold text-zinc-800">{room.room_number} — {room.room_name}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-zinc-400">Dates</span>
-                        <span className="font-bold text-zinc-800">{fmtDate(booking.check_in)} Ã¢â€ â€™ {fmtDate(booking.check_out)}</span>
+                        <span className="font-bold text-zinc-800">{fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}</span>
                       </div>
                     </div>
 
-                    {/* Furparent Updates Ã¢â‚¬â€ only for checked-in pets */}
+                    {/* Furparent Updates — only for checked-in pets */}
                     {booking.status === 'CHECKED_IN' && (() => {
                       const fu = booking.furparent_updates || { am: false, pm: false, evening: false };
                       const toggle = async (key: 'am' | 'pm' | 'evening') => {
@@ -1651,7 +1655,7 @@ const Hotel: React.FC = () => {
                       };
                       return (
                         <div className="mb-4 bg-purple-50 rounded-2xl px-4 py-3 border border-purple-100">
-                          <p className="text-xs font-black text-purple-700 uppercase tracking-wide mb-2.5">Ã°Å¸ÂÂ¾ Furparent Updates</p>
+                          <p className="text-xs font-black text-purple-700 uppercase tracking-wide mb-2.5">🐾 Furparent Updates</p>
                           <div className="flex items-center gap-4">
                             {(['am', 'pm', 'evening'] as const).map(slot => (
                               <button
@@ -1661,12 +1665,12 @@ const Hotel: React.FC = () => {
                                 className="flex items-center gap-1.5 group"
                               >
                                 <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${fu[slot] ? 'bg-green-500 border-green-500' : 'border-zinc-300 bg-white group-hover:border-purple-400'}`}>
-                                  {fu[slot] && <span className="text-white text-xs font-black">Ã¢Å“â€œ</span>}
+                                  {fu[slot] && <span className="text-white text-xs font-black">✓</span>}
                                 </div>
                                 <span className={`text-xs font-bold uppercase ${fu[slot] ? 'text-green-700' : 'text-zinc-400'}`}>
                                   {slot === 'am' ? 'AM' : slot === 'pm' ? 'PM' : 'Eve'}
                                 </span>
-                                <span className="text-base">Ã°Å¸â€œÂ¸</span>
+                                <span className="text-base">📸</span>
                               </button>
                             ))}
                           </div>
@@ -1674,7 +1678,7 @@ const Hotel: React.FC = () => {
                       );
                     })()}
 
-                    {/* Action buttons Ã¢â‚¬â€ mirrors Grooming page */}
+                    {/* Action buttons — mirrors Grooming page */}
                     <div className="mt-auto">
                       {booking.status === 'RESERVED' && booking.check_in <= today && (
                         <button
@@ -1736,13 +1740,13 @@ const Hotel: React.FC = () => {
                 {hotelRooms.map(r => (
                   <div key={r.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${r.is_active ? 'border-zinc-200 bg-white hover:border-purple-200' : 'border-zinc-100 bg-zinc-50 opacity-60'}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-zinc-900">{r.room_number} Ã¢â‚¬â€ {r.room_name}</p>
+                      <p className="font-bold text-zinc-900">{r.room_number} — {r.room_name}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-lg font-medium">{r.room_type}</span>
                         <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg font-medium">Max {r.capacity} pet{r.capacity !== 1 ? 's' : ''}</span>
                         {r.is_active
-                          ? <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-lg font-medium">Ã¢â€”Â Active</span>
-                          : <span className="text-xs bg-zinc-100 text-zinc-400 px-2 py-0.5 rounded-lg font-medium">Ã¢â€”â€¹ Inactive</span>}
+                          ? <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-lg font-medium">● Active</span>
+                          : <span className="text-xs bg-zinc-100 text-zinc-400 px-2 py-0.5 rounded-lg font-medium">○ Inactive</span>}
                       </div>
                       {r.description && <p className="text-xs text-zinc-400 mt-1 truncate">{r.description}</p>}
                     </div>
@@ -1804,14 +1808,14 @@ const Hotel: React.FC = () => {
           booking={checkoutBooking}
           onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel) => {
             const bk = checkoutBooking; // capture before clearing
-            // Pass the FULL grandTotal (before downpayment) Ã¢â‚¬â€ checkOutGuest handles the deduction internally
+            // Pass the FULL grandTotal (before downpayment) — checkOutGuest handles the deduction internally
             await checkOutGuest(bk.id, method, cash, ref, recalcTotal, lateAmount, lateLabel);
             setCheckoutBooking(null);
             // Build the receipt from booking data
             const room = hotelRooms.find(r => r.id === bk.room_id);
             const bkType = bk.booking_type as BookingTypeKey | undefined;
             const bkSize = bk.pet_size || '';
-            const stayLabel = bkType ? `${activeLabels[bkType] || bkType} Ã‚Â· ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` Ã¢â‚¬â€œ ${room.room_name}` : ''}`;
+            const stayLabel = bkType ? `${activeLabels[bkType] || bkType} · ${bkSize}${room ? ` (${room.room_name})` : ''}` : `Hotel Stay${room ? ` – ${room.room_name}` : ''}`;
             // packageTotal = base package rate only (extras are separate line items below)
             const packageTotal = bk.daily_rate;
             const nightlyItem = { id: `hotel-stay-${bk.id}`, name: stayLabel, price: packageTotal, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
@@ -1827,7 +1831,7 @@ const Hotel: React.FC = () => {
               if (extraDef && e.qty > 0) {
                 allItems.push({
                   id: `hotel-extra-${e.id}-${bk.id}`,
-                  name: `${extraDef.label}${e.qty > 1 ? ` Ãƒâ€”${e.qty}` : ''}`,
+                  name: `${extraDef.label}${e.qty > 1 ? ` ×${e.qty}` : ''}`,
                   price: extraDef.price * e.qty,
                   cost: 0, stock: 1, category: 'HOTEL', isService: true,
                   quantity: e.qty,
@@ -1930,7 +1934,7 @@ const Hotel: React.FC = () => {
         onCancel={() => setDeleteRoomConfirm({ open: false, id: '', name: '' })}
       />
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Edit Rates & Packages Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Edit Rates & Packages Modal ──────────────────────────────── */}
       {showRatesModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setShowRatesModal(false)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1948,7 +1952,7 @@ const Hotel: React.FC = () => {
             {/* Scrollable Body */}
             <div className="overflow-y-auto flex-1 p-6 space-y-6">
               {(Object.keys(HOTEL_RATES) as BookingTypeKey[]).map((typeKey) => {
-                const emoji = typeKey === 'DAYCARE' ? 'Ã°Å¸Å’Å¾' : typeKey === 'OVERNIGHT' ? 'Ã°Å¸Å’â„¢' : typeKey === 'STAYCATION_3D2N' ? 'Ã°Å¸ÂÂ ' : typeKey === 'STAYCATION_4D3N' ? 'Ã°Å¸ÂÂ¡' : 'Ã°Å¸Å’Â´';
+                const emoji = typeKey === 'DAYCARE' ? '🌞' : typeKey === 'OVERNIGHT' ? '🌙' : typeKey === 'STAYCATION_3D2N' ? '🏠' : typeKey === 'STAYCATION_4D3N' ? '🏡' : '🌴';
                 return (
                   <div key={typeKey} className="bg-zinc-50 rounded-2xl border border-zinc-100 overflow-hidden">
                     {/* Package name edit */}
@@ -1966,7 +1970,7 @@ const Hotel: React.FC = () => {
                     </div>
                     {/* Price grid */}
                     <div className="p-4">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide block mb-3">Price per Pet Size (Ã¢â€šÂ±)</label>
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide block mb-3">Price per Pet Size (₱)</label>
                       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                         {PET_SIZES.map(size => (
                           <div key={size} className="flex flex-col items-center gap-1">
@@ -1989,11 +1993,11 @@ const Hotel: React.FC = () => {
                 );
               })}
 
-              {/* Add-ons & Services Editor Ã¢â‚¬â€ inside scrollable body */}
+              {/* Add-ons & Services Editor — inside scrollable body */}
               <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
                 <div className="px-4 py-3 bg-white border-b border-amber-100 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-black text-zinc-800">Ã°Å¸Ââ€” Add-ons &amp; Services</h3>
+                    <h3 className="text-sm font-black text-zinc-800">🍗 Add-ons &amp; Services</h3>
                     <p className="text-xs text-zinc-400 mt-0.5">Meal Prep, Reheating, Special Instructions, etc.</p>
                   </div>
                   <button
@@ -2015,7 +2019,7 @@ const Hotel: React.FC = () => {
                         />
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <span className="text-xs text-zinc-400">Ã¢â€šÂ±</span>
+                        <span className="text-xs text-zinc-400">₱</span>
                         <input
                           type="number"
                           min={0}
@@ -2028,7 +2032,7 @@ const Hotel: React.FC = () => {
                         type="button"
                         onClick={() => setDraftExtras(prev => prev.filter((_, i) => i !== idx))}
                         className="text-red-400 hover:text-red-600 transition-colors text-lg leading-none ml-1"
-                      >Ãƒâ€”</button>
+                      >×</button>
                     </div>
                   ))}
                 </div>
@@ -2041,7 +2045,7 @@ const Hotel: React.FC = () => {
                 Cancel
               </button>
               <button onClick={saveRates} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white transition-all shadow-lg" style={{background: 'linear-gradient(135deg, #4A2D7A, #7B55A8)'}}>
-                Ã¢Å“â€œ Save Rates
+                ✓ Save Rates
               </button>
             </div>
           </div>
