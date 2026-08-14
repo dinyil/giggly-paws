@@ -767,7 +767,14 @@ const Grooming: React.FC = () => {
 
       if (realTransaction) {
           // Use the actual saved transaction — correct payment method, cashier, date, totals
-          setPrintingTransaction(realTransaction);
+          // Also merge downpayment from the appointment in case transactions table column doesn't exist yet
+          const dpFromApt = apt.downpayment || 0;
+          const txWithDp = (realTransaction.downpayment && realTransaction.downpayment > 0)
+              ? realTransaction
+              : dpFromApt > 0
+                  ? { ...realTransaction, downpayment: dpFromApt }
+                  : realTransaction;
+          setPrintingTransaction(txWithDp);
           setShowReceiptPreview(true);
           return;
       }

@@ -70,6 +70,7 @@ const mapTransaction = (t: any): Transaction => ({
     vat: Number(t.vat || 0),
     total: Number(t.total || 0),
     discount: Number(t.discount || 0),
+    downpayment: t.downpayment ? Number(t.downpayment) : undefined, // optional advance payment
     paymentMethod: t.paymentMethod || 'CASH', // CamelCase in DB
     gcashRef: t.gcashRef || '',               // CamelCase in DB
     cashierId: t.cashierId || 'unknown',      // CamelCase in DB
@@ -84,6 +85,7 @@ const mapTransactionPayload = (t: Transaction) => ({
     vat: t.vat,
     total: t.total,
     discount: t.discount,
+    downpayment: t.downpayment ?? null, // save to DB (null if not set)
     "paymentMethod": t.paymentMethod, // Quoted CamelCase for DB
     "gcashRef": t.gcashRef,           
     "cashReceived": t.cashReceived,   
