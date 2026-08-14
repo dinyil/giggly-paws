@@ -1853,7 +1853,7 @@ const Grooming: React.FC = () => {
                       const petTotal = (petSvc?.price || 0) + petAddonTotal;
 
                       return (
-                          <div key={pet.id} className="border-2 border-purple-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                          <div key={pet.id} className="border-2 border-purple-100 rounded-3xl bg-white shadow-sm">
                               {/* ── Pet Header ── */}
                               <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-100">
                                   <span className="text-xs font-black text-purple-700 uppercase tracking-wide flex items-center gap-1.5">
