@@ -830,13 +830,13 @@ const Grooming: React.FC = () => {
   const labelClass = "text-xs font-bold text-gray-500 uppercase";
 
   const getCount = (tab: GroomingTab) => {
-      // Use dynamic 'today' (PH Time) for filtering
-      if (tab === 'UPCOMING') return appointments.flatMap(expandAppointment).filter(c => c.apt.status === 'SCHEDULED' && c.displayDate > today).length;
-      if (tab === 'WAITING') return appointments.flatMap(expandAppointment).filter(c => c.apt.status === 'SCHEDULED' && c.displayDate === today).length;
-      if (tab === 'ONGOING') return appointments.filter(a => a.status === 'ONGOING').length;
+      const allCards = appointments.flatMap(expandAppointment);
+      if (tab === 'UPCOMING') return allCards.filter(c => c.cardStatus === 'SCHEDULED' && c.displayDate > today).length;
+      if (tab === 'WAITING') return allCards.filter(c => c.cardStatus === 'SCHEDULED' && c.displayDate === today).length;
+      if (tab === 'ONGOING') return allCards.filter(c => c.cardStatus === 'ONGOING').length;
       if (tab === 'COMPLETED') {
           if (activeTab === 'COMPLETED') return filteredAppointments.length;
-          return appointments.filter(a => a.status === 'COMPLETED' && a.date === today).length;
+          return allCards.filter(c => c.cardStatus === 'COMPLETED' && c.displayDate === today).length;
       }
       return 0;
   };
@@ -998,7 +998,7 @@ const Grooming: React.FC = () => {
                                                 <button onClick={() => handleCancelClick(apt.id, apt.petName)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-white rounded-md transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                                             </div>
                                         )}
-                                        <span className={`text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${apt.status === 'SCHEDULED' ? 'bg-orange-100 text-orange-600' : apt.status === 'ONGOING' ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-green-100 text-green-600'}`}>{apt.status}</span>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${card.cardStatus === 'SCHEDULED' ? 'bg-orange-100 text-orange-600' : card.cardStatus === 'ONGOING' ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-green-100 text-green-600'}`}>{card.cardStatus}</span>
                                     </div>
                                 </div>
 
