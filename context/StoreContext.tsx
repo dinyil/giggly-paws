@@ -1068,14 +1068,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     upsertData('appointments', mapAppointmentPayload(apt));
     addLog('GROOMING', `Booked appointment for ${apt.petName}`);
 
+    // Build full list of all pets in this booking (primary + additional)
+    const allPets: Pet[] = [
+        {
+            id: Date.now().toString(),
+            name: apt.petName,
+            breed: apt.petBreed,
+            color: apt.petColor,
+            weightSize: apt.weightSize,
+            species: apt.petSpecies as any
+        },
+        ...(apt.pets || []).map((p, i) => ({
+            id: (Date.now() + i + 1).toString(),
+            name: p.petName,
+            breed: p.petBreed,
+            color: p.petColor,
+            weightSize: p.weightSize,
+            species: p.petSpecies as any
+        }))
+    ];
+
     const existingClient = clients.find(c => c.name.toLowerCase() === apt.ownerName.toLowerCase());
-    const petDetails: Pet = {
-        id: Date.now().toString(),
-        name: apt.petName,
-        breed: apt.petBreed,
-        color: apt.petColor,
-        weightSize: apt.weightSize
-    };
 
     if (!existingClient) {
         const newClient: Client = {
@@ -1086,27 +1099,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             address: '',
             notes: `Auto-created from Grooming.`,
             firstSeen: new Date().toISOString(),
-            pets: [petDetails]
+            pets: allPets
         };
         addClient(newClient);
     } else {
-        const currentPets = existingClient.pets || [];
-        const existingPetIndex = currentPets.findIndex(p => p.name.toLowerCase() === apt.petName.toLowerCase());
-        let updatedPets = [...currentPets];
-        if (existingPetIndex >= 0) {
-            updatedPets[existingPetIndex] = {
-                ...updatedPets[existingPetIndex],
-                breed: apt.petBreed || updatedPets[existingPetIndex].breed,
-                color: apt.petColor || updatedPets[existingPetIndex].color,
-                weightSize: apt.weightSize || updatedPets[existingPetIndex].weightSize
-            };
-        } else {
-            updatedPets.push(petDetails);
+        let updatedPets = [...(existingClient.pets || [])];
+        for (const petDetails of allPets) {
+            const existingPetIndex = updatedPets.findIndex(p => p.name.toLowerCase() === petDetails.name.toLowerCase());
+            if (existingPetIndex >= 0) {
+                // Update existing pet info
+                updatedPets[existingPetIndex] = {
+                    ...updatedPets[existingPetIndex],
+                    breed: petDetails.breed || updatedPets[existingPetIndex].breed,
+                    color: petDetails.color || updatedPets[existingPetIndex].color,
+                    weightSize: petDetails.weightSize || updatedPets[existingPetIndex].weightSize,
+                    species: petDetails.species || updatedPets[existingPetIndex].species
+                };
+            } else {
+                // Add new pet
+                updatedPets.push(petDetails);
+            }
         }
         const updatedClient = { ...existingClient, pets: updatedPets };
         updateClient(updatedClient);
     }
   };
+
 
   const updateAppointment = (apt: GroomingAppointment) => {
     setAppointments(prev => prev.map(a => a.id === apt.id ? apt : a));
