@@ -1804,7 +1804,7 @@ const Hotel: React.FC = () => {
             // Apply downpayment deduction
             const dpAmount = Math.min(bk.downpayment || 0, grossTotal);
             const total = parseFloat(Math.max(0, grossTotal - dpAmount).toFixed(2));
-            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: dpAmount, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
+            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: 0, downpayment: dpAmount > 0 ? dpAmount : undefined, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
           }}
 
           onClose={() => setCheckoutBooking(null)}

@@ -1448,7 +1448,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Deduct downpayment from gross total
     const downpayment = Math.min(booking.downpayment || 0, grossTotal);
     const total = parseFloat(Math.max(0, grossTotal - downpayment).toFixed(2));
-    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: downpayment, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
+    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, downpayment: downpayment > 0 ? downpayment : undefined, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
     setTransactions(prev => [tx, ...prev]);
     await upsertData('transactions', mapTransactionPayload(tx));
     // Update booking
