@@ -360,7 +360,7 @@ const Grooming: React.FC = () => {
               petSpecies: p.petSpecies, serviceId: p.serviceId, hairCut: p.hairCut,
               addonIds: p.addonIds || [], groomerId: p.groomerId, isPrimary: false,
               date: p.date || apt.date, time: p.time || apt.time, petId: p.id,
-              status: (p.status || apt.status) as 'SCHEDULED'|'ONGOING'|'COMPLETED'
+              status: (p.status || 'SCHEDULED') as 'SCHEDULED'|'ONGOING'|'COMPLETED'
           }))
       ];
 
