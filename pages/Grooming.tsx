@@ -935,6 +935,9 @@ const Grooming: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {pet.hairCut && <div className="mt-1 text-xs text-yellow-700 italic">✄ {pet.hairCut}</div>}
+                                                {'groomerId' in pet && (pet as any).groomerId && (pet as any).groomerId !== apt.groomerId && (
+                                                    <div className="mt-1 text-xs text-blue-600 font-medium">✂ {(pet as any).groomerId}</div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1719,65 +1722,206 @@ const Grooming: React.FC = () => {
               </div>
 
               {/* ADDITIONAL PETS SECTION */}
-              <div className="space-y-3 pt-2 border-t border-zinc-100">
+              <div className="space-y-3 pt-2 border-t-2 border-dashed border-purple-100">
                   <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Additional Pets <span className="text-gray-300 font-normal lowercase">(same owner)</span></h4>
+                      <h4 className="text-xs font-bold text-purple-500 uppercase flex items-center gap-1.5">
+                          <Dog className="w-3.5 h-3.5" /> Additional Pets
+                          <span className="text-purple-300 font-normal normal-case text-[10px]">— same owner, separate service each</span>
+                      </h4>
                       <button
                           type="button"
-                          onClick={() => setAdditionalPets(prev => [...prev, { id: Date.now().toString(), petName: '', petBreed: '', petSpecies: 'DOG', serviceId: '', hairCut: '', addonIds: [] }])}
-                          className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition-colors"
+                          onClick={() => setAdditionalPets(prev => [...prev, {
+                              id: Date.now().toString(),
+                              petName: '', petBreed: '', petColor: '', weightSize: '',
+                              petSpecies: 'DOG', serviceId: '', hairCut: '',
+                              groomerId: formData.groomerId || '',
+                              addonIds: []
+                          }])}
+                          className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors"
                       >
-                          <Plus className="w-3 h-3" /> Add Pet
+                          <Plus className="w-3 h-3" /> Add Another Pet
                       </button>
                   </div>
 
                   {additionalPets.map((pet, idx) => {
-                      const update = (field: keyof typeof pet, val: string | string[]) =>
+                      const updatePet = (field: keyof typeof pet, val: string | string[]) =>
                           setAdditionalPets(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
-                      const petService = products.find(p => p.id === pet.serviceId);
+
+                      const petWeightKg = parseWeightKg(pet.weightSize || '');
+                      const petDetectedSize = pet.petSpecies === 'DOG' && petWeightKg !== null ? detectSizeFromWeight(petWeightKg) : null;
+
+                      const petGroomingServices = products.filter(p => p.isService && p.category === 'GROOMING');
+                      const filteredPetServices = petGroomingServices.filter(s => {
+                          const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies;
+                          const sizeMatch = !petDetectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === petDetectedSize;
+                          return speciesMatch && sizeMatch;
+                      });
+
+                      const petAddonProducts = products.filter(p => {
+                          const notMainService = p.id !== pet.serviceId;
+                          const notAdded = !(pet.addonIds || []).includes(p.id);
+                          const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === pet.petSpecies || !p.petSpecies;
+                          const sizeMatch = !petDetectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === petDetectedSize;
+                          return notMainService && notAdded && speciesMatch && sizeMatch;
+                      });
+
+                      const petSvc = products.find(p => p.id === pet.serviceId);
+                      const petAddonTotal = (pet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
+                      const petTotal = (petSvc?.price || 0) + petAddonTotal;
+
                       return (
-                          <div key={pet.id} className="border border-zinc-200 rounded-2xl p-3 bg-zinc-50/50 space-y-2 relative">
-                              <button type="button" onClick={() => setAdditionalPets(prev => prev.filter((_, i) => i !== idx))}
-                                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors">
-                                  <X className="w-3.5 h-3.5" />
-                              </button>
-                              <p className="text-[10px] font-black text-purple-600 uppercase tracking-wide">Pet #{idx + 2}</p>
-                              {/* Species */}
-                              <div className="grid grid-cols-3 gap-1.5">
-                                  {(['DOG', 'CAT', 'OTHER'] as const).map(sp => (
-                                      <button key={sp} type="button" onClick={() => update('petSpecies', sp)}
-                                          className={`py-1.5 rounded-lg border text-xs font-bold transition-all ${pet.petSpecies === sp ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-zinc-200 bg-white text-zinc-400 hover:border-zinc-300'}`}>
-                                          {sp === 'DOG' ? '🐶' : sp === 'CAT' ? '🐱' : '🐾'} {sp}
+                          <div key={pet.id} className="border-2 border-purple-100 rounded-2xl overflow-hidden bg-white">
+                              {/* Pet header */}
+                              <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-100">
+                                  <span className="text-xs font-black text-purple-700 uppercase tracking-wide flex items-center gap-1.5">
+                                      🐾 Pet #{idx + 2}
+                                      {pet.petName && <span className="font-bold text-purple-500 normal-case tracking-normal">— {pet.petName}</span>}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                      {petTotal > 0 && <span className="text-xs font-bold text-purple-600 bg-white px-2 py-0.5 rounded-lg border border-purple-200">₱{petTotal.toFixed(2)}</span>}
+                                      <button type="button" onClick={() => setAdditionalPets(prev => prev.filter((_, i) => i !== idx))}
+                                          className="text-gray-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors">
+                                          <X className="w-4 h-4" />
                                       </button>
-                                  ))}
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                      <label className={labelClass}>Pet Name *</label>
-                                      <input required className={inputClass} value={pet.petName} onChange={e => update('petName', e.target.value)} placeholder="Pet's name" />
-                                  </div>
-                                  <div>
-                                      <label className={labelClass}>Breed</label>
-                                      <input className={inputClass} value={pet.petBreed || ''} onChange={e => update('petBreed', e.target.value)} placeholder="e.g. Shih Tzu" />
                                   </div>
                               </div>
-                              {/* Service picker */}
-                              <div>
-                                  <label className={labelClass}>Service *</label>
-                                  <select required className={inputClass} value={pet.serviceId}
-                                      onChange={e => update('serviceId', e.target.value)}>
-                                      <option value="">Select service...</option>
-                                      {groomingServices.filter(s => !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies).map(s => (
-                                          <option key={s.id} value={s.id}>{s.name} — ₱{s.price}</option>
-                                      ))}
-                                  </select>
+
+                              <div className="p-4 space-y-4">
+                                  {/* ── Pet Details ── */}
+                                  <div className="space-y-2">
+                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Pet Details</h5>
+
+                                      {/* Species */}
+                                      <div className="grid grid-cols-3 gap-1.5">
+                                          {(['DOG', 'CAT', 'OTHER'] as const).map(sp => (
+                                              <button key={sp} type="button"
+                                                  onClick={() => { updatePet('petSpecies', sp); updatePet('serviceId', ''); updatePet('addonIds', []); }}
+                                                  className={`flex flex-col items-center py-2 rounded-xl border-2 text-xs font-bold transition-all ${
+                                                      pet.petSpecies === sp
+                                                          ? sp === 'DOG' ? 'border-amber-400 bg-amber-50 text-amber-700' : sp === 'CAT' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-zinc-700 bg-zinc-100 text-zinc-800'
+                                                          : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-300'
+                                                  }`}>
+                                                  <span className="text-lg">{sp === 'DOG' ? '🐶' : sp === 'CAT' ? '🐱' : '🐾'}</span>
+                                                  <span>{sp === 'DOG' ? 'Dog' : sp === 'CAT' ? 'Cat' : 'Other'}</span>
+                                              </button>
+                                          ))}
+                                      </div>
+
+                                      {/* Name + Breed */}
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                              <label className={labelClass}>Pet Name *</label>
+                                              <input required className={inputClass} value={pet.petName} onChange={e => updatePet('petName', e.target.value)} placeholder="Pet's name" />
+                                          </div>
+                                          <div>
+                                              <label className={labelClass}>Breed</label>
+                                              <input className={inputClass} value={pet.petBreed || ''} onChange={e => updatePet('petBreed', e.target.value)} placeholder="e.g. Shih Tzu" />
+                                          </div>
+                                          <div>
+                                              <label className={labelClass}>Color</label>
+                                              <input className={inputClass} value={pet.petColor || ''} onChange={e => updatePet('petColor', e.target.value)} placeholder="e.g. White/Brown" />
+                                          </div>
+                                          <div>
+                                              <label className={labelClass}>
+                                                  Weight (kg)
+                                                  {petDetectedSize && (
+                                                      <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                                                          petDetectedSize === 'S' ? 'bg-green-50 text-green-600 border-green-200' :
+                                                          petDetectedSize === 'M' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                                                          petDetectedSize === 'L' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                                                          'bg-sky-50 text-sky-600 border-sky-200'
+                                                      }`}>→ {petDetectedSize}</span>
+                                                  )}
+                                              </label>
+                                              <input type="number" min="0" step="0.1" className={inputClass} value={pet.weightSize || ''} onChange={e => updatePet('weightSize', e.target.value)} placeholder="e.g. 3.5" />
+                                          </div>
+                                      </div>
+                                  </div>
+
+                                  {/* ── Service & Style ── */}
+                                  <div className="space-y-2 pt-2 border-t border-zinc-100">
+                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Scissors className="w-3 h-3" /> Service & Style</h5>
+
+                                      {/* Service dropdown */}
+                                      <div>
+                                          <label className={labelClass}>Service *</label>
+                                          <div className="relative">
+                                              <select required className={inputClass} value={pet.serviceId} onChange={e => updatePet('serviceId', e.target.value)}>
+                                                  <option value="">
+                                                      {filteredPetServices.length === 0
+                                                          ? `No services for ${pet.petSpecies}${petDetectedSize ? ` · ${petDetectedSize}` : ''}`
+                                                          : 'Select service...'}
+                                                  </option>
+                                                  {filteredPetServices.map(s => (
+                                                      <option key={s.id} value={s.id}>{s.name} — ₱{s.price}</option>
+                                                  ))}
+                                              </select>
+                                          </div>
+                                          {petDetectedSize && <p className="text-[10px] text-gray-400 mt-1">Filtered for: <span className="font-bold text-purple-700">{pet.petSpecies} · {petDetectedSize}</span></p>}
+                                      </div>
+
+                                      {/* Groomer */}
+                                      <div>
+                                          <label className={labelClass}>Groomer</label>
+                                          <select className={inputClass} value={pet.groomerId || ''} onChange={e => updatePet('groomerId', e.target.value)}>
+                                              <option value="">Same as main ({formData.groomerId || 'None selected'})</option>
+                                              {groomers.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                                          </select>
+                                      </div>
+
+                                      {/* Haircut instructions */}
+                                      <div>
+                                          <label className={labelClass}>Hair Cut / Instructions</label>
+                                          <textarea className={`${inputClass} resize-none`} rows={2} value={pet.hairCut || ''} onChange={e => updatePet('hairCut', e.target.value)} placeholder="e.g. Summer cut, keep ears trimmed..." />
+                                      </div>
+                                  </div>
+
+                                  {/* ── Add-Ons ── */}
+                                  <div className="space-y-2 pt-2 border-t border-zinc-100">
+                                      <h5 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><Plus className="w-3 h-3" /> Add-Ons <span className="text-gray-300 font-normal lowercase">(optional)</span></h5>
+
+                                      {/* Selected add-ons */}
+                                      {(pet.addonIds || []).length > 0 && (
+                                          <div className="space-y-1">
+                                              {(pet.addonIds || []).map((productId) => {
+                                                  const p = products.find(pr => pr.id === productId);
+                                                  if (!p) return null;
+                                                  return (
+                                                      <div key={productId} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2 border border-zinc-100">
+                                                          <div className="flex items-center gap-2 min-w-0">
+                                                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{p.isService ? 'SVC' : 'PROD'}</span>
+                                                              <span className="text-sm font-bold text-zinc-800 truncate">{p.name}</span>
+                                                              <span className="text-xs text-gray-400 flex-shrink-0">₱{p.price.toFixed(2)}</span>
+                                                          </div>
+                                                          <button type="button" onClick={() => updatePet('addonIds', (pet.addonIds || []).filter(id => id !== productId))}
+                                                              className="ml-2 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0">
+                                                              <X className="w-3.5 h-3.5" />
+                                                          </button>
+                                                      </div>
+                                                  );
+                                              })}
+                                          </div>
+                                      )}
+
+                                      {/* Add-on quick picker */}
+                                      {petAddonProducts.length > 0 && (
+                                          <div className="max-h-32 overflow-y-auto rounded-xl border border-zinc-100 bg-zinc-50/50 divide-y divide-zinc-100">
+                                              {petAddonProducts.slice(0, 8).map(p => (
+                                                  <button key={p.id} type="button"
+                                                      onClick={() => updatePet('addonIds', [...(pet.addonIds || []), p.id])}
+                                                      className="w-full flex justify-between items-center px-3 py-2 hover:bg-white transition-colors text-left group">
+                                                      <div className="flex items-center gap-2 min-w-0">
+                                                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{p.isService ? 'SVC' : 'PROD'}</span>
+                                                          <span className="text-xs font-bold text-zinc-700 group-hover:text-purple-900 truncate">{p.name}</span>
+                                                      </div>
+                                                      <span className="text-xs text-gray-400 flex-shrink-0 ml-2">₱{p.price} <span className="text-purple-500 font-bold">+</span></span>
+                                                  </button>
+                                              ))}
+                                              {petAddonProducts.length > 8 && <p className="text-center text-xs text-gray-400 py-2">+{petAddonProducts.length - 8} more available</p>}
+                                          </div>
+                                      )}
+                                  </div>
                               </div>
-                              {/* Haircut */}
-                              <div>
-                                  <label className={labelClass}>Style / Instructions</label>
-                                  <input className={inputClass} value={pet.hairCut || ''} onChange={e => update('hairCut', e.target.value)} placeholder="e.g. Teddy bear cut..." />
-                              </div>
-                              {petService && <p className="text-xs text-purple-700 font-bold">Service: ₱{petService.price}</p>}
                           </div>
                       );
                   })}

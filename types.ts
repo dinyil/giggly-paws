@@ -92,6 +92,7 @@ export interface AdditionalPet {
   petSpecies?: 'DOG' | 'CAT' | 'OTHER';
   serviceId: string;
   hairCut?: string;
+  groomerId?: string; // can override groomer per pet (optional)
   addonIds?: string[];
 }
 
