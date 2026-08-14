@@ -455,7 +455,7 @@ interface StoreContextType {
   updateHotelBooking: (booking: HotelBooking) => Promise<void>;
   deleteHotelBooking: (id: string) => Promise<void>;
   checkInGuest: (bookingId: string) => Promise<void>;
-  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number) => Promise<void>;
+  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -1371,7 +1371,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckin), replace(storeSettings.emailBodyHotelCheckin), 'Checked In'); }
   };
 
-  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number) => {
+  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => {
     const booking = hotelBookings.find(b => b.id === bookingId);
     if (!booking) return;
     // Build addon items for receipt
@@ -1379,33 +1379,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const room = hotelRooms.find(r => r.id === booking.room_id);
     // Create a Transaction (receipt)
     const txId = 'HTL-' + Date.now().toString();
-    // FIX: Use recalcTotal from checkout modal (daily_rate × nights) if provided
+    // Use recalcTotal (full grandTotal BEFORE downpayment) from checkout modal
     // Fall back to recalculating here if called without UI (e.g. programmatically)
+    const addonSubtotal = addonProducts.reduce((s, p: any) => s + p.price, 0);
     const stayAmount = recalcTotal !== undefined
-      ? recalcTotal - addonProducts.reduce((s, p: any) => s + p.price, 0)
+      ? recalcTotal - addonSubtotal - (lateAmount || 0)
       : (booking.daily_rate * booking.total_nights);
     const nightlyItem = { id: 'hotel-stay-' + bookingId, name: `Hotel Stay – ${room?.room_name || 'Room'} (${booking.total_nights} night${booking.total_nights !== 1 ? 's' : ''} × ₱${booking.daily_rate.toLocaleString()})`, price: stayAmount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] };
     const addonItems = addonProducts.map((p: any) => ({ ...p, quantity: 1, appliedDiscounts: [] }));
-    const allItems = [nightlyItem, ...addonItems];
+    // Late checkout item (if any)
+    const lateItem = (lateAmount && lateAmount > 0 && lateLabel)
+      ? [{ id: 'hotel-late-' + bookingId, name: lateLabel, price: lateAmount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] }]
+      : [];
+    const allItems = [nightlyItem, ...addonItems, ...lateItem];
     const subtotal = allItems.reduce((s, i) => s + i.price * i.quantity, 0);
     // VAT is only applied to hotel stays if explicitly enabled in Settings > Hotel VAT
     const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) : 0;
     const vat = parseFloat((subtotal * vatRate / 100).toFixed(2));
-    const total = parseFloat((subtotal + vat).toFixed(2));
-    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
+    const grossTotal = parseFloat((subtotal + vat).toFixed(2));
+    // Deduct downpayment from gross total
+    const downpayment = Math.min(booking.downpayment || 0, grossTotal);
+    const total = parseFloat(Math.max(0, grossTotal - downpayment).toFixed(2));
+    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: downpayment, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
     setTransactions(prev => [tx, ...prev]);
     await upsertData('transactions', mapTransactionPayload(tx));
     // Update booking
     const updated = { ...booking, status: 'CHECKED_OUT' as HotelBookingStatus, actual_check_out: new Date().toISOString(), transaction_id: txId };
     setHotelBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
     await upsertData('hotel_bookings', updated);
-    addLog('HOTEL_CHECKOUT', `${booking.pet_name} checked out from Room ${booking.room_id}. Total: ₱${total}.`, bookingId);
+    addLog('HOTEL_CHECKOUT', `${booking.pet_name} checked out from Room ${booking.room_id}. Total: ₱${total}${downpayment > 0 ? ` (less ₱${downpayment} downpayment)` : ''}.`, bookingId);
     // Send checkout notification
     const vars = { petName: booking.pet_name, ownerName: booking.owner_name, shopName: storeSettings.name, roomNumber: room?.room_number || booking.room_id, checkIn: booking.check_in, checkOut: booking.check_out, totalAmount: total.toString() };
     const replace = (t: string = '') => Object.entries(vars).reduce((s, [k, v]) => s.replace(new RegExp(`{${k}}`, 'g'), v), t);
     if (storeSettings.smsEnabled && booking.contact_number) { checkAndIncrementSms() && sendSMS(storeSettings, [booking.contact_number], replace(storeSettings.smsTemplateHotelCheckout)); }
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckout), replace(storeSettings.emailBodyHotelCheckout), 'Checked Out'); }
   };
+
 
   return (
     <StoreContext.Provider value={{

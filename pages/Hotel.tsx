@@ -1204,7 +1204,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref, balanceToPay, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button onClick={() => onConfirm(method, cash, ref, grandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>
@@ -1753,7 +1753,8 @@ const Hotel: React.FC = () => {
           booking={checkoutBooking}
           onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel) => {
             const bk = checkoutBooking; // capture before clearing
-            await checkOutGuest(bk.id, method, cash, ref, recalcTotal);
+            // Pass the FULL grandTotal (before downpayment) — checkOutGuest handles the deduction internally
+            await checkOutGuest(bk.id, method, cash, ref, recalcTotal, lateAmount, lateLabel);
             setCheckoutBooking(null);
             // Build the receipt from booking data
             const room = hotelRooms.find(r => r.id === bk.room_id);
@@ -1799,9 +1800,13 @@ const Hotel: React.FC = () => {
             const subtotal = allItems.reduce((s, i) => s + i.price, 0);
             const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) / 100 : 0;
             const vat = parseFloat((subtotal * vatRate).toFixed(2));
-            const total = parseFloat((subtotal + vat).toFixed(2));
-            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: 0, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
+            const grossTotal = parseFloat((subtotal + vat).toFixed(2));
+            // Apply downpayment deduction
+            const dpAmount = Math.min(bk.downpayment || 0, grossTotal);
+            const total = parseFloat(Math.max(0, grossTotal - dpAmount).toFixed(2));
+            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: dpAmount, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
           }}
+
           onClose={() => setCheckoutBooking(null)}
         />
       )}
