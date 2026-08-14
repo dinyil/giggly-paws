@@ -1127,8 +1127,8 @@ const CheckoutModal: React.FC<{
   const effectiveBalance = Math.max(0, effectiveGrandTotal - effectiveDp);
 
   return (
-    <>
-    <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <React.Fragment>
+      <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
           <h2 className="text-xl font-bold text-zinc-900">Check Out &amp; Pay</h2>
@@ -1247,7 +1247,7 @@ const CheckoutModal: React.FC<{
           </button>
         </div>
       </div>
-    </div>
+      </div>
 
       {/* Admin PIN Modal for Special Discount */}
       <AdminPinModal
@@ -1260,7 +1260,7 @@ const CheckoutModal: React.FC<{
         }}
         onClose={() => setShowAdminPinForDiscount(false)}
       />
-    </>
+    </React.Fragment>
   );
 };
 
