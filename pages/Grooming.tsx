@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
@@ -1411,9 +1411,15 @@ const Grooming: React.FC = () => {
                                 <div className="p-2.5 bg-zinc-50 text-[10px] text-gray-400 font-bold uppercase tracking-wider border-b border-zinc-100">
                                     {selectedClient.name}'s Pets
                                 </div>
-                                {selectedClient.pets
-                                    .filter(p => normalizeText(p.name).includes(normalizeText(formData.petName || '')))
-                                    .map(pet => (
+                                {(() => {
+                                    // Names already chosen in additional pet slots
+                                    const takenNames = additionalPets.map(ap => ap.petName.toLowerCase()).filter(Boolean);
+                                    return selectedClient.pets
+                                        .filter(p =>
+                                            !takenNames.includes(p.name.toLowerCase()) &&
+                                            normalizeText(p.name).includes(normalizeText(formData.petName || ''))
+                                        )
+                                        .map(pet => (
                                     <div 
                                         key={pet.id}
                                         onClick={() => selectPet(pet)}
@@ -1428,7 +1434,8 @@ const Grooming: React.FC = () => {
                                         </div>
                                         <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
-                                ))}
+                                    ));
+                                })()}
                                 <div 
                                     className="p-3.5 hover:bg-blue-50 cursor-pointer text-blue-600 font-bold text-xs flex items-center gap-2 border-t border-zinc-100 transition-colors"
                                     onClick={() => {
@@ -1853,9 +1860,20 @@ const Grooming: React.FC = () => {
                                                       <div className="p-2.5 bg-zinc-50 text-[10px] text-gray-400 font-bold uppercase tracking-wider border-b border-zinc-100">
                                                           {selectedClient.name}'s Pets
                                                       </div>
-                                                      {selectedClient.pets
-                                                          .filter(p => normalizeText(p.name).includes(normalizeText(pet.petName || '')))
-                                                          .map(existPet => (
+                                                      {(() => {
+                                                           // Exclude primary pet + all other additional pets
+                                                           const takenNames = [
+                                                               formData.petName?.toLowerCase() || '',
+                                                               ...additionalPets
+                                                                   .filter((_, i) => i !== idx)
+                                                                   .map(ap => ap.petName.toLowerCase())
+                                                           ].filter(Boolean);
+                                                           return selectedClient.pets
+                                                               .filter(p =>
+                                                                   !takenNames.includes(p.name.toLowerCase()) &&
+                                                                   normalizeText(p.name).includes(normalizeText(pet.petName || ''))
+                                                               )
+                                                               .map(existPet => (
                                                               <div
                                                                   key={existPet.id}
                                                                   onClick={() => {
@@ -1880,7 +1898,9 @@ const Grooming: React.FC = () => {
                                                                   </div>
                                                                   <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                               </div>
-                                                          ))}
+                                                           ));
+                                                       })()}
+
                                                       <div
                                                           className="p-3.5 hover:bg-blue-50 cursor-pointer text-blue-600 font-bold text-xs flex items-center gap-2 border-t border-zinc-100 transition-colors"
                                                           onClick={() => updatePet('_showPetSug', false)}
@@ -1962,7 +1982,8 @@ const Grooming: React.FC = () => {
                                                                   <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
                                                                   <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
                                                               </div>
-                                                          ))}
+                                                           ))}
+
                                                       </div>
                                                   </div>
                                               )}
