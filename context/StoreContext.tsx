@@ -693,7 +693,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         subscribeToTable('users', (p) => handleUpdate(p, setUsers)),
         subscribeToTable('products', (p) => handleUpdate(p, setProducts, 'id', mapProduct)), 
         subscribeToTable('transactions', (p) => handleUpdate(p, setTransactions, 'id', mapTransaction)),
-        subscribeToTable('appointments', (p) => handleUpdate(p, setAppointments, 'id', mapAppointment)),
+        // appointments: preserve downpayment from local state if DB column doesn't exist yet
+        subscribeToTable('appointments', (p) => {
+            const { eventType, new: rawNewRecord, old: oldRecord } = p;
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                const mapped = mapAppointment(rawNewRecord);
+                setAppointments(prev => {
+                    // If DB returns downpayment=0 but local state has a non-zero value, keep local
+                    const existing = prev.find(a => a.id === mapped.id);
+                    const dp = (mapped.downpayment && mapped.downpayment > 0)
+                        ? mapped.downpayment
+                        : (existing?.downpayment || 0);
+                    const final = { ...mapped, downpayment: dp };
+                    if (eventType === 'INSERT') {
+                        const exists = prev.find(a => a.id === final.id);
+                        if (exists) return prev.map(a => a.id === final.id ? final : a);
+                        return [final, ...prev];
+                    }
+                    return prev.map(a => a.id === final.id ? final : a);
+                });
+            } else if (eventType === 'DELETE') {
+                const deleteId = oldRecord?.id;
+                if (deleteId) setAppointments(prev => prev.filter(a => a.id !== deleteId));
+            }
+        }),
+        // hotel_bookings: same downpayment preservation
+        subscribeToTable('hotel_bookings', (p) => {
+            const { eventType, new: rawNewRecord, old: oldRecord } = p;
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                const mapped = mapHotelBooking(rawNewRecord);
+                setHotelBookings(prev => {
+                    const existing = prev.find(b => b.id === mapped.id);
+                    const dp = (mapped.downpayment && mapped.downpayment > 0)
+                        ? mapped.downpayment
+                        : (existing?.downpayment || 0);
+                    const final = { ...mapped, downpayment: dp };
+                    if (eventType === 'INSERT') {
+                        const exists = prev.find(b => b.id === final.id);
+                        if (exists) return prev.map(b => b.id === final.id ? final : b);
+                        return [final, ...prev];
+                    }
+                    return prev.map(b => b.id === final.id ? final : b);
+                });
+            } else if (eventType === 'DELETE') {
+                const deleteId = oldRecord?.id;
+                if (deleteId) setHotelBookings(prev => prev.filter(b => b.id !== deleteId));
+            }
+        }),
+
         subscribeToTable('clients', (p) => handleUpdate(p, setClients, 'id', mapClient)),
         subscribeToTable('discounts', (p) => handleUpdate(p, setDiscounts, 'id', mapDiscount)),
         subscribeToTable('logs', (p) => handleUpdate(p, setLogs, 'id', mapLogFromDb)),
@@ -701,8 +748,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         subscribeToTable('template_history', (p) => handleUpdate(p, setTemplateHistory)),
         subscribeToTable('messages', (p) => handleUpdate(p, setMessages)),
         subscribeToTable('hotel_rooms', (p) => handleUpdate(p, setHotelRooms, 'id', mapHotelRoom)),
-        subscribeToTable('hotel_bookings', (p) => handleUpdate(p, setHotelBookings, 'id', mapHotelBooking)),
-        
+
         subscribeToTable('store_settings', (payload) => {
              if (payload.new) {
                  const mapped = mapSettingsFromDb(payload.new);
