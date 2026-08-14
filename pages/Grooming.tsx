@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
@@ -8,6 +8,7 @@ import { Plus, Calendar, Dog, User, Scissors, History, Clock, CheckCircle, Arrow
 import { Dialog } from '@headlessui/react';
 import { getNotificationContent } from '../services/notifications';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import AdminPinModal from '../components/AdminPinModal';
 
 type GroomingTab = 'UPCOMING' | 'WAITING' | 'ONGOING' | 'COMPLETED';
 type TimeRange = 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR';
@@ -115,6 +116,11 @@ const Grooming: React.FC = () => {
   const [gcashRef, setGcashRef] = useState('');
   const [splitCashAmount, setSplitCashAmount] = useState<string>(''); 
   const [selectedDiscount, setSelectedDiscount] = useState<Discount | null>(null);
+  // Special Discount (admin-authorized)
+  const [specialDiscountInput, setSpecialDiscountInput] = useState('');
+  const [specialDiscountType, setSpecialDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
+  const [appliedSpecialDiscount, setAppliedSpecialDiscount] = useState(0); // Computed â‚± amount
+  const [showAdminPinForDiscount, setShowAdminPinForDiscount] = useState(false);
   
   const cashInputRef = useRef<HTMLInputElement>(null);
   const gcashRefInputRef = useRef<HTMLInputElement>(null);
@@ -301,7 +307,7 @@ const Grooming: React.FC = () => {
 
   // --- VIRTUAL CARD EXPANSION ---
   // For split-time bookings (different date/time per pet), each time-group gets its own card with its own status.
-  // Same date+time → grouped in 1 card. ONGOING/COMPLETED without splits → single card as before.
+  // Same date+time â†’ grouped in 1 card. ONGOING/COMPLETED without splits â†’ single card as before.
   type VirtualCard = {
       key: string;
       apt: GroomingAppointment;
@@ -327,7 +333,7 @@ const Grooming: React.FC = () => {
       );
 
       if (!isMultiTime) {
-          // Single-time booking OR ONGOING/COMPLETED — one card, all pets
+          // Single-time booking OR ONGOING/COMPLETED â€” one card, all pets
           const allPets = [
               { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
                 petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
@@ -348,7 +354,7 @@ const Grooming: React.FC = () => {
               hasPrimary: true, cardStatus: apt.status, petIds: additionalPets.map(p => p.id) }];
       }
 
-      // Multi-time booking — group pets by (date, time)
+      // Multi-time booking â€” group pets by (date, time)
       const petsWithTime = [
           { petName: apt.petName, petBreed: apt.petBreed, petColor: apt.petColor,
             petSpecies: apt.petSpecies, serviceId: apt.serviceId, hairCut: apt.hairCut,
@@ -604,6 +610,8 @@ const Grooming: React.FC = () => {
           setSplitCashAmount('');
           setGcashRef('');
           setSelectedDiscount(null); // Reset discount
+          setSpecialDiscountInput('');
+          setAppliedSpecialDiscount(0);
           setIsPaymentModalOpen(true);
       }
   };
@@ -644,6 +652,9 @@ const Grooming: React.FC = () => {
               discountAmount = selectedDiscount.value;
           }
       }
+      // Add special discount (admin-authorized)
+      discountAmount += appliedSpecialDiscount;
+      discountAmount = Math.min(discountAmount, combinedPrice); // Can't exceed price
       
       const fullTotal = Math.max(0, combinedPrice - discountAmount);
       const downpayment = Math.min(paymentApt.downpayment || 0, fullTotal);
@@ -766,7 +777,7 @@ const Grooming: React.FC = () => {
       );
 
       if (realTransaction) {
-          // Use the actual saved transaction — correct payment method, cashier, date, totals
+          // Use the actual saved transaction â€” correct payment method, cashier, date, totals
           // Also merge downpayment from the appointment in case transactions table column doesn't exist yet
           const dpFromApt = apt.downpayment || 0;
           const txWithDp = (realTransaction.downpayment && realTransaction.downpayment > 0)
@@ -882,6 +893,9 @@ const Grooming: React.FC = () => {
             ? combinedPrice * (selectedDiscount.value / 100) 
             : selectedDiscount.value;
       }
+      // Add admin-authorized special discount
+      discountValue += appliedSpecialDiscount;
+      discountValue = Math.min(discountValue, combinedPrice);
       
       const finalTotal = Math.max(0, combinedPrice - discountValue);
       const downpayment = Math.min(paymentApt.downpayment || 0, finalTotal);
@@ -1003,7 +1017,7 @@ const Grooming: React.FC = () => {
                                 {/* Date + status */}
                                 <div className="flex justify-between items-start mb-3 relative z-10">
                                     <div className={`text-xs font-bold px-3 py-1 rounded-full border ${card.displayDate === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
-                                        {card.displayDate === today ? 'TODAY' : new Date(card.displayDate + 'T00:00:00').toLocaleDateString()} • {formatTime(card.displayTime)}
+                                        {card.displayDate === today ? 'TODAY' : new Date(card.displayDate + 'T00:00:00').toLocaleDateString()} â€¢ {formatTime(card.displayTime)}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
@@ -1029,7 +1043,7 @@ const Grooming: React.FC = () => {
                                     </p>
                                 </div>
 
-                                {/* Pets — primary + additional */}
+                                {/* Pets â€” primary + additional */}
                                 <div className="space-y-2 mb-4 relative z-10">
                                     {displayPets.map((pet, pi) => {
                                         const petSvc = products.find(p => p.id === pet.serviceId);
@@ -1038,10 +1052,10 @@ const Grooming: React.FC = () => {
                                         return (
                                             <div key={pi} className={`rounded-2xl border p-3 ${pi === 0 ? 'border-purple-100 bg-purple-50/40' : 'border-zinc-100 bg-zinc-50/50'}`}>
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <span className="font-bold text-zinc-900 text-sm">🐾 {pet.petName}</span>
+                                                    <span className="font-bold text-zinc-900 text-sm">ðŸ¾ {pet.petName}</span>
                                                     <div className="flex items-center gap-1.5">
                                                         {pet.petBreed && <span className="text-xs text-gray-400 bg-white border border-zinc-100 px-2 py-0.5 rounded-lg">{pet.petBreed}</span>}
-                                                        {/* Per-pet time badge — only show if different from primary */}
+                                                        {/* Per-pet time badge â€” only show if different from primary */}
                                                         {pi > 0 && (() => {
                                                             const petDate = (pet as any).date || apt.date;
                                                             const petTime = (pet as any).time || apt.time;
@@ -1060,22 +1074,22 @@ const Grooming: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-between items-center text-xs text-gray-500">
-                                                    <span>{petSvc?.name || '—'}</span>
-                                                    <span className="font-bold text-purple-700">₱{petTotal.toFixed(2)}</span>
+                                                    <span>{petSvc?.name || 'â€”'}</span>
+                                                    <span className="font-bold text-purple-700">â‚±{petTotal.toFixed(2)}</span>
                                                 </div>
                                                 {petAddons.length > 0 && (
                                                     <div className="mt-1 space-y-0.5">
                                                         {petAddons.map((p, ai) => (
                                                             <div key={ai} className="flex justify-between items-center">
-                                                                <span className="text-zinc-400 text-xs pl-2">• {p!.name}</span>
-                                                                <span className="text-xs text-gray-400">₱{p!.price}</span>
+                                                                <span className="text-zinc-400 text-xs pl-2">â€¢ {p!.name}</span>
+                                                                <span className="text-xs text-gray-400">â‚±{p!.price}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
-                                                {pet.hairCut && <div className="mt-1 text-xs text-yellow-700 italic">✄ {pet.hairCut}</div>}
+                                                {pet.hairCut && <div className="mt-1 text-xs text-yellow-700 italic">âœ„ {pet.hairCut}</div>}
                                                 {'groomerId' in pet && (pet as any).groomerId && (pet as any).groomerId !== apt.groomerId && (
-                                                    <div className="mt-1 text-xs text-blue-600 font-medium">✂ {(pet as any).groomerId}</div>
+                                                    <div className="mt-1 text-xs text-blue-600 font-medium">âœ‚ {(pet as any).groomerId}</div>
                                                 )}
                                             </div>
                                         );
@@ -1089,17 +1103,17 @@ const Grooming: React.FC = () => {
                                         <>
                                         <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2 mt-1">
                                             <span className="font-bold text-zinc-700">Total</span>
-                                            <span className="font-bold text-purple-700">₱{aptTotal.toFixed(2)}</span>
+                                            <span className="font-bold text-purple-700">â‚±{aptTotal.toFixed(2)}</span>
                                         </div>
                                         {(apt.downpayment || 0) > 0 && (
                                             <>
                                             <div className="flex justify-between items-center text-xs text-orange-600 font-semibold mt-0.5">
                                                 <span>Downpayment Paid</span>
-                                                <span>-₱{(apt.downpayment || 0).toFixed(2)}</span>
+                                                <span>-â‚±{(apt.downpayment || 0).toFixed(2)}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-xs text-green-700 font-bold mt-0.5">
                                                 <span>Balance</span>
-                                                <span>₱{Math.max(0, aptTotal - (apt.downpayment || 0)).toFixed(2)}</span>
+                                                <span>â‚±{Math.max(0, aptTotal - (apt.downpayment || 0)).toFixed(2)}</span>
                                             </div>
                                             </>
                                         )}
@@ -1214,13 +1228,13 @@ const Grooming: React.FC = () => {
                 {/* Order Summary Section */}
                 <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100">
                     <div className="space-y-1 text-sm text-zinc-600 mb-2 border-b border-zinc-200 pb-2">
-                        {/* ── Primary Pet ── */}
+                        {/* â”€â”€ Primary Pet â”€â”€ */}
                         {(paymentApt?.pets || []).length > 0 && (
-                            <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">🐾 {paymentApt?.petName || 'Pet 1'}</p>
+                            <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">ðŸ¾ {paymentApt?.petName || 'Pet 1'}</p>
                         )}
                         <div className="flex justify-between font-medium">
                             <span>{paymentDetails.name}</span>
-                            <span>₱{paymentDetails.price.toFixed(2)}</span>
+                            <span>â‚±{paymentDetails.price.toFixed(2)}</span>
                         </div>
                         {/* Primary pet add-ons */}
                         {(paymentApt?.addonIds || []).map(id => {
@@ -1231,23 +1245,23 @@ const Grooming: React.FC = () => {
                                     <span className="flex items-center gap-1 pl-2">
                                         <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />{product.name}
                                     </span>
-                                    <span>₱{product.price.toFixed(2)}</span>
+                                    <span>â‚±{product.price.toFixed(2)}</span>
                                 </div>
                             );
                         })}
 
-                        {/* ── Additional Pets ── */}
+                        {/* â”€â”€ Additional Pets â”€â”€ */}
                         {(paymentApt?.pets || []).map((extraPet, pi) => {
                             const petSvc = products.find(p => p.id === extraPet.serviceId);
                             const petAddonTotal = (extraPet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
                             const petSubtotal = (petSvc?.price || 0) + petAddonTotal;
                             return (
                                 <div key={pi} className="mt-2 pt-2 border-t border-zinc-200">
-                                    <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">🐾 {extraPet.petName || `Pet ${pi + 2}`}</p>
+                                    <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">ðŸ¾ {extraPet.petName || `Pet ${pi + 2}`}</p>
                                     {petSvc && (
                                         <div className="flex justify-between font-medium">
                                             <span>{petSvc.name}</span>
-                                            <span>₱{petSvc.price.toFixed(2)}</span>
+                                            <span>â‚±{petSvc.price.toFixed(2)}</span>
                                         </div>
                                     )}
                                     {(extraPet.addonIds || []).map(id => {
@@ -1258,13 +1272,13 @@ const Grooming: React.FC = () => {
                                                 <span className="flex items-center gap-1 pl-2">
                                                     <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />{p.name}
                                                 </span>
-                                                <span>₱{p.price.toFixed(2)}</span>
+                                                <span>â‚±{p.price.toFixed(2)}</span>
                                             </div>
                                         );
                                     })}
                                     <div className="flex justify-between text-xs text-zinc-400 mt-0.5">
                                         <span>Subtotal</span>
-                                        <span>₱{petSubtotal.toFixed(2)}</span>
+                                        <span>â‚±{petSubtotal.toFixed(2)}</span>
                                     </div>
                                 </div>
                             );
@@ -1274,25 +1288,25 @@ const Grooming: React.FC = () => {
                         {selectedDiscount && (
                             <div className="flex justify-between text-green-600 font-bold mt-2 pt-2 border-t border-zinc-200">
                                 <span className="flex items-center gap-1"><Tag className="w-3 h-3"/> {selectedDiscount.name}</span>
-                                <span>-₱{paymentDetails.discount.toFixed(2)}</span>
+                                <span>-â‚±{paymentDetails.discount.toFixed(2)}</span>
                             </div>
                         )}
                         {/* Downpayment */}
                         {paymentDetails.downpayment > 0 && (
                             <div className="flex justify-between text-orange-600 font-bold mt-2 pt-2 border-t border-zinc-200">
                                 <span className="flex items-center gap-1"><CreditCard className="w-3 h-3"/> Downpayment Paid</span>
-                                <span>-₱{paymentDetails.downpayment.toFixed(2)}</span>
+                                <span>-â‚±{paymentDetails.downpayment.toFixed(2)}</span>
                             </div>
                         )}
                     </div>
                     <div className="flex justify-between items-center mt-2">
                         <span className="font-bold text-lg text-zinc-900 uppercase tracking-tight">{paymentDetails.downpayment > 0 ? 'BALANCE TO PAY' : 'TOTAL TO PAY'}</span>
-                        <span className="font-bold text-2xl text-zinc-900">₱{paymentDetails.balanceToPay.toFixed(2)}</span>
+                        <span className="font-bold text-2xl text-zinc-900">â‚±{paymentDetails.balanceToPay.toFixed(2)}</span>
                     </div>
                     {paymentDetails.downpayment > 0 && (
                         <div className="flex justify-between text-xs text-zinc-400 mt-0.5">
                             <span>Full Total</span>
-                            <span>₱{paymentDetails.finalTotal.toFixed(2)}</span>
+                            <span>â‚±{paymentDetails.finalTotal.toFixed(2)}</span>
                         </div>
                     )}
                 </div>
@@ -1316,12 +1330,50 @@ const Grooming: React.FC = () => {
                         >
                             <span className="block font-bold text-[11px] truncate">{discount.name}</span>
                             <span className={`text-[10px] font-bold ${selectedDiscount?.id === discount.id ? 'text-zinc-300' : 'text-green-600'}`}>
-                                {discount.type === 'PERCENTAGE' ? `${discount.value}% OFF` : `₱${discount.value} OFF`}
+                                {discount.type === 'PERCENTAGE' ? `${discount.value}% OFF` : `â‚±${discount.value} OFF`}
                             </span>
                         </button>
                     ))}
                     {discounts.filter(d => d.active).length === 0 && (
                         <p className="col-span-2 text-[10px] text-gray-400 italic text-center py-2 bg-zinc-50 rounded-lg border border-dashed border-zinc-200">No active promotions available.</p>
+                    )}
+                </div>
+
+                {/* SPECIAL DISCOUNT - Admin Only */}
+                <div className="mb-5 p-3 rounded-xl border border-dashed border-amber-300 bg-amber-50">
+                    <p className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span>
+                    </p>
+                    {appliedSpecialDiscount > 0 ? (
+                        <div className="flex items-center justify-between">
+                            <span className="text-green-700 font-bold text-sm">âœ“ -â‚±{appliedSpecialDiscount.toFixed(2)} special discount applied</span>
+                            <button onClick={() => { setAppliedSpecialDiscount(0); setSpecialDiscountInput(''); }} className="text-xs text-red-500 hover:text-red-700 font-bold">Remove</button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2 items-center">
+                            <div className="flex rounded-lg border border-amber-300 overflow-hidden">
+                                <button
+                                    onClick={() => setSpecialDiscountType('AMOUNT')}
+                                    className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}
+                                >â‚±</button>
+                                <button
+                                    onClick={() => setSpecialDiscountType('PERCENT')}
+                                    className={`px-2 py-1 text-xs font-bold transition-all ${specialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}
+                                >%</button>
+                            </div>
+                            <input
+                                type="number" min="0" step="0.01"
+                                placeholder={specialDiscountType === 'AMOUNT' ? 'e.g. 200' : 'e.g. 10'}
+                                value={specialDiscountInput}
+                                onChange={e => setSpecialDiscountInput(e.target.value)}
+                                className="flex-1 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            />
+                            <button
+                                disabled={!specialDiscountInput || Number(specialDiscountInput) <= 0}
+                                onClick={() => setShowAdminPinForDiscount(true)}
+                                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
+                            >Apply</button>
+                        </div>
                     )}
                 </div>
 
@@ -1407,7 +1459,7 @@ const Grooming: React.FC = () => {
                             <div>
                                 <label className="text-xs font-bold text-purple-800 uppercase ml-1">CASH</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400">₱</span>
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400">â‚±</span>
                                     <input 
                                         autoFocus
                                         type="number" 
@@ -1424,7 +1476,7 @@ const Grooming: React.FC = () => {
                                 <label className="text-xs font-bold text-purple-800 uppercase ml-1">GCASH</label>
                                 <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 text-center">
                                     <span className="text-3xl font-bold text-purple-700">
-                                        ₱{Math.max(0, paymentDetails.balanceToPay - (Number(splitCashAmount) || 0)).toFixed(2)}
+                                        â‚±{Math.max(0, paymentDetails.balanceToPay - (Number(splitCashAmount) || 0)).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -1598,9 +1650,9 @@ const Grooming: React.FC = () => {
                     <label className={labelClass}>Pet Species</label>
                     <div className="grid grid-cols-3 gap-2 mt-1">
                       {([
-                        { key: 'DOG', emoji: '🐶', label: 'Dog', color: 'amber' },
-                        { key: 'CAT', emoji: '🐱', label: 'Cat', color: 'purple' },
-                        { key: 'OTHER', emoji: '🐾', label: 'Other', color: 'zinc' },
+                        { key: 'DOG', emoji: 'ðŸ¶', label: 'Dog', color: 'amber' },
+                        { key: 'CAT', emoji: 'ðŸ±', label: 'Cat', color: 'purple' },
+                        { key: 'OTHER', emoji: 'ðŸ¾', label: 'Other', color: 'zinc' },
                       ] as const).map(({ key, emoji, label, color }) => (
                         <button
                           key={key}
@@ -1664,10 +1716,10 @@ const Grooming: React.FC = () => {
                                         className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <span className="text-lg">{pet.species === 'CAT' ? '🐱' : pet.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                                            <span className="text-lg">{pet.species === 'CAT' ? 'ðŸ±' : pet.species === 'OTHER' ? 'ðŸ¾' : 'ðŸ¶'}</span>
                                             <div>
                                                 <p className="text-sm font-bold text-zinc-900">{pet.name}</p>
-                                                <p className="text-xs text-gray-500">{pet.species === 'OTHER' ? (pet.speciesLabel || 'Other') : pet.species}{pet.species ? ' · ' : ''}{pet.breed || 'Unknown Breed'}</p>
+                                                <p className="text-xs text-gray-500">{pet.species === 'OTHER' ? (pet.speciesLabel || 'Other') : pet.species}{pet.species ? ' Â· ' : ''}{pet.breed || 'Unknown Breed'}</p>
                                             </div>
                                         </div>
                                         <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1705,7 +1757,7 @@ const Grooming: React.FC = () => {
                               detectedSize === 'XL' ? 'bg-red-50 text-red-600 border-red-200' :
                               'bg-purple-50 text-purple-600 border-purple-200'
                             }`}>
-                              → {detectedSize}
+                              â†’ {detectedSize}
                             </span>
                           )}
                         </label>
@@ -1716,11 +1768,11 @@ const Grooming: React.FC = () => {
                           step="0.1"
                           value={formData.weightSize} 
                           onChange={e => setFormData({...formData, weightSize: e.target.value})} 
-                          placeholder={formData.petSpecies === 'DOG' ? "e.g. 3.5 → auto-detects size" : "e.g. 4.2"} 
+                          placeholder={formData.petSpecies === 'DOG' ? "e.g. 3.5 â†’ auto-detects size" : "e.g. 4.2"} 
                         />
                         {detectedSize && (
                           <p className="text-[10px] text-gray-400 mt-1 font-medium">
-                            Services & add-ons filtered to: <span className="font-bold text-purple-700">{formData.petSpecies} · {detectedSize}</span>
+                            Services & add-ons filtered to: <span className="font-bold text-purple-700">{formData.petSpecies} Â· {detectedSize}</span>
                           </p>
                         )}
                         {formData.petSpecies !== 'DOG' && (
@@ -1759,9 +1811,9 @@ const Grooming: React.FC = () => {
                              <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                                  {/* Active filter indicator */}
                                  <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
-                                   <span>{formData.petSpecies === 'DOG' ? '🐶' : formData.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                   <span>{formData.petSpecies === 'DOG' ? 'ðŸ¶' : formData.petSpecies === 'CAT' ? 'ðŸ±' : 'ðŸ¾'}</span>
                                    <span className="uppercase tracking-wider">{formData.petSpecies}</span>
-                                   {detectedSize && <><span>·</span><span className="text-purple-600">{detectedSize}</span></>}
+                                   {detectedSize && <><span>Â·</span><span className="text-purple-600">{detectedSize}</span></>}
                                    <span className="ml-auto normal-case">Filtered</span>
                                  </div>
                                  <div className="max-h-56 overflow-y-auto custom-scrollbar">
@@ -1785,7 +1837,7 @@ const Grooming: React.FC = () => {
                                              className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
                                          >
                                              <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
-                                             <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
+                                             <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">â‚±{s.price}</span>
                                          </div>
                                      ))}
                                      {groomingServices.filter(s => {
@@ -1796,7 +1848,7 @@ const Grooming: React.FC = () => {
                                      }).length === 0 && (
                                          <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
                                              <Search className="w-6 h-6 mb-1 opacity-20" />
-                                             {serviceSearch ? `No ${formData.petSpecies} services match "${serviceSearch}"` : `No services found for ${formData.petSpecies}${detectedSize ? ` · ${detectedSize}` : ''}`}
+                                             {serviceSearch ? `No ${formData.petSpecies} services match "${serviceSearch}"` : `No services found for ${formData.petSpecies}${detectedSize ? ` Â· ${detectedSize}` : ''}`}
                                          </div>
                                      )}
                                  </div>
@@ -1837,7 +1889,7 @@ const Grooming: React.FC = () => {
                                               {product.isService ? 'SERVICE' : 'PRODUCT'}
                                           </span>
                                           <span className="text-sm font-bold text-zinc-800 truncate">{product.name}</span>
-                                          <span className="text-xs text-gray-400 flex-shrink-0">₱{product.price.toFixed(2)}</span>
+                                          <span className="text-xs text-gray-400 flex-shrink-0">â‚±{product.price.toFixed(2)}</span>
                                       </div>
                                       <button
                                           type="button"
@@ -1889,15 +1941,15 @@ const Grooming: React.FC = () => {
                                                    : 'text-gray-400 hover:text-gray-600'
                                            }`}
                                        >
-                                           {f === 'ALL' ? 'All' : f === 'SERVICE' ? '✂️ Services' : '🛍️ Products'}
+                                           {f === 'ALL' ? 'All' : f === 'SERVICE' ? 'âœ‚ï¸ Services' : 'ðŸ›ï¸ Products'}
                                        </button>
                                    ))}
                                </div>
                                {/* Species + size filter badge */}
                                <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
-                                 <span>{formData.petSpecies === 'DOG' ? '🐶' : formData.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                 <span>{formData.petSpecies === 'DOG' ? 'ðŸ¶' : formData.petSpecies === 'CAT' ? 'ðŸ±' : 'ðŸ¾'}</span>
                                  <span className="uppercase tracking-wider">{formData.petSpecies}</span>
-                                 {detectedSize && <><span>·</span><span className="text-purple-600">{detectedSize}</span></>}
+                                 {detectedSize && <><span>Â·</span><span className="text-purple-600">{detectedSize}</span></>}
                                  <span className="ml-auto normal-case">Showing matching items</span>
                                </div>
                                <div className="max-h-48 overflow-y-auto custom-scrollbar">
@@ -1929,7 +1981,7 @@ const Grooming: React.FC = () => {
                                                    </span>
                                                    <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
                                                </div>
-                                               <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
+                                               <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">â‚±{p.price}</span>
                                            </div>
                                        ))
                                    }
@@ -1971,7 +2023,7 @@ const Grooming: React.FC = () => {
               <div className="space-y-2 pt-2 border-t border-zinc-100">
                   <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><CreditCard className="w-3 h-3" /> Downpayment / Advance Payment</h4>
                   <div>
-                      <label className={labelClass}>Amount (₱) <span className="normal-case font-normal text-zinc-400">(optional — auto-deducted at checkout)</span></label>
+                      <label className={labelClass}>Amount (â‚±) <span className="normal-case font-normal text-zinc-400">(optional â€” auto-deducted at checkout)</span></label>
                       <input type="number" min="0" step="0.01" className={inputClass} placeholder="e.g. 500" value={formData.downpayment || ''} onChange={e => setFormData({...formData, downpayment: e.target.value ? Number(e.target.value) : 0})} />
                   </div>
               </div>
@@ -1981,7 +2033,7 @@ const Grooming: React.FC = () => {
                   <div className="flex justify-between items-center">
                       <h4 className="text-xs font-bold text-purple-500 uppercase flex items-center gap-1.5">
                           <Dog className="w-3.5 h-3.5" /> Additional Pets
-                          <span className="text-purple-300 font-normal normal-case text-[10px]">— same owner, each pet billed separately</span>
+                          <span className="text-purple-300 font-normal normal-case text-[10px]">â€” same owner, each pet billed separately</span>
                       </h4>
                   </div>
 
@@ -1992,7 +2044,7 @@ const Grooming: React.FC = () => {
                       const petWeightKg = parseWeightKg(pet.weightSize || '');
                       const petDetectedSize = pet.petSpecies === 'DOG' && petWeightKg !== null ? detectSizeFromWeight(petWeightKg) : null;
 
-                      // Filtered services — same logic as primary pet
+                      // Filtered services â€” same logic as primary pet
                       const filteredPetServices = groomingServices.filter(s => {
                           const nameMatch = normalizeText(s.name).includes(normalizeText(pet._serviceSearch || ''));
                           const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies;
@@ -2000,7 +2052,7 @@ const Grooming: React.FC = () => {
                           return nameMatch && speciesMatch && sizeMatch;
                       });
 
-                      // Filtered add-ons — same logic as primary pet
+                      // Filtered add-ons â€” same logic as primary pet
                       const filteredPetAddons = products.filter(p => {
                           const notSelected = p.id !== pet.serviceId;
                           const notAdded = !(pet.addonIds || []).includes(p.id);
@@ -2017,14 +2069,14 @@ const Grooming: React.FC = () => {
 
                       return (
                           <div key={pet.id} className="border-2 border-purple-100 rounded-3xl bg-white shadow-sm">
-                              {/* ── Pet Header ── */}
+                              {/* â”€â”€ Pet Header â”€â”€ */}
                               <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-100">
                                   <span className="text-xs font-black text-purple-700 uppercase tracking-wide flex items-center gap-1.5">
-                                      🐾 Pet #{idx + 2}
-                                      {pet.petName && <span className="font-bold text-purple-500 normal-case tracking-normal">— {pet.petName}</span>}
+                                      ðŸ¾ Pet #{idx + 2}
+                                      {pet.petName && <span className="font-bold text-purple-500 normal-case tracking-normal">â€” {pet.petName}</span>}
                                   </span>
                                   <div className="flex items-center gap-2">
-                                      {petTotal > 0 && <span className="text-xs font-bold text-purple-600 bg-white px-2 py-0.5 rounded-lg border border-purple-200">₱{petTotal.toFixed(2)}</span>}
+                                      {petTotal > 0 && <span className="text-xs font-bold text-purple-600 bg-white px-2 py-0.5 rounded-lg border border-purple-200">â‚±{petTotal.toFixed(2)}</span>}
                                       <button type="button" onClick={() => setAdditionalPets(prev => prev.filter((_, i) => i !== idx))}
                                           className="text-gray-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors">
                                           <X className="w-4 h-4" />
@@ -2033,18 +2085,18 @@ const Grooming: React.FC = () => {
                               </div>
 
                               <div className="p-4 space-y-4">
-                                  {/* ── PET DETAILS ── */}
+                                  {/* â”€â”€ PET DETAILS â”€â”€ */}
                                   <div className="space-y-3">
                                       <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Pet Details</h5>
 
-                                      {/* Species — identical to primary */}
+                                      {/* Species â€” identical to primary */}
                                       <div>
                                           <label className={labelClass}>Pet Species</label>
                                           <div className="grid grid-cols-3 gap-2 mt-1">
                                               {([
-                                                  { key: 'DOG', emoji: '🐶', label: 'Dog', color: 'amber' },
-                                                  { key: 'CAT', emoji: '🐱', label: 'Cat', color: 'purple' },
-                                                  { key: 'OTHER', emoji: '🐾', label: 'Other', color: 'zinc' },
+                                                  { key: 'DOG', emoji: 'ðŸ¶', label: 'Dog', color: 'amber' },
+                                                  { key: 'CAT', emoji: 'ðŸ±', label: 'Cat', color: 'purple' },
+                                                  { key: 'OTHER', emoji: 'ðŸ¾', label: 'Other', color: 'zinc' },
                                               ] as const).map(({ key, emoji, label, color }) => (
                                                   <button key={key} type="button"
                                                       onClick={() => { updatePet('petSpecies', key); updatePet('serviceId', ''); updatePet('_serviceSearch', ''); updatePet('addonIds', []); }}
@@ -2062,9 +2114,9 @@ const Grooming: React.FC = () => {
                                           </div>
                                       </div>
 
-                                      {/* Name + Breed + Color + Weight — identical grid */}
+                                      {/* Name + Breed + Color + Weight â€” identical grid */}
                                       <div className="grid grid-cols-2 gap-4">
-                                          {/* Pet Name — autocomplete from owner's existing pets */}
+                                          {/* Pet Name â€” autocomplete from owner's existing pets */}
                                           <div className="relative">
                                               <label className={labelClass}>Pet Name</label>
                                               <input
@@ -2118,10 +2170,10 @@ const Grooming: React.FC = () => {
                                                                   className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
                                                               >
                                                                   <div className="flex items-center gap-2">
-                                                                      <span className="text-lg">{existPet.species === 'CAT' ? '🐱' : existPet.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                                                                      <span className="text-lg">{existPet.species === 'CAT' ? 'ðŸ±' : existPet.species === 'OTHER' ? 'ðŸ¾' : 'ðŸ¶'}</span>
                                                                       <div>
                                                                           <p className="text-sm font-bold text-zinc-900">{existPet.name}</p>
-                                                                          <p className="text-xs text-gray-500">{existPet.species === 'OTHER' ? (existPet.speciesLabel || 'Other') : existPet.species}{existPet.species ? ' · ' : ''}{existPet.breed || 'Unknown Breed'}</p>
+                                                                          <p className="text-xs text-gray-500">{existPet.species === 'OTHER' ? (existPet.speciesLabel || 'Other') : existPet.species}{existPet.species ? ' Â· ' : ''}{existPet.breed || 'Unknown Breed'}</p>
                                                                       </div>
                                                                   </div>
                                                                   <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -2157,24 +2209,24 @@ const Grooming: React.FC = () => {
                                                           petDetectedSize === 'L' ? 'bg-orange-50 text-orange-600 border-orange-200' :
                                                           petDetectedSize === 'XL' ? 'bg-red-50 text-red-600 border-red-200' :
                                                           'bg-purple-50 text-purple-600 border-purple-200'
-                                                      }`}>→ {petDetectedSize}</span>
+                                                      }`}>â†’ {petDetectedSize}</span>
                                                   )}
                                               </label>
                                               <input type="number" min="0" step="0.1" className={inputClass}
                                                   value={pet.weightSize || ''}
                                                   onChange={e => updatePet('weightSize', e.target.value)}
-                                                  placeholder={pet.petSpecies === 'DOG' ? 'e.g. 3.5 → auto-detects size' : 'e.g. 4.2'} />
-                                              {petDetectedSize && <p className="text-[10px] text-gray-400 mt-1 font-medium">Services & add-ons filtered to: <span className="font-bold text-purple-700">{pet.petSpecies} · {petDetectedSize}</span></p>}
+                                                  placeholder={pet.petSpecies === 'DOG' ? 'e.g. 3.5 â†’ auto-detects size' : 'e.g. 4.2'} />
+                                              {petDetectedSize && <p className="text-[10px] text-gray-400 mt-1 font-medium">Services & add-ons filtered to: <span className="font-bold text-purple-700">{pet.petSpecies} Â· {petDetectedSize}</span></p>}
                                           </div>
                                       </div>
                                   </div>
 
-                                  {/* ── SERVICE & STYLE ── */}
+                                  {/* â”€â”€ SERVICE & STYLE â”€â”€ */}
                                   <div className="space-y-3 pt-2 border-t border-zinc-100">
                                       <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Scissors className="w-3 h-3" /> Service & Style</h5>
 
                                       <div className="grid grid-cols-2 gap-4">
-                                          {/* Searchable Service — identical to primary */}
+                                          {/* Searchable Service â€” identical to primary */}
                                           <div className="relative">
                                               <label className={labelClass}>Service</label>
                                               <div className="relative">
@@ -2192,23 +2244,23 @@ const Grooming: React.FC = () => {
                                               {pet._showServiceSug && (
                                                   <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                                                       <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
-                                                          <span>{pet.petSpecies === 'DOG' ? '🐶' : pet.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                                          <span>{pet.petSpecies === 'DOG' ? 'ðŸ¶' : pet.petSpecies === 'CAT' ? 'ðŸ±' : 'ðŸ¾'}</span>
                                                           <span className="uppercase tracking-wider">{pet.petSpecies}</span>
-                                                          {petDetectedSize && <><span>·</span><span className="text-purple-600">{petDetectedSize}</span></>}
+                                                          {petDetectedSize && <><span>Â·</span><span className="text-purple-600">{petDetectedSize}</span></>}
                                                           <span className="ml-auto normal-case">Filtered</span>
                                                       </div>
                                                       <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                                           {filteredPetServices.length === 0 ? (
                                                               <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
                                                                   <Search className="w-5 h-5 opacity-20" />
-                                                                  {pet._serviceSearch ? `No services match "${pet._serviceSearch}"` : `No services for ${pet.petSpecies}${petDetectedSize ? ` · ${petDetectedSize}` : ''}`}
+                                                                  {pet._serviceSearch ? `No services match "${pet._serviceSearch}"` : `No services for ${pet.petSpecies}${petDetectedSize ? ` Â· ${petDetectedSize}` : ''}`}
                                                               </div>
                                                           ) : filteredPetServices.map(s => (
                                                               <div key={s.id}
                                                                   onClick={() => { updatePet('serviceId', s.id); updatePet('_serviceSearch', s.name); updatePet('_showServiceSug', false); }}
                                                                   className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors">
                                                                   <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{s.name}</span>
-                                                                  <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{s.price}</span>
+                                                                  <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">â‚±{s.price}</span>
                                                               </div>
                                                            ))}
 
@@ -2217,7 +2269,7 @@ const Grooming: React.FC = () => {
                                               )}
                                           </div>
 
-                                          {/* Groomer — required, same select style as primary */}
+                                          {/* Groomer â€” required, same select style as primary */}
                                           <div>
                                               <label className={labelClass}>Groomer</label>
                                               <select required className={inputClass} value={pet.groomerId || ''} onChange={e => updatePet('groomerId', e.target.value)} disabled={groomers.length === 0}>
@@ -2227,13 +2279,13 @@ const Grooming: React.FC = () => {
                                           </div>
                                       </div>
 
-                                      {/* Hair Cut / Instructions — identical */}
+                                      {/* Hair Cut / Instructions â€” identical */}
                                       <div>
                                           <label className={labelClass}>Hair Cut / Instructions</label>
                                           <textarea className={`${inputClass} resize-none`} rows={2} value={pet.hairCut || ''} onChange={e => updatePet('hairCut', e.target.value)} placeholder="e.g. Summer cut..." />
                                       </div>
 
-                                      {/* Schedule — per-pet date & time */}
+                                      {/* Schedule â€” per-pet date & time */}
                                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-100">
                                           <div>
                                               <label className={labelClass}>Date</label>
@@ -2258,7 +2310,7 @@ const Grooming: React.FC = () => {
                                       </div>
                                   </div>
 
-                                  {/* ── ADD-ONS — identical to primary ── */}
+                                  {/* â”€â”€ ADD-ONS â€” identical to primary â”€â”€ */}
                                   <div className="space-y-3 pt-2 border-t border-zinc-100">
                                       <h5 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
                                           <Plus className="w-3 h-3" /> Add-Ons
@@ -2278,7 +2330,7 @@ const Grooming: React.FC = () => {
                                                                   {p.isService ? 'SERVICE' : 'PRODUCT'}
                                                               </span>
                                                               <span className="text-sm font-bold text-zinc-800 truncate">{p.name}</span>
-                                                              <span className="text-xs text-gray-400 flex-shrink-0">₱{p.price.toFixed(2)}</span>
+                                                              <span className="text-xs text-gray-400 flex-shrink-0">â‚±{p.price.toFixed(2)}</span>
                                                           </div>
                                                           <button type="button" onClick={() => updatePet('addonIds', (pet.addonIds || []).filter(id => id !== productId))}
                                                               className="ml-2 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0">
@@ -2290,7 +2342,7 @@ const Grooming: React.FC = () => {
                                           </div>
                                       )}
 
-                                      {/* Searchable add-on input — identical to primary */}
+                                      {/* Searchable add-on input â€” identical to primary */}
                                       <div className="relative">
                                           <div className="relative">
                                               <input
@@ -2306,7 +2358,7 @@ const Grooming: React.FC = () => {
                                           </div>
                                           {pet._showAddonSug && (
                                               <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                  {/* Filter tabs — ALL / SERVICE / PRODUCT */}
+                                                  {/* Filter tabs â€” ALL / SERVICE / PRODUCT */}
                                                   <div className="flex border-b border-zinc-100 bg-zinc-50">
                                                       {(['ALL', 'SERVICE', 'PRODUCT'] as const).map(f => (
                                                           <button key={f} type="button" onClick={() => updatePet('_addonFilter', f)}
@@ -2317,15 +2369,15 @@ const Grooming: React.FC = () => {
                                                                       : 'text-zinc-900 border-b-2 border-zinc-900 bg-white'
                                                                       : 'text-gray-400 hover:text-gray-600'
                                                               }`}>
-                                                              {f === 'ALL' ? 'All' : f === 'SERVICE' ? '✂️ Services' : '🛍️ Products'}
+                                                              {f === 'ALL' ? 'All' : f === 'SERVICE' ? 'âœ‚ï¸ Services' : 'ðŸ›ï¸ Products'}
                                                           </button>
                                                       ))}
                                                   </div>
                                                   {/* Species + size badge */}
                                                   <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
-                                                      <span>{pet.petSpecies === 'DOG' ? '🐶' : pet.petSpecies === 'CAT' ? '🐱' : '🐾'}</span>
+                                                      <span>{pet.petSpecies === 'DOG' ? 'ðŸ¶' : pet.petSpecies === 'CAT' ? 'ðŸ±' : 'ðŸ¾'}</span>
                                                       <span className="uppercase tracking-wider">{pet.petSpecies}</span>
-                                                      {petDetectedSize && <><span>·</span><span className="text-purple-600">{petDetectedSize}</span></>}
+                                                      {petDetectedSize && <><span>Â·</span><span className="text-purple-600">{petDetectedSize}</span></>}
                                                       <span className="ml-auto normal-case">Showing matching items</span>
                                                   </div>
                                                   <div className="max-h-48 overflow-y-auto custom-scrollbar">
@@ -2344,7 +2396,7 @@ const Grooming: React.FC = () => {
                                                                   </span>
                                                                   <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
                                                               </div>
-                                                              <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
+                                                              <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">â‚±{p.price}</span>
                                                           </div>
                                                       ))}
                                                   </div>
@@ -2357,7 +2409,7 @@ const Grooming: React.FC = () => {
                       );
                   })}
 
-                  {/* Add Another Pet — always at bottom so no scroll-up needed */}
+                  {/* Add Another Pet â€” always at bottom so no scroll-up needed */}
                   <button
                       type="button"
                       onClick={() => setAdditionalPets(prev => [...prev, {
@@ -2467,6 +2519,26 @@ const Grooming: React.FC = () => {
             <ReceiptTemplate transaction={printingTransaction} settings={storeSettings} paperSize={paperSize} />
         </div>
       )}
+
+      {/* Admin PIN Modal for Special Discount */}
+      <AdminPinModal
+        isOpen={showAdminPinForDiscount}
+        title="Apply Special Discount"
+        description="Enter admin PIN to authorize this discount."
+        onSuccess={() => {
+          const raw = Number(specialDiscountInput);
+          if (raw <= 0) return;
+          if (specialDiscountType === 'PERCENT') {
+            const details = getPaymentServiceDetails();
+            const base = details.price + details.addonTotal + details.extraPetTotal;
+            const computed = base * (raw / 100);
+            setAppliedSpecialDiscount(Math.round(computed * 100) / 100);
+          } else {
+            setAppliedSpecialDiscount(raw);
+          }
+        }}
+        onClose={() => setShowAdminPinForDiscount(false)}
+      />
     </div>
   );
 };
