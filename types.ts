@@ -128,6 +128,7 @@ export interface GroomingAppointment {
   time: string;
   status: 'SCHEDULED' | 'ONGOING' | 'COMPLETED';
   groomerId: string; // Stores the Groomer's Name for display
+  downpayment?: number; // Advance payment collected at booking, auto-deducted from final bill
 }
 
 export interface Pet {
@@ -310,4 +311,5 @@ export interface HotelBooking {
   pet_size?: string;          // e.g. 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
   hotel_extras?: { id: string; qty: number }[]; // Selected add-ons with quantity
   furparent_updates?: { am: boolean; pm: boolean; evening: boolean };
+  downpayment?: number; // Advance payment collected at booking, auto-deducted from final bill
 }

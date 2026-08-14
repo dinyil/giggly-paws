@@ -350,6 +350,7 @@ const BookingForm: React.FC<{
   const petId = clientMode === 'EXISTING' ? (selectedPet?.id || '') : '';
   const [roomId, setRoomId] = useState(booking?.room_id || preselectedRoomId || '');
   const [notes, setNotes] = useState(booking?.notes || '');
+  const [downpayment, setDownpayment] = useState<number>(booking?.downpayment || 0);
   // Selected add-ons: { id: string; qty: number }[]
   const [selectedExtras, setSelectedExtras] = useState<{ id: string; qty: number }[]>(booking?.hotel_extras || []);
 
@@ -432,6 +433,7 @@ const BookingForm: React.FC<{
       transaction_id: booking?.transaction_id || '',
       booking_type: bookingType,
       pet_size: petSize,
+      downpayment: downpayment || 0,
     });
   };
 
@@ -526,6 +528,11 @@ const BookingForm: React.FC<{
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
+            </div>
+            {/* Downpayment */}
+            <div>
+              <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (₱) <span className="normal-case font-normal text-zinc-400">(optional)</span></label>
+              <input type="number" min="0" step="0.01" value={downpayment || ''} onChange={e => setDownpayment(e.target.value ? Number(e.target.value) : 0)} placeholder="e.g. 500" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
             </div>
           </div>
           <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-white border-t border-zinc-100">
@@ -854,6 +861,11 @@ const BookingForm: React.FC<{
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Special Instructions</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Food preferences, medication, special care..." className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none resize-none" />
               </div>
+              {/* Downpayment */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Downpayment / Advance Payment (₱) <span className="normal-case font-normal text-zinc-400">(optional — auto-deducted at checkout)</span></label>
+                <input type="number" min="0" step="0.01" value={downpayment || ''} onChange={e => setDownpayment(e.target.value ? Number(e.target.value) : 0)} placeholder="e.g. 500" className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+              </div>
             </div>
           )}
         </div>
@@ -1093,13 +1105,15 @@ const CheckoutModal: React.FC<{
   const lateAmount = lateCheckout !== null ? getLateRate(lateCheckout) : 0;
 
   const grandTotal = packageRate + extrasTotal + lateAmount;
+  const dpAmount = Math.min(booking.downpayment || 0, grandTotal);
+  const balanceToPay = Math.max(0, grandTotal - dpAmount);
 
   const [method, setMethod] = useState<'CASH' | 'GCASH' | 'SPLIT'>('CASH');
-  const [cash, setCash] = useState(grandTotal);
+  const [cash, setCash] = useState(balanceToPay);
   const [ref, setRef] = useState('');
 
   // Update cash suggestion when total changes
-  useEffect(() => { setCash(grandTotal); }, [grandTotal]);
+  useEffect(() => { setCash(balanceToPay); }, [grandTotal]);
 
   return (
     <div className="fixed inset-0 bg-purple-700/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1130,7 +1144,22 @@ const CheckoutModal: React.FC<{
                 <span>+₱{lateAmount.toLocaleString()}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2"><span>TOTAL</span><span className="text-green-700">₱{grandTotal.toLocaleString()}</span></div>
+            {dpAmount > 0 && (
+              <div className="flex justify-between text-orange-600 font-bold">
+                <span>Downpayment Paid</span>
+                <span>-₱{dpAmount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2">
+              <span>{dpAmount > 0 ? 'BALANCE TO PAY' : 'TOTAL'}</span>
+              <span className="text-green-700">₱{balanceToPay.toLocaleString()}</span>
+            </div>
+            {dpAmount > 0 && (
+              <div className="flex justify-between text-xs text-zinc-400">
+                <span>Full Total</span>
+                <span>₱{grandTotal.toLocaleString()}</span>
+              </div>
+            )}
           </div>
 
           {/* Late Checkout */}
@@ -1163,7 +1192,7 @@ const CheckoutModal: React.FC<{
             <div>
               <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Cash Received (₱)</label>
               <input type="number" value={cash} onChange={e => setCash(parseFloat(e.target.value) || 0)} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-black outline-none" />
-              {cash >= grandTotal && <p className="text-green-600 text-xs mt-1 font-bold">Change: ₱{(cash - grandTotal).toLocaleString()}</p>}
+              {cash >= balanceToPay && <p className="text-green-600 text-xs mt-1 font-bold">Change: ₱{(cash - balanceToPay).toLocaleString()}</p>}
             </div>
           )}
           {(method === 'GCASH' || method === 'SPLIT') && (
@@ -1175,7 +1204,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref, grandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button onClick={() => onConfirm(method, cash, ref, balanceToPay, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>

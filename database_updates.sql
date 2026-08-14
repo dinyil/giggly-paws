@@ -44,6 +44,15 @@ ALTER TABLE hotel_bookings
 ALTER TABLE appointments
   ADD COLUMN IF NOT EXISTS pets JSONB DEFAULT '[]'::jsonb;
 
+-- ── 6. Downpayment / Advance Payment ────────────────────────
+-- Stores any advance payment collected at booking time
+-- Auto-deducted from the final bill at checkout
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS downpayment NUMERIC DEFAULT 0;
+
+ALTER TABLE hotel_bookings
+  ADD COLUMN IF NOT EXISTS downpayment NUMERIC DEFAULT 0;
+
 -- ============================================================
 -- That's it! Here's what each column does:
 --
@@ -62,4 +71,8 @@ ALTER TABLE appointments
 -- store_settings.hotel_booking_type_labels
 --   → JSON object: { "DAYCARE": "Daycare (9AM-5:30PM)", ... }
 --   → If null, app uses hardcoded default labels
+--
+-- appointments.downpayment / hotel_bookings.downpayment
+--   → Amount already paid by client at booking time
+--   → Auto-deducted from final bill at checkout
 -- ============================================================

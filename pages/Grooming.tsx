@@ -607,7 +607,6 @@ const Grooming: React.FC = () => {
       }
   };
 
-  // --- 2. FINALIZE PAYMENT & CREATE TRANSACTION ---
   const handleFinalizePayment = () => {
       if (!paymentApt) return;
 
@@ -645,7 +644,9 @@ const Grooming: React.FC = () => {
           }
       }
       
-      const total = Math.max(0, combinedPrice - discountAmount);
+      const fullTotal = Math.max(0, combinedPrice - discountAmount);
+      const downpayment = Math.min(paymentApt.downpayment || 0, fullTotal);
+      const total = Math.max(0, fullTotal - downpayment); // Amount collected today
       const vatRate = storeSettings.vatRate / 100;
       const vatAmount = (total / (1 + vatRate)) * vatRate;
       const subtotal = total - vatAmount;
@@ -706,6 +707,7 @@ const Grooming: React.FC = () => {
       // Open Completion Modal (Notification)
       setCompletionModal({ isOpen: true, apt: paymentApt });
   };
+
 
   // --- 3. FINALIZE COMPLETION (Notifications) ---
   const processCompletion = (channel: 'SMS' | 'EMAIL' | 'BOTH' | 'NONE') => {
@@ -843,7 +845,7 @@ const Grooming: React.FC = () => {
 
   // Helper for Payment Modal Display
   const getPaymentServiceDetails = () => {
-      if (!paymentApt) return { name: '', price: 0, discount: 0, finalTotal: 0, addonTotal: 0, extraPetTotal: 0 };
+      if (!paymentApt) return { name: '', price: 0, discount: 0, finalTotal: 0, addonTotal: 0, extraPetTotal: 0, downpayment: 0, balanceToPay: 0 };
       const s = products.find(p => p.id === paymentApt.serviceId);
       const basePrice = s?.price || 0;
 
@@ -872,13 +874,17 @@ const Grooming: React.FC = () => {
             : selectedDiscount.value;
       }
       
+      const finalTotal = Math.max(0, combinedPrice - discountValue);
+      const downpayment = Math.min(paymentApt.downpayment || 0, finalTotal);
       return { 
           name: s?.name || 'Unknown Service', 
           price: basePrice,
           addonTotal,
           extraPetTotal,
           discount: discountValue,
-          finalTotal: Math.max(0, combinedPrice - discountValue)
+          finalTotal,
+          downpayment,
+          balanceToPay: Math.max(0, finalTotal - downpayment)
       };
   };
   const paymentDetails = getPaymentServiceDetails();
@@ -1071,10 +1077,24 @@ const Grooming: React.FC = () => {
                                 <div className="space-y-1 mb-5 relative z-10">
                                     <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
                                     {!isWalkIn && (
+                                        <>
                                         <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2 mt-1">
                                             <span className="font-bold text-zinc-700">Total</span>
                                             <span className="font-bold text-purple-700">₱{aptTotal.toFixed(2)}</span>
                                         </div>
+                                        {(apt.downpayment || 0) > 0 && (
+                                            <>
+                                            <div className="flex justify-between items-center text-xs text-orange-600 font-semibold mt-0.5">
+                                                <span>Downpayment Paid</span>
+                                                <span>-₱{(apt.downpayment || 0).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs text-green-700 font-bold mt-0.5">
+                                                <span>Balance</span>
+                                                <span>₱{Math.max(0, aptTotal - (apt.downpayment || 0)).toFixed(2)}</span>
+                                            </div>
+                                            </>
+                                        )}
+                                        </>
                                     )}
                                 </div>
 
@@ -1248,11 +1268,24 @@ const Grooming: React.FC = () => {
                                 <span>-₱{paymentDetails.discount.toFixed(2)}</span>
                             </div>
                         )}
+                        {/* Downpayment */}
+                        {paymentDetails.downpayment > 0 && (
+                            <div className="flex justify-between text-orange-600 font-bold mt-2 pt-2 border-t border-zinc-200">
+                                <span className="flex items-center gap-1"><CreditCard className="w-3 h-3"/> Downpayment Paid</span>
+                                <span>-₱{paymentDetails.downpayment.toFixed(2)}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                        <span className="font-bold text-lg text-zinc-900 uppercase tracking-tight">TOTAL TO PAY</span>
-                        <span className="font-bold text-2xl text-zinc-900">₱{paymentDetails.finalTotal.toFixed(2)}</span>
+                        <span className="font-bold text-lg text-zinc-900 uppercase tracking-tight">{paymentDetails.downpayment > 0 ? 'BALANCE TO PAY' : 'TOTAL TO PAY'}</span>
+                        <span className="font-bold text-2xl text-zinc-900">₱{paymentDetails.balanceToPay.toFixed(2)}</span>
                     </div>
+                    {paymentDetails.downpayment > 0 && (
+                        <div className="flex justify-between text-xs text-zinc-400 mt-0.5">
+                            <span>Full Total</span>
+                            <span>₱{paymentDetails.finalTotal.toFixed(2)}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1382,7 +1415,7 @@ const Grooming: React.FC = () => {
                                 <label className="text-xs font-bold text-purple-800 uppercase ml-1">GCASH</label>
                                 <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 text-center">
                                     <span className="text-3xl font-bold text-purple-700">
-                                        ₱{Math.max(0, paymentDetails.finalTotal - (Number(splitCashAmount) || 0)).toFixed(2)}
+                                        ₱{Math.max(0, paymentDetails.balanceToPay - (Number(splitCashAmount) || 0)).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -1922,6 +1955,15 @@ const Grooming: React.FC = () => {
                         <label className={labelClass}>Time</label>
                         <input required type="time" className={inputClass} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} />
                     </div>
+                  </div>
+              </div>
+
+              {/* DOWNPAYMENT */}
+              <div className="space-y-2 pt-2 border-t border-zinc-100">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><CreditCard className="w-3 h-3" /> Downpayment / Advance Payment</h4>
+                  <div>
+                      <label className={labelClass}>Amount (₱) <span className="normal-case font-normal text-zinc-400">(optional — auto-deducted at checkout)</span></label>
+                      <input type="number" min="0" step="0.01" className={inputClass} placeholder="e.g. 500" value={formData.downpayment || ''} onChange={e => setFormData({...formData, downpayment: e.target.value ? Number(e.target.value) : 0})} />
                   </div>
               </div>
 

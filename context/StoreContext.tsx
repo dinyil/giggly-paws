@@ -127,7 +127,8 @@ const mapAppointment = (a: any): GroomingAppointment => ({
     hairCut: a.hairCut,
     addonIds: a.addon_ids || [],
     pets: a.pets || [],
-    groomerId: a.groomerId
+    groomerId: a.groomerId,
+    downpayment: Number(a.downpayment || 0)
 });
 
 const mapAppointmentPayload = (a: GroomingAppointment) => ({
@@ -148,7 +149,8 @@ const mapAppointmentPayload = (a: GroomingAppointment) => ({
     date: a.date,
     time: a.time,
     status: a.status,
-    "groomerId": a.groomerId
+    "groomerId": a.groomerId,
+    downpayment: a.downpayment || 0
 });
 
 // Hotel Room Mappers (all snake_case in DB)
@@ -188,6 +190,7 @@ const mapHotelBooking = (b: any): HotelBooking => ({
     pet_size: b.pet_size || '',
     hotel_extras: b.hotel_extras || [],
     furparent_updates: b.furparent_updates || { am: false, pm: false, evening: false },
+    downpayment: Number(b.downpayment || 0)
 });
 
 
