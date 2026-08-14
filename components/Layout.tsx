@@ -211,7 +211,7 @@ const Layout: React.FC = () => {
 
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-40 pt-16 lg:hidden flex flex-col" style={{background: 'linear-gradient(160deg, #4A2D7A 0%, #7B55A8 60%, #9B75C8 100)'}}>
+        <div className="fixed inset-0 z-40 pt-16 lg:hidden flex flex-col" style={{background: 'linear-gradient(160deg, #4A2D7A 0%, #7B55A8 60%, #9B75C8 100%)'}}>
           <NavContent />
         </div>
       )}
