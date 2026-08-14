@@ -1805,25 +1805,6 @@ const Grooming: React.FC = () => {
                           <Dog className="w-3.5 h-3.5" /> Additional Pets
                           <span className="text-purple-300 font-normal normal-case text-[10px]">— same owner, each pet billed separately</span>
                       </h4>
-                      <button
-                          type="button"
-                          onClick={() => setAdditionalPets(prev => [...prev, {
-                              id: Date.now().toString(),
-                              petName: '', petBreed: '', petColor: '', weightSize: '',
-                              petSpecies: 'DOG', serviceId: '', hairCut: '',
-                              groomerId: '',
-                              addonIds: [],
-                              _serviceSearch: '',
-                              _showServiceSug: false,
-                              _addonSearch: '',
-                              _showAddonSug: false,
-                              _addonFilter: 'ALL',
-                              _showPetSug: false
-                          }])}
-                          className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors"
-                      >
-                          <Plus className="w-3 h-3" /> Add Another Pet
-                      </button>
                   </div>
 
                   {additionalPets.map((pet, idx) => {
@@ -2173,6 +2154,27 @@ const Grooming: React.FC = () => {
                           </div>
                       );
                   })}
+
+                  {/* Add Another Pet — always at bottom so no scroll-up needed */}
+                  <button
+                      type="button"
+                      onClick={() => setAdditionalPets(prev => [...prev, {
+                          id: Date.now().toString(),
+                          petName: '', petBreed: '', petColor: '', weightSize: '',
+                          petSpecies: 'DOG', serviceId: '', hairCut: '',
+                          groomerId: '',
+                          addonIds: [],
+                          _serviceSearch: '',
+                          _showServiceSug: false,
+                          _addonSearch: '',
+                          _showAddonSug: false,
+                          _addonFilter: 'ALL',
+                          _showPetSug: false
+                      }])}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-bold text-purple-700 bg-purple-50 border-2 border-dashed border-purple-200 px-3 py-3 rounded-2xl hover:bg-purple-100 hover:border-purple-300 transition-all"
+                  >
+                      <Plus className="w-4 h-4" /> Add Another Pet
+                  </button>
               </div>
 
 
