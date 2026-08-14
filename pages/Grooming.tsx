@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
-import { GroomingAppointment, Role, Client, Pet, Transaction, Discount } from '../types';
+import { GroomingAppointment, AdditionalPet, Role, Client, Pet, Transaction, Discount } from '../types';
 import Button from '../components/ui/Button';
 import { Plus, Calendar, Dog, User, Scissors, History, Clock, CheckCircle, ArrowRight, Pencil, Trash2, Smartphone, Scale, Palette, Check, MessageSquare, Mail, ChevronUp, ChevronDown, Search, X, RotateCcw, CreditCard, Printer, Settings, Tag, Percent } from '../components/ui/Icons';
 import { Dialog } from '@headlessui/react';
@@ -148,6 +148,9 @@ const Grooming: React.FC = () => {
 
   // Add-Ons State
   const [addonItems, setAddonItems] = useState<string[]>([]); // Array of product/service IDs
+
+  // Additional Pets State (2nd pet onward)
+  const [additionalPets, setAdditionalPets] = useState<AdditionalPet[]>([]);
   const [addonSearch, setAddonSearch] = useState('');
   const [showAddonSuggestions, setShowAddonSuggestions] = useState(false);
   const [addonFilter, setAddonFilter] = useState<'ALL' | 'SERVICE' | 'PRODUCT'>('ALL');
@@ -379,6 +382,7 @@ const Grooming: React.FC = () => {
       serviceId: '', hairCut: '',
       date: getPhTodayStr(), time: '', status: 'SCHEDULED', groomerId: ''
     });
+    setAdditionalPets([]);
     setIsModalOpen(true);
   };
 
@@ -395,6 +399,9 @@ const Grooming: React.FC = () => {
     // Load existing add-ons
     setAddonItems(apt.addonIds || []);
     setAddonSearch('');
+
+    // Load additional pets
+    setAdditionalPets(apt.pets || []);
     
     setIsModalOpen(true);
   };
@@ -431,9 +438,10 @@ const Grooming: React.FC = () => {
     const service = products.find(p => p.id === apt.serviceId);
     setServiceSearch(service ? service.name : '');
     
-    // Pre-load add-ons from previous appointment
+    // Pre-load add-ons and additional pets from previous appointment
     setAddonItems(apt.addonIds || []);
     setAddonSearch('');
+    setAdditionalPets(apt.pets || []);
     
     setIsModalOpen(true);
   };
@@ -467,7 +475,8 @@ const Grooming: React.FC = () => {
         id: editingId, 
         addonIds: addonItems,
         petSpecies: finalFormData.petSpecies as 'DOG' | 'CAT' | 'OTHER' | undefined,
-        detectedSizeCategory: sizeCategory
+        detectedSizeCategory: sizeCategory,
+        pets: additionalPets
       };
       updateAppointment(updatedApt);
     } else {
@@ -488,7 +497,8 @@ const Grooming: React.FC = () => {
         time: finalFormData.time!,
         status: 'SCHEDULED',
         groomerId: finalFormData.groomerId!,
-        addonIds: addonItems
+        addonIds: addonItems,
+        pets: additionalPets
       };
       addAppointment(apt);
     }
@@ -520,14 +530,26 @@ const Grooming: React.FC = () => {
       const service = products.find(p => p.id === paymentApt.serviceId);
       const price = service ? service.price : 0;
 
-      // Build add-on cart items
+      // Build add-on cart items (pet 1)
       const addonCartItems = (paymentApt.addonIds || []).flatMap(id => {
           const p = products.find(prod => prod.id === id);
           if (!p) return [];
           return [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }];
       });
       const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price, 0);
-      const combinedPrice = price + addonTotal;
+
+      // Build additional pets' service + add-on items
+      const extraPetItems = (paymentApt.pets || []).flatMap(pet => {
+          const petService = products.find(p => p.id === pet.serviceId);
+          const petAddons = (pet.addonIds || []).flatMap(id => {
+              const p = products.find(prod => prod.id === id);
+              return p ? [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }] : [];
+          });
+          return petService ? [{ ...petService, name: `${petService.name} (${pet.petName})`, quantity: 1, appliedDiscounts: [] as Discount[] }, ...petAddons] : petAddons;
+      });
+      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price, 0);
+
+      const combinedPrice = price + addonTotal + extraPetTotal;
       
       // Calculate Discount (applied to combined total)
       let discountAmount = 0;
@@ -568,16 +590,18 @@ const Grooming: React.FC = () => {
           }
       }
 
-      // Create Transaction Record (main service + all add-ons)
+      // Create Transaction Record (main service + all add-ons + extra pets)
       const transaction: Transaction = {
           id: Date.now().toString(),
           items: [
               {
                   ...service!,
+                  name: (paymentApt.pets || []).length > 0 ? `${service!.name} (${paymentApt.petName})` : service!.name,
                   quantity: 1,
                   appliedDiscounts: selectedDiscount ? [selectedDiscount] : []
               },
-              ...addonCartItems
+              ...addonCartItems,
+              ...extraPetItems
           ],
           subtotal,
           vat: vatAmount,
@@ -841,117 +865,123 @@ const Grooming: React.FC = () => {
            ) : (
                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
                    {paginatedAppointments.map(apt => {
-                       const serviceName = groomingServices.find(s => s.id === apt.serviceId)?.name || 'Unknown Service';
-                       const isWalkIn = (apt.hairCut || '').includes('Paid at POS');
-                       
-                       // Compute card total: base service + add-ons
-                       const serviceProduct = products.find(p => p.id === apt.serviceId);
-                       const baseServicePrice = serviceProduct?.price || 0;
-                       const aptAddonTotal = (apt.addonIds || []).reduce((sum, id) => {
-                           const p = products.find(prod => prod.id === id);
-                           return sum + (p ? p.price : 0);
-                       }, 0);
-                       const aptTotal = baseServicePrice + aptAddonTotal;
-                       
-                       return (
-                           <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
-                               <div className="flex justify-between items-start mb-3 relative z-10">
-                                   <div className={`text-xs font-bold px-3 py-1 rounded-full border ${apt.date === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
-                                       {apt.date === today ? 'TODAY' : new Date(apt.date).toLocaleDateString()} • {formatTime(apt.time)}
-                                   </div>
-                                   <div className="flex items-center gap-2">
-                                     {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
-                                       <div className="flex items-center bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
-                                          <button onClick={() => openEditModal(apt)} className="p-1.5 text-gray-500 hover:text-purple-900 hover:bg-white rounded-md transition-all" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                                          <div className="w-px h-3 bg-gray-200 mx-0.5"></div>
-                                          <button onClick={() => handleCancelClick(apt.id, apt.petName)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-white rounded-md transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                                       </div>
-                                     )}
-                                     <span className={`text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${apt.status === 'SCHEDULED' ? 'bg-orange-100 text-orange-600' : apt.status === 'ONGOING' ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-green-100 text-green-600'}`}>{apt.status}</span>
-                                   </div>
-                               </div>
-                               <div className="mb-4 relative z-10">
-                                   <div className="flex items-center gap-2">
-                                       <h3 className="text-xl font-bold text-zinc-900 leading-tight">{apt.petName}</h3>
-                                       {isWalkIn && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 uppercase">Walk-in</span>}
-                                   </div>
-                                   {apt.petBreed && <span className="text-sm font-normal text-gray-500 bg-zinc-50 px-2 py-0.5 rounded-md border border-zinc-100 inline-block mt-1">{apt.petBreed}</span>}
-                                   
-                                   <p className="text-sm text-gray-500 flex items-center gap-1 font-medium mt-1"><User className="w-3 h-3"/> {apt.ownerName} {apt.contactNumber && <span className="text-gray-400">({apt.contactNumber})</span>}</p>
-                                   {apt.hairCut && <div className="mt-2 text-xs bg-yellow-50 text-yellow-800 p-2 rounded-lg border border-yellow-100 italic"><span className="font-bold not-italic">✄ Style:</span> {apt.hairCut}</div>}
-                               </div>
-                               <div className="space-y-2 mb-6 relative z-10">
-                                     <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-3"><span className="text-gray-400">Service</span><span className="font-bold text-zinc-800 text-right max-w-[60%] truncate">{serviceName}</span></div>
-                                     <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
-                                     {(apt.addonIds || []).length > 0 && (
-                                         <div className="text-sm pt-1">
-                                             <span className="text-gray-400 block mb-1">+ Add-ons</span>
-                                             <div className="space-y-0.5">
-                                                 {(apt.addonIds || []).map((id, ai) => {
-                                                     const addonProduct = products.find(p => p.id === id);
-                                                     return (
-                                                         <div key={ai} className="flex justify-between items-center">
-                                                             <span className="text-zinc-600 text-xs pl-2">• {addonProduct?.name || id}</span>
-                                                             {addonProduct?.price ? <span className="text-xs text-gray-400">₱{addonProduct.price}</span> : null}
-                                                         </div>
-                                                     );
-                                                 })}
-                                             </div>
-                                         </div>
-                                     )}
-                                     {!isWalkIn && (
-                                         <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2 mt-1">
-                                             <span className="font-bold text-zinc-700">Total</span>
-                                             <span className="font-bold text-purple-700">₱{aptTotal.toFixed(2)}</span>
-                                         </div>
-                                     )}
+                        const isWalkIn = (apt.hairCut || '').includes('Paid at POS');
+                        const baseServicePrice = products.find(p => p.id === apt.serviceId)?.price || 0;
+                        const aptAddonTotal = (apt.addonIds || []).reduce((sum, id) => sum + (products.find(p => p.id === id)?.price || 0), 0);
+                        const extraPetsTotal = (apt.pets || []).reduce((sum, pet) => {
+                            const ps = products.find(p => p.id === pet.serviceId)?.price || 0;
+                            const pa = (pet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
+                            return sum + ps + pa;
+                        }, 0);
+                        const aptTotal = baseServicePrice + aptAddonTotal + extraPetsTotal;
+
+                        return (
+                            <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-sm border border-zinc-100 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                                {/* Date + status */}
+                                <div className="flex justify-between items-start mb-3 relative z-10">
+                                    <div className={`text-xs font-bold px-3 py-1 rounded-full border ${apt.date === today ? 'bg-purple-900 text-white border-zinc-900' : 'bg-white text-zinc-900 border-zinc-200'}`}>
+                                        {apt.date === today ? 'TODAY' : new Date(apt.date).toLocaleDateString()} • {formatTime(apt.time)}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
+                                            <div className="flex items-center bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
+                                                <button onClick={() => openEditModal(apt)} className="p-1.5 text-gray-500 hover:text-purple-900 hover:bg-white rounded-md transition-all" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                                                <div className="w-px h-3 bg-gray-200 mx-0.5"></div>
+                                                <button onClick={() => handleCancelClick(apt.id, apt.petName)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-white rounded-md transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        )}
+                                        <span className={`text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${apt.status === 'SCHEDULED' ? 'bg-orange-100 text-orange-600' : apt.status === 'ONGOING' ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-green-100 text-green-600'}`}>{apt.status}</span>
+                                    </div>
                                 </div>
-                               <div className="mt-auto relative z-10">
-                                   {apt.status === 'SCHEDULED' && (
-                                       apt.date === today ? (
-                                           <button 
-                                                className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" 
-                                                onClick={() => updateAppointmentStatus(apt.id, 'ONGOING')}
-                                            >
+
+                                {/* Owner (shown once) */}
+                                <div className="mb-3 relative z-10">
+                                    <p className="text-sm text-gray-500 flex items-center gap-1 font-medium flex-wrap">
+                                        <User className="w-3 h-3 flex-shrink-0"/>
+                                        {apt.ownerName}
+                                        {apt.contactNumber && <span className="text-gray-400">({apt.contactNumber})</span>}
+                                        {isWalkIn && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 uppercase">Walk-in</span>}
+                                        {(apt.pets || []).length > 0 && <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">{(apt.pets || []).length + 1} Pets</span>}
+                                    </p>
+                                </div>
+
+                                {/* Pets — primary + additional */}
+                                <div className="space-y-2 mb-4 relative z-10">
+                                    {[
+                                        { petName: apt.petName, petBreed: apt.petBreed, serviceId: apt.serviceId, hairCut: apt.hairCut, addonIds: apt.addonIds || [] },
+                                        ...(apt.pets || [])
+                                    ].map((pet, pi) => {
+                                        const petSvc = products.find(p => p.id === pet.serviceId);
+                                        const petAddons = (pet.addonIds || []).map(id => products.find(p => p.id === id)).filter(Boolean);
+                                        const petTotal = (petSvc?.price || 0) + petAddons.reduce((s, p) => s + (p!.price || 0), 0);
+                                        return (
+                                            <div key={pi} className={`rounded-2xl border p-3 ${pi === 0 ? 'border-purple-100 bg-purple-50/40' : 'border-zinc-100 bg-zinc-50/50'}`}>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="font-bold text-zinc-900 text-sm">🐾 {pet.petName}</span>
+                                                    {pet.petBreed && <span className="text-xs text-gray-400 bg-white border border-zinc-100 px-2 py-0.5 rounded-lg">{pet.petBreed}</span>}
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs text-gray-500">
+                                                    <span>{petSvc?.name || '—'}</span>
+                                                    <span className="font-bold text-purple-700">₱{petTotal.toFixed(2)}</span>
+                                                </div>
+                                                {petAddons.length > 0 && (
+                                                    <div className="mt-1 space-y-0.5">
+                                                        {petAddons.map((p, ai) => (
+                                                            <div key={ai} className="flex justify-between items-center">
+                                                                <span className="text-zinc-400 text-xs pl-2">• {p!.name}</span>
+                                                                <span className="text-xs text-gray-400">₱{p!.price}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {pet.hairCut && <div className="mt-1 text-xs text-yellow-700 italic">✄ {pet.hairCut}</div>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Groomer + total */}
+                                <div className="space-y-1 mb-5 relative z-10">
+                                    <div className="flex justify-between items-center text-sm"><span className="text-gray-400">Groomer</span><span className="font-bold text-zinc-800">{apt.groomerId}</span></div>
+                                    {!isWalkIn && (
+                                        <div className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2 mt-1">
+                                            <span className="font-bold text-zinc-700">Total</span>
+                                            <span className="font-bold text-purple-700">₱{aptTotal.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="mt-auto relative z-10">
+                                    {apt.status === 'SCHEDULED' && (
+                                        apt.date === today ? (
+                                            <button className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" onClick={() => updateAppointmentStatus(apt.id, 'ONGOING')}>
                                                 Start Session <ArrowRight className="w-4 h-4" />
                                             </button>
-                                       ) : <div className="w-full text-center py-2 text-sm text-gray-400 font-medium bg-zinc-50 rounded-xl border border-zinc-100">Scheduled</div>
-                                   )}
-                                   {apt.status === 'ONGOING' && (
-                                       <button 
-                                            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100" 
-                                            onClick={() => handleProceedToPayment(apt)}
-                                       >
-                                           Complete Grooming
-                                       </button>
-                                   )}
-                                   {apt.status === 'COMPLETED' && (
-                                       <div className="flex gap-2">
-                                           <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-green-700 font-bold bg-green-50 rounded-xl border border-green-100">
-                                               <CheckCircle className="w-4 h-4" /> Finished
-                                           </div>
-                                           <Button 
-                                               variant="secondary" 
-                                               className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600"
-                                               title="Reprint Receipt"
-                                               onClick={() => handlePrintReceipt(apt)}
-                                           >
-                                               <Printer className="w-4 h-4" />
-                                           </Button>
-                                           <Button 
-                                               variant="secondary" 
-                                               className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600"
-                                               title="Rebook Same Service"
-                                               onClick={() => handleRebook(apt)}
-                                           >
-                                               <RotateCcw className="w-4 h-4" />
-                                           </Button>
-                                       </div>
-                                   )}
-                               </div>
-                           </div>
-                       );
-                   })}
+                                        ) : <div className="w-full text-center py-2 text-sm text-gray-400 font-medium bg-zinc-50 rounded-xl border border-zinc-100">Scheduled</div>
+                                    )}
+                                    {apt.status === 'ONGOING' && (
+                                        <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100" onClick={() => handleProceedToPayment(apt)}>
+                                            Complete Grooming
+                                        </button>
+                                    )}
+                                    {apt.status === 'COMPLETED' && (
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-green-700 font-bold bg-green-50 rounded-xl border border-green-100">
+                                                <CheckCircle className="w-4 h-4" /> Finished
+                                            </div>
+                                            <Button variant="secondary" className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600" title="Reprint Receipt" onClick={() => handlePrintReceipt(apt)}>
+                                                <Printer className="w-4 h-4" />
+                                            </Button>
+                                            <Button variant="secondary" className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600" title="Rebook Same Service" onClick={() => handleRebook(apt)}>
+                                                <RotateCcw className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                </div>
            )}
        </div>
@@ -1686,6 +1716,71 @@ const Grooming: React.FC = () => {
                         <input required type="time" className={inputClass} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} />
                     </div>
                   </div>
+              </div>
+
+              {/* ADDITIONAL PETS SECTION */}
+              <div className="space-y-3 pt-2 border-t border-zinc-100">
+                  <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Dog className="w-3 h-3" /> Additional Pets <span className="text-gray-300 font-normal lowercase">(same owner)</span></h4>
+                      <button
+                          type="button"
+                          onClick={() => setAdditionalPets(prev => [...prev, { id: Date.now().toString(), petName: '', petBreed: '', petSpecies: 'DOG', serviceId: '', hairCut: '', addonIds: [] }])}
+                          className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition-colors"
+                      >
+                          <Plus className="w-3 h-3" /> Add Pet
+                      </button>
+                  </div>
+
+                  {additionalPets.map((pet, idx) => {
+                      const update = (field: keyof typeof pet, val: string | string[]) =>
+                          setAdditionalPets(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
+                      const petService = products.find(p => p.id === pet.serviceId);
+                      return (
+                          <div key={pet.id} className="border border-zinc-200 rounded-2xl p-3 bg-zinc-50/50 space-y-2 relative">
+                              <button type="button" onClick={() => setAdditionalPets(prev => prev.filter((_, i) => i !== idx))}
+                                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors">
+                                  <X className="w-3.5 h-3.5" />
+                              </button>
+                              <p className="text-[10px] font-black text-purple-600 uppercase tracking-wide">Pet #{idx + 2}</p>
+                              {/* Species */}
+                              <div className="grid grid-cols-3 gap-1.5">
+                                  {(['DOG', 'CAT', 'OTHER'] as const).map(sp => (
+                                      <button key={sp} type="button" onClick={() => update('petSpecies', sp)}
+                                          className={`py-1.5 rounded-lg border text-xs font-bold transition-all ${pet.petSpecies === sp ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-zinc-200 bg-white text-zinc-400 hover:border-zinc-300'}`}>
+                                          {sp === 'DOG' ? '🐶' : sp === 'CAT' ? '🐱' : '🐾'} {sp}
+                                      </button>
+                                  ))}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                      <label className={labelClass}>Pet Name *</label>
+                                      <input required className={inputClass} value={pet.petName} onChange={e => update('petName', e.target.value)} placeholder="Pet's name" />
+                                  </div>
+                                  <div>
+                                      <label className={labelClass}>Breed</label>
+                                      <input className={inputClass} value={pet.petBreed || ''} onChange={e => update('petBreed', e.target.value)} placeholder="e.g. Shih Tzu" />
+                                  </div>
+                              </div>
+                              {/* Service picker */}
+                              <div>
+                                  <label className={labelClass}>Service *</label>
+                                  <select required className={inputClass} value={pet.serviceId}
+                                      onChange={e => update('serviceId', e.target.value)}>
+                                      <option value="">Select service...</option>
+                                      {groomingServices.filter(s => !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies).map(s => (
+                                          <option key={s.id} value={s.id}>{s.name} — ₱{s.price}</option>
+                                      ))}
+                                  </select>
+                              </div>
+                              {/* Haircut */}
+                              <div>
+                                  <label className={labelClass}>Style / Instructions</label>
+                                  <input className={inputClass} value={pet.hairCut || ''} onChange={e => update('hairCut', e.target.value)} placeholder="e.g. Teddy bear cut..." />
+                              </div>
+                              {petService && <p className="text-xs text-purple-700 font-bold">Service: ₱{petService.price}</p>}
+                          </div>
+                      );
+                  })}
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-zinc-100">

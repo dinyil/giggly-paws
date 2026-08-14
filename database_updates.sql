@@ -38,6 +38,12 @@ ALTER TABLE hotel_bookings
 ALTER TABLE hotel_bookings
   ADD COLUMN IF NOT EXISTS furparent_updates JSONB DEFAULT '{"am":false,"pm":false,"evening":false}'::jsonb;
 
+-- ── 5. Multi-Pet Grooming Bookings ──────────────────────────
+-- Stores additional pets (2nd, 3rd, etc.) in a single grooming booking
+-- Each entry: { id, petName, petBreed, petSpecies, serviceId, hairCut, addonIds }
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS pets JSONB DEFAULT '[]'::jsonb;
+
 -- ============================================================
 -- That's it! Here's what each column does:
 --

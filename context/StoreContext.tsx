@@ -126,6 +126,7 @@ const mapAppointment = (a: any): GroomingAppointment => ({
     serviceId: a.serviceId,
     hairCut: a.hairCut,
     addonIds: a.addon_ids || [],
+    pets: a.pets || [],
     groomerId: a.groomerId
 });
 
@@ -143,6 +144,7 @@ const mapAppointmentPayload = (a: GroomingAppointment) => ({
     "serviceId": a.serviceId,
     "hairCut": a.hairCut,
     addon_ids: a.addonIds || [],
+    pets: a.pets || [],
     date: a.date,
     time: a.time,
     status: a.status,

@@ -83,6 +83,18 @@ export interface Transaction {
   cashierId: string;
 }
 
+export interface AdditionalPet {
+  id: string;         // unique key per pet row in form
+  petName: string;
+  petBreed?: string;
+  petColor?: string;
+  weightSize?: string;
+  petSpecies?: 'DOG' | 'CAT' | 'OTHER';
+  serviceId: string;
+  hairCut?: string;
+  addonIds?: string[];
+}
+
 export interface GroomingAppointment {
   id: string;
   petName: string;
@@ -99,6 +111,7 @@ export interface GroomingAppointment {
   serviceId: string;
   hairCut?: string; // Instructions
   addonIds?: string[]; // IDs of additional products/services added at booking
+  pets?: AdditionalPet[]; // Additional pets in this booking (2nd pet onward)
   
   date: string;
   time: string;
