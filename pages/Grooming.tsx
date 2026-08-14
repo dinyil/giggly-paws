@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useBroadcast } from '../context/BroadcastContext'; 
@@ -154,6 +154,7 @@ const Grooming: React.FC = () => {
   const [addonSearch, setAddonSearch] = useState('');
   const [showAddonSuggestions, setShowAddonSuggestions] = useState(false);
   const [addonFilter, setAddonFilter] = useState<'ALL' | 'SERVICE' | 'PRODUCT'>('ALL');
+
 
   // Form Data
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1740,7 +1741,8 @@ const Grooming: React.FC = () => {
                               _showServiceSug: false,
                               _addonSearch: '',
                               _showAddonSug: false,
-                              _addonFilter: 'ALL'
+                              _addonFilter: 'ALL',
+                              _showPetSug: false
                           }])}
                           className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors"
                       >
@@ -1827,9 +1829,66 @@ const Grooming: React.FC = () => {
 
                                       {/* Name + Breed + Color + Weight — identical grid */}
                                       <div className="grid grid-cols-2 gap-4">
-                                          <div>
+                                          {/* Pet Name — autocomplete from owner's existing pets */}
+                                          <div className="relative">
                                               <label className={labelClass}>Pet Name</label>
-                                              <input required className={inputClass} value={pet.petName} onChange={e => updatePet('petName', e.target.value)} placeholder="Pet's Name" />
+                                              <input
+                                                  required
+                                                  className={inputClass}
+                                                  value={pet.petName}
+                                                  onChange={e => {
+                                                      updatePet('petName', e.target.value);
+                                                      updatePet('_showPetSug', true);
+                                                  }}
+                                                  onFocus={() => {
+                                                      if (selectedClient && selectedClient.pets && selectedClient.pets.length > 0) {
+                                                          updatePet('_showPetSug', true);
+                                                      }
+                                                  }}
+                                                  placeholder={selectedClient ? 'Select or type new...' : "Pet's Name"}
+                                                  autoComplete="off"
+                                              />
+                                              {pet._showPetSug && selectedClient && selectedClient.pets && selectedClient.pets.length > 0 && (
+                                                  <div className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-xl border border-zinc-100 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                      <div className="p-2.5 bg-zinc-50 text-[10px] text-gray-400 font-bold uppercase tracking-wider border-b border-zinc-100">
+                                                          {selectedClient.name}'s Pets
+                                                      </div>
+                                                      {selectedClient.pets
+                                                          .filter(p => normalizeText(p.name).includes(normalizeText(pet.petName || '')))
+                                                          .map(existPet => (
+                                                              <div
+                                                                  key={existPet.id}
+                                                                  onClick={() => {
+                                                                      updatePet('petName', existPet.name);
+                                                                      updatePet('petBreed', existPet.breed || '');
+                                                                      updatePet('petColor', existPet.color || '');
+                                                                      updatePet('weightSize', existPet.weightSize || '');
+                                                                      updatePet('petSpecies', existPet.species === 'CAT' ? 'CAT' : existPet.species === 'OTHER' ? 'OTHER' : 'DOG');
+                                                                      updatePet('_showPetSug', false);
+                                                                      updatePet('serviceId', '');
+                                                                      updatePet('_serviceSearch', '');
+                                                                      updatePet('addonIds', []);
+                                                                  }}
+                                                                  className="p-3.5 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 flex justify-between items-center group transition-colors"
+                                                              >
+                                                                  <div className="flex items-center gap-2">
+                                                                      <span className="text-lg">{existPet.species === 'CAT' ? '🐱' : existPet.species === 'OTHER' ? '🐾' : '🐶'}</span>
+                                                                      <div>
+                                                                          <p className="text-sm font-bold text-zinc-900">{existPet.name}</p>
+                                                                          <p className="text-xs text-gray-500">{existPet.species === 'OTHER' ? (existPet.speciesLabel || 'Other') : existPet.species}{existPet.species ? ' · ' : ''}{existPet.breed || 'Unknown Breed'}</p>
+                                                                      </div>
+                                                                  </div>
+                                                                  <Check className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                              </div>
+                                                          ))}
+                                                      <div
+                                                          className="p-3.5 hover:bg-blue-50 cursor-pointer text-blue-600 font-bold text-xs flex items-center gap-2 border-t border-zinc-100 transition-colors"
+                                                          onClick={() => updatePet('_showPetSug', false)}
+                                                      >
+                                                          <Plus className="w-3 h-3" /> Add New Pet "{pet.petName}"
+                                                      </div>
+                                                  </div>
+                                              )}
                                           </div>
                                           <div>
                                               <label className={labelClass}>Breed</label>

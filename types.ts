@@ -100,6 +100,7 @@ export interface AdditionalPet {
   _addonSearch?: string;
   _showAddonSug?: boolean;
   _addonFilter?: 'ALL' | 'SERVICE' | 'PRODUCT';
+  _showPetSug?: boolean;
 }
 
 export interface GroomingAppointment {
