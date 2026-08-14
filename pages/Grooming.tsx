@@ -700,7 +700,7 @@ const Grooming: React.FC = () => {
           subtotal,
           vat: vatAmount,
           total,
-          discount: discountAmount,
+          discount: discountAmount + appliedSpecialDiscount,
           downpayment: downpayment > 0 ? downpayment : undefined,
           paymentMethod,
           gcashRef: (paymentMethod === 'GCASH' || paymentMethod === 'SPLIT') ? gcashRef : undefined,
@@ -1278,11 +1278,18 @@ const Grooming: React.FC = () => {
                             );
                         })}
 
-                        {/* Discount */}
+                        {/* Discount (Promo) */}
                         {selectedDiscount && (
                             <div className="flex justify-between text-green-600 font-bold mt-2 pt-2 border-t border-zinc-200">
                                 <span className="flex items-center gap-1"><Tag className="w-3 h-3"/> {selectedDiscount.name}</span>
                                 <span>-₱{paymentDetails.discount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        {/* Special Discount */}
+                        {appliedSpecialDiscount > 0 && (
+                            <div className="flex justify-between text-amber-600 font-bold mt-2 pt-2 border-t border-zinc-200">
+                                <span className="flex items-center gap-1"><Tag className="w-3 h-3"/> Special Discount</span>
+                                <span>-₱{appliedSpecialDiscount.toFixed(2)}</span>
                             </div>
                         )}
                         {/* Downpayment */}

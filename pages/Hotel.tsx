@@ -1062,7 +1062,7 @@ const BookingConfirmationModal: React.FC<{
 
 const CheckoutModal: React.FC<{
   booking: HotelBooking;
-  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => void;
+  onConfirm: (method: 'CASH' | 'GCASH' | 'SPLIT', cash?: number, ref?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string, specialDiscount?: number) => void;
   onClose: () => void;
 }> = ({ booking, onConfirm, onClose }) => {
   const { hotelRooms, storeSettings } = useStore();
@@ -1159,6 +1159,12 @@ const CheckoutModal: React.FC<{
                 <span>+₱{lateAmount.toLocaleString()}</span>
               </div>
             )}
+            {appliedSpecialDiscount > 0 && (
+              <div className="flex justify-between text-amber-600 font-bold">
+                <span>🏷 Special Discount</span>
+                <span>-₱{appliedSpecialDiscount.toLocaleString()}</span>
+              </div>
+            )}
             {dpAmount > 0 && (
               <div className="flex justify-between text-orange-600 font-bold">
                 <span>Downpayment Paid</span>
@@ -1166,12 +1172,12 @@ const CheckoutModal: React.FC<{
               </div>
             )}
             <div className="flex justify-between font-bold text-base border-t border-zinc-200 pt-2">
-              <span>{dpAmount > 0 ? 'BALANCE TO PAY' : 'TOTAL'}</span>
-              <span className="text-green-700">₱{balanceToPay.toLocaleString()}</span>
+              <span>{(effectiveDp > 0 || appliedSpecialDiscount > 0) ? 'BALANCE TO PAY' : 'TOTAL'}</span>
+              <span className="text-green-700">₱{effectiveBalance.toLocaleString()}</span>
             </div>
-            {dpAmount > 0 && (
+            {(effectiveDp > 0 || appliedSpecialDiscount > 0) && (
               <div className="flex justify-between text-xs text-zinc-400">
-                <span>Full Total</span>
+                <span>Full Total (before deductions)</span>
                 <span>₱{grandTotal.toLocaleString()}</span>
               </div>
             )}
@@ -1247,7 +1253,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref, effectiveGrandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '')} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button onClick={() => onConfirm(method, cash, ref, effectiveGrandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '', appliedSpecialDiscount > 0 ? appliedSpecialDiscount : undefined)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>
@@ -1806,7 +1812,7 @@ const Hotel: React.FC = () => {
       {checkoutBooking && (
         <CheckoutModal
           booking={checkoutBooking}
-          onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel) => {
+          onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel, specialDiscount) => {
             const bk = checkoutBooking; // capture before clearing
             // Pass the FULL grandTotal (before downpayment) — checkOutGuest handles the deduction internally
             await checkOutGuest(bk.id, method, cash, ref, recalcTotal, lateAmount, lateLabel);
@@ -1859,7 +1865,7 @@ const Hotel: React.FC = () => {
             // Apply downpayment deduction
             const dpAmount = Math.min(bk.downpayment || 0, grossTotal);
             const total = parseFloat(Math.max(0, grossTotal - dpAmount).toFixed(2));
-            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: 0, downpayment: dpAmount > 0 ? dpAmount : undefined, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
+            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: (dpAmount > 0 || (specialDiscount && specialDiscount > 0)) ? ((specialDiscount || 0)) : undefined, downpayment: dpAmount > 0 ? dpAmount : undefined, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
           }}
 
           onClose={() => setCheckoutBooking(null)}
