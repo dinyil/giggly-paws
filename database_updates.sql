@@ -111,13 +111,21 @@ ALTER TABLE appointments
 ALTER TABLE appointments
   ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE appointments
-  ADD COLUMN IF NOT EXISTS "addonIds" JSONB DEFAULT '[]'::jsonb;
+  ADD COLUMN IF NOT EXISTS addon_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS detected_size_category TEXT;
 
 -- ── 11. Store Settings — additional columns ─────────────────
 ALTER TABLE store_settings
   ADD COLUMN IF NOT EXISTS auto_approve_users BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE store_settings
-  ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT true;
+
+-- ── 12. Appointments — pre-applied discounts (Quick Edit) ───
+-- Stores discount selected via Edit Appointment so it auto-loads
+-- in the payment modal. Column names must match mapAppointmentPayload.
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "preAppliedDiscountId" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "preAppliedSpecialDiscount" NUMERIC DEFAULT 0;
 
 -- ============================================================
 -- RUN ALL OF THE ABOVE in the Supabase SQL Editor.

@@ -136,30 +136,41 @@ const mapAppointment = (a: any): GroomingAppointment => ({
     addonIds: a.addon_ids || [],
     pets: a.pets || [],
     groomerId: a.groomerId,
-    downpayment: Number(a.downpayment || 0)
+    downpayment: Number(a.downpayment || 0),
+    preAppliedDiscountId: a.preAppliedDiscountId || undefined,
+    preAppliedSpecialDiscount: a.preAppliedSpecialDiscount ? Number(a.preAppliedSpecialDiscount) : undefined,
 });
 
-const mapAppointmentPayload = (a: GroomingAppointment) => ({
-    id: a.id,
-    "petName": a.petName,
-    "petBreed": a.petBreed,
-    "petColor": a.petColor,
-    "weightSize": a.weightSize,
-    pet_species: a.petSpecies || null,
-    detected_size_category: a.detectedSizeCategory || null,
-    "ownerName": a.ownerName,
-    "contactNumber": a.contactNumber, // Quoted CamelCase
-    email: a.email,
-    "serviceId": a.serviceId,
-    "hairCut": a.hairCut,
-    addon_ids: a.addonIds || [],
-    pets: a.pets || [],
-    date: a.date,
-    time: a.time,
-    status: a.status,
-    "groomerId": a.groomerId,
-    downpayment: a.downpayment || 0
-});
+const mapAppointmentPayload = (a: GroomingAppointment) => {
+    const payload: any = {
+        id: a.id,
+        "petName": a.petName,
+        "petBreed": a.petBreed,
+        "petColor": a.petColor,
+        "weightSize": a.weightSize,
+        pet_species: a.petSpecies || null,
+        detected_size_category: a.detectedSizeCategory || null,
+        "ownerName": a.ownerName,
+        "contactNumber": a.contactNumber,
+        email: a.email,
+        "serviceId": a.serviceId,
+        "hairCut": a.hairCut,
+        addon_ids: a.addonIds || [],
+        pets: a.pets || [],
+        date: a.date,
+        time: a.time,
+        status: a.status,
+        "groomerId": a.groomerId,
+        downpayment: a.downpayment || 0,
+    };
+    // Only include pre-applied discount columns if they have values
+    // (these columns require running database_updates.sql migration first)
+    if (a.preAppliedDiscountId !== undefined) payload["preAppliedDiscountId"] = a.preAppliedDiscountId;
+    if (a.preAppliedSpecialDiscount !== undefined) payload["preAppliedSpecialDiscount"] = a.preAppliedSpecialDiscount;
+    return payload;
+};
+
+
 
 // Hotel Room Mappers (all snake_case in DB)
 const mapHotelRoom = (r: any): HotelRoom => ({
