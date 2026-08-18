@@ -914,11 +914,28 @@ const Grooming: React.FC = () => {
           }
       }
 
-      // Check for recovered APT- transaction first (most reliable match)
+      // PRIORITY 1: Direct lookup by grooming transaction ID (A-{apt.id.slice(-6)})
+      //   handleFinalizePayment now uses this ID format, so this covers all regular grooming
+      //   completions including discounted ones (where total != gross, so total-match fails).
+      const groomingTxId = 'A-' + apt.id.slice(-6);
+      const groomingTx = transactions.find(t => t.id === groomingTxId);
+      if (groomingTx) {
+          const dpFromApt = apt.downpayment || 0;
+          const txWithDp = (groomingTx.downpayment && groomingTx.downpayment > 0)
+              ? groomingTx
+              : dpFromApt > 0
+                  ? { ...groomingTx, downpayment: dpFromApt }
+                  : groomingTx;
+          setPrintingTransaction(txWithDp);
+          setShowReceiptPreview(true);
+          return;
+      }
+
+      // PRIORITY 2: Recovered APT- transaction (manually recovered from logs)
       const aptTxId = 'APT-' + apt.id.slice(-10);
       const aptRecovered = transactions.find(t => t.id === aptTxId);
       
-      // Then look for a real transaction: must match service, date AND total (strict)
+      // PRIORITY 3: Real transaction matched by service + date + gross total (fallback for old records)
       const aptDateStr = apt.date ? apt.date.split('T')[0] : apt.date;
       const realTransaction = !aptRecovered ? transactions.find(t => {
           if (t.id.startsWith('APT-') || t.id.startsWith('RECOVERED-')) return false;
