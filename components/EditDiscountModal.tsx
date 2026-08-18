@@ -39,16 +39,26 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
 
   // ── State ────────────────────────────────────────────────────────────────
   const initialMode: DiscountMode = currentDiscount > 0 ? 'existing' : 'none';
+  const activeDiscounts = discounts.filter(d => d.active);
+
+  // Auto-detect which discount from the list is currently applied by matching amount
+  const initialDiscountId = (() => {
+    if (currentDiscount <= 0) return '';
+    const matched = activeDiscounts.find(d => {
+      const amt = d.type === 'PERCENTAGE' ? grossTotal * (d.value / 100) : d.value;
+      return Math.abs(amt - currentDiscount) < 0.01; // floating point tolerance
+    });
+    return matched?.id || '';
+  })();
+
   const [mode, setMode]                     = useState<DiscountMode>(initialMode);
-  const [selectedDiscountId, setSelectedDiscountId] = useState<string>('');
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string>(initialDiscountId);
   const [specialType, setSpecialType]       = useState<SpecialType>('percent');
   const [specialValue, setSpecialValue]     = useState<string>('');
   const [pin, setPin]                       = useState('');
   const [pinError, setPinError]             = useState('');
   const [pinVerified, setPinVerified]       = useState(false);
   const [isSaving, setIsSaving]             = useState(false);
-
-  const activeDiscounts = discounts.filter(d => d.active);
 
   // ── Compute new discount amount ──────────────────────────────────────────
   const newDiscountAmount = useMemo(() => {
