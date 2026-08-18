@@ -9,6 +9,7 @@ import { Dialog } from '@headlessui/react';
 import { getNotificationContent } from '../services/notifications';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import BluetoothPrintButton from '../components/BluetoothPrintButton';
+import EditDiscountModal from '../components/EditDiscountModal';
 import AdminPinModal from '../components/AdminPinModal';
 
 type GroomingTab = 'UPCOMING' | 'WAITING' | 'ONGOING' | 'COMPLETED';
@@ -131,6 +132,8 @@ const Grooming: React.FC = () => {
   const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  // Edit Discount state (for COMPLETED appointments)
+  const [editDiscountTarget, setEditDiscountTarget] = useState<{ apt: GroomingAppointment; tx: Transaction } | null>(null);
 
   // Paid via POS modal (skip payment, just mark complete + optional discount)
   const [posPrePaidModal, setPosPrePaidModal] = useState<{ isOpen: boolean; apt: GroomingAppointment | null }>({ isOpen: false, apt: null });
@@ -862,6 +865,22 @@ const Grooming: React.FC = () => {
 
 
   // --- PRINT RECEIPT LOGIC ---
+  // ── Edit Discount Handler ────────────────────────────────────────────────
+  const handleEditDiscountSave = (updatedTx: Transaction, discountId?: string, specialAmt?: number) => {
+      // Save updated transaction to DB
+      updateTransaction(editDiscountTarget!.tx, updatedTx);
+
+      // Sync discount info back to appointment for receipt consistency
+      const apt = editDiscountTarget!.apt;
+      const aptUpdate: Partial<GroomingAppointment> = {
+          preAppliedDiscountId: discountId || undefined,
+          preAppliedSpecialDiscount: specialAmt || 0,
+      };
+      updateAppointment({ ...apt, ...aptUpdate });
+
+      setEditDiscountTarget(null);
+  };
+
   const handlePrintReceipt = (apt: GroomingAppointment) => {
       const service = products.find(p => p.id === apt.serviceId);
       const price = service ? service.price : 0;
@@ -1353,6 +1372,23 @@ const Grooming: React.FC = () => {
                                             <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-green-700 font-bold bg-green-50 rounded-xl border border-green-100">
                                                 <CheckCircle className="w-4 h-4" /> Finished
                                             </div>
+                                            {/* Edit Discount button */}
+                                            <Button
+                                                variant="secondary"
+                                                className="w-auto px-3 bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600"
+                                                title="Edit Discount"
+                                                onClick={() => {
+                                                    const txId = 'A-' + apt.id.slice(-6);
+                                                    const linkedTx = transactions.find(t => t.id === txId);
+                                                    if (linkedTx) {
+                                                        setEditDiscountTarget({ apt, tx: linkedTx });
+                                                    } else {
+                                                        alert('Walang linked transaction. I-complete muna ang payment.');
+                                                    }
+                                                }}
+                                            >
+                                                <Tag className="w-4 h-4" />
+                                            </Button>
                                             <Button variant="secondary" className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600" title="Reprint Receipt" onClick={() => handlePrintReceipt(apt)}>
                                                 <Printer className="w-4 h-4" />
                                             </Button>
@@ -3072,6 +3108,18 @@ const Grooming: React.FC = () => {
         <div id="printable-content" className="hidden print:block fixed inset-0 bg-white z-[9999] p-2">
             <ReceiptTemplate transaction={printingTransaction} settings={storeSettings} paperSize={paperSize} />
         </div>
+      )}
+
+      {/* Edit Discount Modal (Grooming COMPLETED tab) */}
+      {editDiscountTarget && (
+        <EditDiscountModal
+          transaction={editDiscountTarget.tx}
+          settings={storeSettings}
+          discounts={discounts}
+          adminPin={storeSettings.adminPin || '0828'}
+          onSave={handleEditDiscountSave}
+          onClose={() => setEditDiscountTarget(null)}
+        />
       )}
     </div>
   );

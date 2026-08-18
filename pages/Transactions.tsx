@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Search, Receipt, Calendar, Printer, X, Settings, Wallet, Plus, Trash2, Edit, Minus, Check, ChevronUp, ChevronDown } from '../components/ui/Icons';
+import { Search, Receipt, Calendar, Printer, X, Settings, Wallet, Plus, Trash2, Edit, Minus, Check, ChevronUp, ChevronDown, Tag } from '../components/ui/Icons';
 import Button from '../components/ui/Button';
 import { Dialog } from '@headlessui/react';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import BluetoothPrintButton from '../components/BluetoothPrintButton';
+import EditDiscountModal from '../components/EditDiscountModal';
 import { Transaction, CartItem } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 const Transactions: React.FC = () => {
-  const { transactions, storeSettings, deleteTransaction, updateTransaction, products, recoverTransactionsFromLogs } = useStore();
+  const { transactions, storeSettings, deleteTransaction, updateTransaction, products, discounts, recoverTransactionsFromLogs } = useStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -38,6 +39,9 @@ const Transactions: React.FC = () => {
   const [editSearch, setEditSearch] = useState(''); // Search for adding items
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState<{ grooming: number; pos: number } | null>(null);
+
+  // Edit Discount Modal State
+  const [editDiscountTx, setEditDiscountTx] = useState<Transaction | null>(null);
 
   const handleRecoverTransactions = async () => {
     setIsRecovering(true);
@@ -404,6 +408,13 @@ const Transactions: React.FC = () => {
                             <Edit className="w-4 h-4" />
                         </button>
                         <button 
+                            onClick={() => setEditDiscountTx(t)}
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Edit Discount"
+                        >
+                            <Tag className="w-4 h-4" />
+                        </button>
+                        <button 
                             onClick={() => handleDeleteClick(t.id)}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                             title="Delete"
@@ -657,6 +668,20 @@ const Transactions: React.FC = () => {
       <div id="printable-content" className="hidden print:block fixed inset-0 bg-white z-[9999] p-2">
           <ReceiptTemplate transaction={viewingTransaction} settings={storeSettings} paperSize={paperSize} />
       </div>
+    )}
+    {/* Edit Discount Modal */}
+    {editDiscountTx && (
+      <EditDiscountModal
+        transaction={editDiscountTx}
+        settings={storeSettings}
+        discounts={discounts}
+        adminPin={storeSettings.adminPin || '0828'}
+        onSave={(updatedTx) => {
+          updateTransaction(editDiscountTx, updatedTx);
+          setEditDiscountTx(null);
+        }}
+        onClose={() => setEditDiscountTx(null)}
+      />
     )}
     </>
   );
