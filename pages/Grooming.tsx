@@ -1372,23 +1372,31 @@ const Grooming: React.FC = () => {
                                             <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-green-700 font-bold bg-green-50 rounded-xl border border-green-100">
                                                 <CheckCircle className="w-4 h-4" /> Finished
                                             </div>
-                                            {/* Edit Discount button */}
-                                            <Button
-                                                variant="secondary"
-                                                className="w-auto px-3 bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600"
-                                                title="Edit Discount"
-                                                onClick={() => {
-                                                    const txId = 'A-' + apt.id.slice(-6);
-                                                    const linkedTx = transactions.find(t => t.id === txId);
-                                                    if (linkedTx) {
-                                                        setEditDiscountTarget({ apt, tx: linkedTx });
-                                                    } else {
-                                                        alert('No linked transaction found. Complete the payment first.');
-                                                    }
-                                                }}
-                                            >
-                                                <Tag className="w-4 h-4" />
-                                            </Button>
+                                            {/* Edit Discount button — green when discount already applied */}
+                                            {(() => {
+                                                const txId = 'A-' + apt.id.slice(-6);
+                                                const linkedTx = transactions.find(t => t.id === txId);
+                                                const hasDiscount = linkedTx && linkedTx.discount > 0;
+                                                return (
+                                                    <Button
+                                                        variant="secondary"
+                                                        className={`w-auto px-3 ${hasDiscount
+                                                            ? 'bg-green-100 hover:bg-green-200 border-green-300 text-green-700'
+                                                            : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600'
+                                                        }`}
+                                                        title={hasDiscount ? `Discount: -₱${linkedTx!.discount.toFixed(2)} — Click to edit` : 'Add Discount'}
+                                                        onClick={() => {
+                                                            if (linkedTx) {
+                                                                setEditDiscountTarget({ apt, tx: linkedTx });
+                                                            } else {
+                                                                alert('No linked transaction found. Complete the payment first.');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Tag className="w-4 h-4" />
+                                                    </Button>
+                                                );
+                                            })()}
                                             <Button variant="secondary" className="w-auto px-3 bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-600" title="Reprint Receipt" onClick={() => handlePrintReceipt(apt)}>
                                                 <Printer className="w-4 h-4" />
                                             </Button>

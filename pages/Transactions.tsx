@@ -409,8 +409,11 @@ const Transactions: React.FC = () => {
                         </button>
                         <button 
                             onClick={() => setEditDiscountTx(t)}
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                            title="Edit Discount"
+                            className={`p-2 rounded-lg transition-all ${t.discount > 0
+                                ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                            }`}
+                            title={t.discount > 0 ? `Discount applied: -₱${t.discount.toFixed(2)} — Click to edit` : 'Add Discount'}
                         >
                             <Tag className="w-4 h-4" />
                         </button>
