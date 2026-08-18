@@ -1178,7 +1178,7 @@ const Grooming: React.FC = () => {
                                     {/* Edit button — shown on WAITING and ONGOING only */}
                                     {(card.cardStatus === 'ONGOING' || (card.cardStatus === 'SCHEDULED' && card.displayDate === today)) && (
                                         <button
-                                            onClick={() => openQuickEditModal(apt)}
+                                            onClick={() => openEditModal(apt)}
                                             className="w-full mb-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 py-2.5 rounded-xl font-bold text-sm flex justify-center items-center gap-2 transition-all active:scale-95"
                                         >
                                             <Pencil className="w-4 h-4" /> Edit Appointment
