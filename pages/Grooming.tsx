@@ -8,6 +8,7 @@ import { Plus, Calendar, Dog, User, Scissors, History, Clock, CheckCircle, Arrow
 import { Dialog } from '@headlessui/react';
 import { getNotificationContent } from '../services/notifications';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import BluetoothPrintButton from '../components/BluetoothPrintButton';
 import AdminPinModal from '../components/AdminPinModal';
 
 type GroomingTab = 'UPCOMING' | 'WAITING' | 'ONGOING' | 'COMPLETED';
@@ -3053,7 +3054,12 @@ const Grooming: React.FC = () => {
              </div>
 
              <div className="mt-4 flex gap-3">
-                <Button className="w-full bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50" onClick={handleActualPrint}>
+                <BluetoothPrintButton
+                    transaction={printingTransaction!}
+                    settings={storeSettings}
+                    paperSize={paperSize}
+                />
+                <Button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50" onClick={handleActualPrint}>
                     <Printer className="w-4 h-4 mr-2" /> Print Now
                 </Button>
              </div>

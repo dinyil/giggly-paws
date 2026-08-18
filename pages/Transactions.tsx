@@ -4,6 +4,7 @@ import { Search, Receipt, Calendar, Printer, X, Settings, Wallet, Plus, Trash2, 
 import Button from '../components/ui/Button';
 import { Dialog } from '@headlessui/react';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import BluetoothPrintButton from '../components/BluetoothPrintButton';
 import { Transaction, CartItem } from '../types';
 import { useNavigate } from 'react-router-dom';
 
@@ -635,6 +636,13 @@ const Transactions: React.FC = () => {
                 <Button variant="secondary" className="flex-1 bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600 hover:text-white" onClick={() => setIsReceiptModalOpen(false)}>
                     Close
                 </Button>
+                {viewingTransaction && (
+                    <BluetoothPrintButton
+                        transaction={viewingTransaction}
+                        settings={storeSettings}
+                        paperSize={paperSize}
+                    />
+                )}
                 <Button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50" onClick={handlePrint}>
                     <Printer className="w-4 h-4 mr-2" /> Print Receipt
                 </Button>
