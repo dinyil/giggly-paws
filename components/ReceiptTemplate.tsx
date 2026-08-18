@@ -77,13 +77,28 @@ const ReceiptTemplate: React.FC<ReceiptTemplateProps> = ({ transaction, settings
       <div style={dashedBottom}>
         {transaction.items.map((item, idx) => {
           const itemTotal = item.price * item.quantity;
+
+          // Separate pet name from service name — format: "Service Name (Pet Name)"
+          const petNameMatch = item.name.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+          const displayName = petNameMatch ? petNameMatch[1].trim() : item.name;
+          const petLabel   = petNameMatch ? petNameMatch[2].trim() : null;
+
+          // Only show per-item discount lines if the transaction has NO separate Discount row
+          // (i.e. it's a POS transaction where discount is applied per-item, not to the combined total)
+          const showPerItemDiscount = !transaction.discount || transaction.discount === 0;
+
           return (
-            <div key={idx} style={{ marginBottom: '2px' }}>
+            <div key={idx} style={{ marginBottom: '3px' }}>
               {row(
-                <>{item.quantity} x {item.name}</>,
+                <>{item.quantity} x {displayName}</>,
                 itemTotal.toFixed(2)
               )}
-              {item.appliedDiscounts?.map(d => {
+              {petLabel && (
+                <div style={{ paddingLeft: '12px', fontSize: '8px', color: '#555', fontStyle: 'italic', marginTop: '-1px' }}>
+                  🐾 {petLabel}
+                </div>
+              )}
+              {showPerItemDiscount && item.appliedDiscounts?.map(d => {
                 const discountAmt = d.type === 'PERCENTAGE'
                   ? itemTotal * (d.value / 100)
                   : d.value * item.quantity;
