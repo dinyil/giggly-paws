@@ -782,8 +782,9 @@ const Grooming: React.FC = () => {
       }
 
       // Create Transaction Record (main service + all add-ons + extra pets)
+      // ID format: A-{apt.id.slice(-6)} — MUST match the Ref shown on the printed receipt
       const transaction: Transaction = {
-          id: Date.now().toString(),
+          id: `A-${paymentApt.id.slice(-6)}`,
           items: [
               {
                   ...service!,
@@ -803,7 +804,8 @@ const Grooming: React.FC = () => {
           gcashRef: (paymentMethod === 'GCASH' || paymentMethod === 'SPLIT') ? gcashRef : undefined,
           cashReceived: paymentMethod === 'SPLIT' ? Number(splitCashAmount) : undefined,
           date: new Date().toISOString(),
-          cashierId: currentUser?.id || 'unknown'
+          cashierId: currentUser?.id || 'unknown',
+          clientName: paymentApt.ownerName,
       };
 
       addTransaction(transaction);

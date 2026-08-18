@@ -48,9 +48,12 @@ const Transactions: React.FC = () => {
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       // 1. Search Filter
-      const searchMatch = t.id.toLowerCase().includes(search.toLowerCase()) || 
-        t.date.includes(search) ||
-        (t.gcashRef && t.gcashRef.toLowerCase().includes(search.toLowerCase()));
+      const q = search.toLowerCase();
+      const searchMatch = t.id.toLowerCase().includes(q) || 
+        t.date.includes(q) ||
+        (t.gcashRef && t.gcashRef.toLowerCase().includes(q)) ||
+        (t.clientName && t.clientName.toLowerCase().includes(q)) ||
+        t.items.some(item => item.name.toLowerCase().includes(q));
       
       if (!searchMatch) return false;
 

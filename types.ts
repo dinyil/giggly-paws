@@ -82,6 +82,8 @@ export interface Transaction {
   cashReceived?: number; // Stores the Cash portion if SPLIT
   date: string;
   cashierId: string;
+  clientName?: string;    // Owner name — used for Transaction History search
+  specialDiscount?: number; // Special (admin-authorized) discount amount
 }
 
 export interface AdditionalPet {
