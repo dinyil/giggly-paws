@@ -232,11 +232,11 @@ const Transactions: React.FC = () => {
           <Wallet className="w-5 h-5" /> Transaction History
         </h2>
         <div className="flex items-center gap-2">
-          {/* Recover lost transactions from audit logs */}
+          {/* Recover lost transactions from audit logs — hidden for now, keep function intact */}
           <button
             onClick={handleRecoverTransactions}
             disabled={isRecovering}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all active:scale-95 disabled:opacity-50 opacity-0 pointer-events-none select-none"
             title="Recover transactions that were processed but not saved to database"
           >
             {isRecovering ? (
