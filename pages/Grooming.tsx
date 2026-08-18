@@ -136,6 +136,15 @@ const Grooming: React.FC = () => {
     isOpen: false, id: null, petName: ''
   });
 
+  // --- QUICK EDIT MODAL (for WAITING / ONGOING --- preserves status) ---
+  const [quickEditApt, setQuickEditApt] = useState<GroomingAppointment | null>(null);
+  const [quickEditData, setQuickEditData] = useState<Partial<GroomingAppointment>>({});
+  const [qeDiscount, setQeDiscount] = useState<Discount | null>(null);
+  const [qeSpecialDiscountInput, setQeSpecialDiscountInput] = useState('');
+  const [qeSpecialDiscountType, setQeSpecialDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
+  const [qeAppliedSpecialDiscount, setQeAppliedSpecialDiscount] = useState(0);
+  const [qeShowAdminPin, setQeShowAdminPin] = useState(false);
+
   // Autocomplete & Pet Logic States
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showPetSuggestions, setShowPetSuggestions] = useState(false);
@@ -496,7 +505,45 @@ const Grooming: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  // --- QUICK EDIT (preserves WAITING / ONGOING status) ---
+  const openQuickEditModal = (apt: GroomingAppointment) => {
+    setQuickEditApt(apt);
+    setQuickEditData({ ...apt });
+    setQeDiscount(null);
+    setQeSpecialDiscountInput('');
+    setQeSpecialDiscountType('AMOUNT');
+    setQeAppliedSpecialDiscount(0);
+  };
+
+  const handleSaveQuickEdit = () => {
+    if (!quickEditApt) return;
+    const service = products.find(p => p.id === (quickEditData.serviceId || quickEditApt.serviceId));
+    const price = service ? service.price : 0;
+    const addonTotal = (quickEditData.addonIds || quickEditApt.addonIds || []).reduce((sum, id) => {
+      const p = products.find(prod => prod.id === id); return sum + (p ? p.price : 0);
+    }, 0);
+    const base = price + addonTotal;
+    let discountAmt = 0;
+    if (qeDiscount) {
+      discountAmt = qeDiscount.type === 'PERCENTAGE' ? base * (qeDiscount.value / 100) : qeDiscount.value;
+    }
+    const discountNotes = [
+      qeDiscount ? `[Promo: ${qeDiscount.name} -${discountAmt.toFixed(2)}]` : '',
+      qeAppliedSpecialDiscount > 0 ? `[Special Discount: -${qeAppliedSpecialDiscount.toFixed(2)}]` : ''
+    ].filter(Boolean).join(' ');
+    const updated: GroomingAppointment = {
+      ...quickEditApt,
+      ...quickEditData,
+      status: quickEditApt.status, // PRESERVE STATUS - do not reset
+      id: quickEditApt.id,
+      hairCut: [quickEditData.hairCut || '', discountNotes].filter(Boolean).join(' '),
+    };
+    updateAppointment(updated);
+    setQuickEditApt(null);
+  };
+
   // --- REBOOK FUNCTIONALITY ---
+
   const handleRebook = (apt: GroomingAppointment) => {
     setEditingId(null); // Ensure it's a NEW appointment
     
@@ -1117,8 +1164,18 @@ const Grooming: React.FC = () => {
 
                                 {/* Action buttons */}
                                 <div className="mt-auto relative z-10">
+                                    {/* Edit button — shown on WAITING and ONGOING only */}
+                                    {(card.cardStatus === 'ONGOING' || (card.cardStatus === 'SCHEDULED' && card.displayDate === today)) && (
+                                        <button
+                                            onClick={() => openQuickEditModal(apt)}
+                                            className="w-full mb-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 py-2.5 rounded-xl font-bold text-sm flex justify-center items-center gap-2 transition-all active:scale-95"
+                                        >
+                                            <Pencil className="w-4 h-4" /> Edit Appointment
+                                        </button>
+                                    )}
                                     {card.cardStatus === 'SCHEDULED' && (
                                         card.displayDate === today ? (
+
                                             <button className="w-full bg-purple-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-purple-800 transition-all active:scale-95 shadow-lg shadow-zinc-200" onClick={() => {
                                                 if (card.hasPrimary) {
                                                     updateAppointmentStatus(apt.id, 'ONGOING');
@@ -1517,7 +1574,179 @@ const Grooming: React.FC = () => {
         onClose={() => setShowAdminPinForDiscount(false)}
       />
 
+      {/* ====== QUICK EDIT MODAL (WAITING / ONGOING) ====== */}
+      <Dialog open={!!quickEditApt} onClose={() => setQuickEditApt(null)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100 flex-shrink-0">
+              <div>
+                <Dialog.Title className="text-lg font-bold text-zinc-900">Edit Appointment</Dialog.Title>
+                <p className="text-xs text-zinc-400 mt-0.5">{quickEditApt?.petName} &mdash; status will remain {quickEditApt?.status}</p>
+              </div>
+              <button onClick={() => setQuickEditApt(null)} className="text-zinc-400 hover:text-zinc-700 p-1"><X className="w-5 h-5" /></button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+
+              {/* Owner & Contact */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Owner Name</label>
+                  <input className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                    value={quickEditData.ownerName || ''}
+                    onChange={e => setQuickEditData(p => ({ ...p, ownerName: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Contact</label>
+                  <input className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                    value={quickEditData.contactNumber || ''}
+                    onChange={e => setQuickEditData(p => ({ ...p, contactNumber: e.target.value }))} />
+                </div>
+              </div>
+
+              {/* Pet Info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Pet Name</label>
+                  <input className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                    value={quickEditData.petName || ''}
+                    onChange={e => setQuickEditData(p => ({ ...p, petName: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Breed</label>
+                  <input className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                    value={quickEditData.petBreed || ''}
+                    onChange={e => setQuickEditData(p => ({ ...p, petBreed: e.target.value }))} />
+                </div>
+              </div>
+
+              {/* Groomer */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Groomer</label>
+                <select className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none bg-white"
+                  value={quickEditData.groomerId || ''}
+                  onChange={e => setQuickEditData(p => ({ ...p, groomerId: e.target.value }))}>
+                  <option value="">Select Groomer</option>
+                  {users.filter(u => (u.role as string) === 'GROOMER' || (u.role as string) === 'ADMIN' || (u.role as string) === 'SUPERADMIN').map(u => (
+                    <option key={u.id} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Notes / Instructions */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">Notes / Haircut Instructions</label>
+                <textarea rows={2} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none resize-none"
+                  value={quickEditData.hairCut || ''}
+                  onChange={e => setQuickEditData(p => ({ ...p, hairCut: e.target.value }))} />
+              </div>
+
+              {/* Promo Discount from discount page */}
+              <div>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Promo Discount</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setQeDiscount(null)}
+                    className={`py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                      !qeDiscount ? 'bg-zinc-800 text-white border-zinc-800' : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                    }`}
+                  >None</button>
+                  {discounts.filter(d => d.isActive !== false).map(d => {
+                    const isSelected = qeDiscount?.id === d.id;
+                    return (
+                      <button key={d.id} onClick={() => setQeDiscount(isSelected ? null : d)}
+                        className={`py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                          isSelected ? 'bg-green-600 text-white border-green-600' : 'bg-white text-zinc-700 border-zinc-200 hover:border-green-300'
+                        }`}>
+                        {d.name} {d.type === 'PERCENTAGE' ? `(${d.value}%)` : `(-\u20b1${d.value})`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Special Discount - Admin PIN */}
+              <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 overflow-hidden">
+                <p className="text-amber-700 text-xs font-bold uppercase tracking-widest px-4 pt-4 pb-1">&#127991; Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span></p>
+                {qeAppliedSpecialDiscount > 0 ? (
+                  <div className="flex items-center justify-between px-4 pb-4">
+                    <span className="text-green-700 font-bold text-base">&#10003; -&#8369;{qeAppliedSpecialDiscount.toFixed(2)} applied</span>
+                    <button onClick={() => { setQeAppliedSpecialDiscount(0); setQeSpecialDiscountInput(''); }} className="text-sm text-red-500 font-bold px-4 py-2 rounded-xl bg-red-100 active:bg-red-200">Remove</button>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => setQeSpecialDiscountType('AMOUNT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${qeSpecialDiscountType === 'AMOUNT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>&#8369; Fixed Amount</button>
+                      <button onClick={() => setQeSpecialDiscountType('PERCENT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${qeSpecialDiscountType === 'PERCENT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>% Percentage</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="number" inputMode="decimal" min="0" step="1"
+                        placeholder={qeSpecialDiscountType === 'AMOUNT' ? '0.00' : '0'}
+                        value={qeSpecialDiscountInput}
+                        onChange={e => setQeSpecialDiscountInput(e.target.value)}
+                        className="flex-1 h-12 border border-amber-300 rounded-xl px-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      <button
+                        disabled={!qeSpecialDiscountInput || Number(qeSpecialDiscountInput) <= 0}
+                        onClick={() => setQeShowAdminPin(true)}
+                        className="h-12 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold disabled:opacity-40 transition-all">Apply</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Summary preview */}
+              {(qeDiscount || qeAppliedSpecialDiscount > 0) && (() => {
+                const svc = products.find(p => p.id === (quickEditData.serviceId || quickEditApt?.serviceId));
+                const base = (svc ? svc.price : 0) +
+                  (quickEditData.addonIds || quickEditApt?.addonIds || []).reduce((s, id) => {
+                    const p = products.find(x => x.id === id); return s + (p ? p.price : 0);
+                  }, 0);
+                const promoAmt = qeDiscount ? (qeDiscount.type === 'PERCENTAGE' ? base * (qeDiscount.value / 100) : qeDiscount.value) : 0;
+                const finalTotal = Math.max(0, base - promoAmt - qeAppliedSpecialDiscount);
+                return (
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100 text-sm space-y-1">
+                    <div className="flex justify-between text-zinc-500"><span>Service Total</span><span>&#8369;{base.toFixed(2)}</span></div>
+                    {promoAmt > 0 && <div className="flex justify-between text-green-600"><span>Promo Discount</span><span>-&#8369;{promoAmt.toFixed(2)}</span></div>}
+                    {qeAppliedSpecialDiscount > 0 && <div className="flex justify-between text-amber-600 font-bold"><span>&#127991; Special Discount</span><span>-&#8369;{qeAppliedSpecialDiscount.toFixed(2)}</span></div>}
+                    <div className="flex justify-between font-bold text-zinc-900 border-t border-zinc-200 pt-1"><span>Estimated Total</span><span>&#8369;{finalTotal.toFixed(2)}</span></div>
+                  </div>
+                );
+              })()}
+
+            </div>
+
+            {/* Footer buttons */}
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
+              <Button variant="ghost" onClick={() => setQuickEditApt(null)} className="flex-1">Cancel</Button>
+              <Button onClick={handleSaveQuickEdit} className="flex-[2]">Save Changes</Button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Admin PIN for quick-edit special discount */}
+      <AdminPinModal
+        isOpen={qeShowAdminPin}
+        title="Apply Special Discount"
+        description="Enter admin PIN to authorize this discount."
+        onSuccess={() => {
+          const svc = products.find(p => p.id === (quickEditData.serviceId || quickEditApt?.serviceId));
+          const base = (svc ? svc.price : 0) +
+            (quickEditData.addonIds || quickEditApt?.addonIds || []).reduce((s, id) => {
+              const p = products.find(x => x.id === id); return s + (p ? p.price : 0);
+            }, 0);
+          const raw = Number(qeSpecialDiscountInput || 0);
+          const computed = qeSpecialDiscountType === 'PERCENT' ? base * (raw / 100) : raw;
+          setQeAppliedSpecialDiscount(Math.round(Math.min(computed, base) * 100) / 100);
+        }}
+        onClose={() => setQeShowAdminPin(false)}
+      />
+
        {/* COMPLETION MODAL */}
+
        <Dialog open={completionModal.isOpen} onClose={() => setCompletionModal({isOpen: false, apt: null})} className="relative z-50">
             <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
             <div className="fixed inset-0 flex items-center justify-center p-4">
