@@ -45,13 +45,13 @@ const Reports: React.FC = () => {
        return itemPhStr === nowPhStr;
     }
     
-    // For ranges involving arithmetic (Week/Month), use Date objects from PH strings
-    const itemDate = new Date(itemPhStr);
 
     if (timeRange === 'WEEK') {
-       const weekAgo = new Date(todayPh);
-       weekAgo.setDate(todayPh.getDate() - 7);
-       return itemDate >= weekAgo && itemDate <= todayPh;
+       // Compute weekAgo as a YYYY-MM-DD string (same timezone-safe approach as other filters)
+       const weekAgoDate = new Date(y, m - 1, d);
+       weekAgoDate.setDate(weekAgoDate.getDate() - 6); // last 7 days inclusive of today
+       const weekAgoStr = weekAgoDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+       return itemPhStr >= weekAgoStr && itemPhStr <= nowPhStr;
     }
 
     if (timeRange === 'MONTH') {
