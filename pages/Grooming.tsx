@@ -131,8 +131,13 @@ const Grooming: React.FC = () => {
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
 
-  // Paid via POS modal (skip payment, just mark complete)
+  // Paid via POS modal (skip payment, just mark complete + optional discount)
   const [posPrePaidModal, setPosPrePaidModal] = useState<{ isOpen: boolean; apt: GroomingAppointment | null }>({ isOpen: false, apt: null });
+  const [posPrePaidDiscount, setPosPrePaidDiscount] = useState<Discount | null>(null);
+  const [posPrePaidSpecialDiscount, setPosPrePaidSpecialDiscount] = useState(0);
+  const [posPrePaidSpecialInput, setPosPrePaidSpecialInput] = useState('');
+  const [posPrePaidSpecialType, setPosPrePaidSpecialType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
+  const [showAdminPinForPosPrePaid, setShowAdminPinForPosPrePaid] = useState(false);
 
   // Delete Confirmation State
   const [deleteConfirmation, setDeleteConfirmation] = useState<{isOpen: boolean, id: string | null, petName: string}>({
@@ -1788,9 +1793,39 @@ const Grooming: React.FC = () => {
         onClose={() => setQeShowAdminPin(false)}
       />
 
-       {/* PAID VIA POS MODAL — no payment collection, just mark complete */}
+      {/* Admin PIN for POS pre-paid special discount */}
+      <AdminPinModal
+        isOpen={showAdminPinForPosPrePaid}
+        title="Apply Special Discount"
+        description="Enter admin PIN to authorize this special discount."
+        onSuccess={() => {
+          const apt = posPrePaidModal.apt;
+          if (!apt) return;
+          const svc = products.find(p => p.id === apt.serviceId);
+          const svcPrice = svc ? svc.price : 0;
+          const addonsPrice = (apt.addonIds || []).reduce((s, id) => {
+              const p = products.find(prod => prod.id === id);
+              return s + (p ? p.price : 0);
+          }, 0);
+          const extraPetsPrice = (apt.pets || []).reduce((s, pet) => {
+              const ps = products.find(p => p.id === pet.serviceId);
+              const pa = (pet.addonIds || []).reduce((ss, id) => {
+                  const pp = products.find(prod => prod.id === id);
+                  return ss + (pp ? pp.price : 0);
+              }, 0);
+              return s + (ps ? ps.price : 0) + pa;
+          }, 0);
+          const gross = svcPrice + addonsPrice + extraPetsPrice;
+          const raw = Number(posPrePaidSpecialInput || 0);
+          const computed = posPrePaidSpecialType === 'PERCENT' ? gross * (raw / 100) : raw;
+          setPosPrePaidSpecialDiscount(Math.round(Math.min(computed, gross) * 100) / 100);
+        }}
+        onClose={() => setShowAdminPinForPosPrePaid(false)}
+      />
+
+       {/* PAID VIA POS MODAL — no payment collection, optional discount, then mark complete */}
        {posPrePaidModal.isOpen && posPrePaidModal.apt && (() => {
-           const apt = posPrePaidModal.apt;
+           const apt = posPrePaidModal.apt!;
            const svc = products.find(p => p.id === apt.serviceId);
            const svcPrice = svc ? svc.price : 0;
            const addonsPrice = (apt.addonIds || []).reduce((s, id) => {
@@ -1805,47 +1840,147 @@ const Grooming: React.FC = () => {
                }, 0);
                return s + (ps ? ps.price : 0) + pa;
            }, 0);
-           const paidTotal = svcPrice + addonsPrice + extraPetsPrice;
+           const grossTotal = svcPrice + addonsPrice + extraPetsPrice;
            const posRef = apt.posTransactionId ? `#${apt.posTransactionId.slice(-6)}` : 'POS';
 
-           return (
-               <Dialog open={true} onClose={() => setPosPrePaidModal({ isOpen: false, apt: null })} className="relative z-50">
-                   <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
-                   <div className="fixed inset-0 flex items-center justify-center p-4">
-                       <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl relative">
-                           <button onClick={() => setPosPrePaidModal({ isOpen: false, apt: null })} className="absolute top-4 right-4 text-gray-400 hover:text-purple-900"><X className="w-5 h-5"/></button>
+           // Compute discount
+           let discountAmt = 0;
+           if (posPrePaidDiscount) {
+               discountAmt = posPrePaidDiscount.type === 'PERCENTAGE'
+                   ? grossTotal * (posPrePaidDiscount.value / 100)
+                   : posPrePaidDiscount.value;
+           }
+           discountAmt += posPrePaidSpecialDiscount;
+           const adjustedTotal = Math.max(0, grossTotal - discountAmt);
+           const hasDiscount = discountAmt > 0;
 
+           const closePosModal = () => {
+               setPosPrePaidModal({ isOpen: false, apt: null });
+               setPosPrePaidDiscount(null);
+               setPosPrePaidSpecialDiscount(0);
+               setPosPrePaidSpecialInput('');
+           };
+
+           return (
+               <Dialog open={true} onClose={closePosModal} className="relative z-50">
+                   <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
+                   <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+                       <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl relative my-4">
+                           <button onClick={closePosModal} className="absolute top-4 right-4 text-gray-400 hover:text-purple-900"><X className="w-5 h-5"/></button>
+
+                           {/* Header */}
                            <div className="text-center mb-5">
-                               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 text-green-600">
-                                   <CheckCircle className="w-9 h-9" />
+                               <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 text-green-600">
+                                   <CheckCircle className="w-8 h-8" />
                                </div>
                                <h3 className="text-xl font-bold text-zinc-900">Already Paid via POS</h3>
                                <p className="text-zinc-500 text-sm mt-1">{apt.ownerName} — {apt.petName}</p>
                            </div>
 
-                           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-5 space-y-2 text-sm">
+                           {/* POS Transaction Summary */}
+                           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 space-y-2 text-sm">
                                <div className="flex justify-between text-zinc-600">
                                    <span>POS Transaction</span>
                                    <span className="font-bold text-zinc-900">{posRef}</span>
                                </div>
                                <div className="flex justify-between text-zinc-600">
-                                   <span>Amount Collected</span>
-                                   <span className="font-bold text-green-700">₱{paidTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                   <span>Gross Total</span>
+                                   <span className="font-bold text-zinc-900">₱{grossTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                </div>
+                               {hasDiscount && (
+                                   <div className="flex justify-between text-red-600">
+                                       <span>Discount Applied</span>
+                                       <span className="font-bold">-₱{discountAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                   </div>
+                               )}
+                               {hasDiscount && (
+                                   <div className="flex justify-between text-green-700 border-t border-green-200 pt-2 font-bold">
+                                       <span>Adjusted Total</span>
+                                       <span>₱{adjustedTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                   </div>
+                               )}
                                <div className="border-t border-green-200 pt-2 text-xs text-green-700 flex items-center gap-1">
                                    <CheckCircle className="w-3.5 h-3.5" /> Payment already collected at POS counter
                                </div>
                            </div>
 
-                           <p className="text-center text-sm text-zinc-500 mb-5">
-                               No additional payment needed. Click below to mark the appointment as complete and send notification.
-                           </p>
+                           {/* Optional Discount Section */}
+                           <div className="border border-zinc-200 rounded-2xl p-4 mb-4 space-y-3">
+                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide flex items-center gap-1">
+                                   <Tag className="w-3.5 h-3.5" /> Apply Discount (Optional)
+                               </p>
 
+                               {/* Discount from list */}
+                               <div>
+                                   <label className="text-xs text-zinc-500 mb-1 block">Promo / Discount</label>
+                                   <select
+                                       value={posPrePaidDiscount?.id || ''}
+                                       onChange={e => {
+                                           const d = discounts.find(d => d.id === e.target.value) || null;
+                                           setPosPrePaidDiscount(d);
+                                       }}
+                                       className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                   >
+                                       <option value="">— No Discount —</option>
+                                       {discounts.filter(d => d.isActive).map(d => (
+                                           <option key={d.id} value={d.id}>
+                                               {d.name} ({d.type === 'PERCENTAGE' ? `${d.value}%` : `₱${d.value}`})
+                                           </option>
+                                       ))}
+                                   </select>
+                               </div>
+
+                               {/* Special Discount (admin PIN) */}
+                               <div>
+                                   <label className="text-xs text-zinc-500 mb-1 block">Special Discount</label>
+                                   <div className="flex gap-2">
+                                       <div className="flex border border-zinc-200 rounded-xl overflow-hidden text-xs">
+                                           <button
+                                               onClick={() => setPosPrePaidSpecialType('AMOUNT')}
+                                               className={`px-3 py-2 font-bold transition-all ${posPrePaidSpecialType === 'AMOUNT' ? 'bg-purple-600 text-white' : 'bg-white text-zinc-500'}`}
+                                           >₱</button>
+                                           <button
+                                               onClick={() => setPosPrePaidSpecialType('PERCENT')}
+                                               className={`px-3 py-2 font-bold transition-all ${posPrePaidSpecialType === 'PERCENT' ? 'bg-purple-600 text-white' : 'bg-white text-zinc-500'}`}
+                                           >%</button>
+                                       </div>
+                                       <input
+                                           type="number"
+                                           min="0"
+                                           placeholder="0"
+                                           value={posPrePaidSpecialInput}
+                                           onChange={e => setPosPrePaidSpecialInput(e.target.value)}
+                                           className="flex-1 border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                       />
+                                       <button
+                                           onClick={() => setShowAdminPinForPosPrePaid(true)}
+                                           className="bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 active:scale-95 transition-all"
+                                       >
+                                           Apply
+                                       </button>
+                                   </div>
+                                   {posPrePaidSpecialDiscount > 0 && (
+                                       <div className="flex items-center justify-between mt-1">
+                                           <span className="text-xs text-amber-700">Special discount: ₱{posPrePaidSpecialDiscount.toFixed(2)}</span>
+                                           <button onClick={() => { setPosPrePaidSpecialDiscount(0); setPosPrePaidSpecialInput(''); }} className="text-xs text-red-500 hover:underline">Remove</button>
+                                       </div>
+                                   )}
+                               </div>
+                           </div>
+
+                           {/* Mark Complete button */}
                            <Button
                                className="w-full text-base font-bold"
                                onClick={() => {
-                                   setPosPrePaidModal({ isOpen: false, apt: null });
-                                   setCompletionModal({ isOpen: true, apt });
+                                   // Save discount info to appointment for record/receipt
+                                   const updatedApt: GroomingAppointment = {
+                                       ...apt,
+                                       preAppliedDiscountId: posPrePaidDiscount?.id,
+                                       preAppliedSpecialDiscount: posPrePaidSpecialDiscount > 0 ? posPrePaidSpecialDiscount : undefined,
+                                   };
+                                   if (hasDiscount) updateAppointment(updatedApt);
+                                   closePosModal();
+                                   setCompletionModal({ isOpen: true, apt: hasDiscount ? updatedApt : apt });
                                }}
                            >
                                <CheckCircle className="w-5 h-5 mr-2" /> Mark as Complete
