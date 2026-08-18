@@ -431,28 +431,35 @@ const Grooming: React.FC = () => {
                   const searchNorm = normalizeText(historySearch);
                   const apt = card.apt;
 
-                  // Look up linked transaction IDs for this appointment
+                  // All pet names (primary + additional pets)
+                  const allPetNames = [apt.petName, ...(apt.pets || []).map(p => p.petName)];
+
+                  // Receipt ref format: A-{apt.id.slice(-6)} — same as what's printed on fallback receipt
+                  const receiptRef = `A-${apt.id.slice(-6)}`;
+
+                  // Linked transaction IDs
                   const aptRecoveredId = 'APT-' + apt.id.slice(-10);
-                  const linkedTxIds: string[] = [];
-                  if (apt.posTransactionId) linkedTxIds.push(apt.posTransactionId);
-                  linkedTxIds.push(aptRecoveredId);
-                  // Also check if any real tx matches by serviceId
                   const linkedTx = transactions.find(t =>
-                      linkedTxIds.includes(t.id) ||
-                      (apt.posTransactionId && t.id === apt.posTransactionId)
+                      t.id === (apt.posTransactionId || '') ||
+                      t.id === aptRecoveredId
                   );
 
                   const svcName = products.find(p => p.id === apt.serviceId)?.name || '';
+                  const q = historySearch.toLowerCase();
 
                   const matches =
-                      normalizeText(apt.petName).includes(searchNorm) ||
+                      allPetNames.some(n => normalizeText(n).includes(searchNorm)) ||
                       normalizeText(apt.ownerName).includes(searchNorm) ||
                       normalizeText(apt.groomerId || '').includes(searchNorm) ||
                       normalizeText(svcName).includes(searchNorm) ||
-                      // Match by transaction ID (partial or full)
-                      (apt.posTransactionId || '').toLowerCase().includes(historySearch.toLowerCase()) ||
-                      aptRecoveredId.toLowerCase().includes(historySearch.toLowerCase()) ||
-                      (linkedTx ? linkedTx.id.toLowerCase().includes(historySearch.toLowerCase()) : false);
+                      // Receipt ref (e.g. A-288959) — exactly what's printed on receipt
+                      receiptRef.toLowerCase().includes(q) ||
+                      // POS transaction ID
+                      (apt.posTransactionId || '').toLowerCase().includes(q) ||
+                      // Recovered APT- ID
+                      aptRecoveredId.toLowerCase().includes(q) ||
+                      // Linked transaction ID from transactions list
+                      (linkedTx ? linkedTx.id.toLowerCase().includes(q) : false);
                   if (!matches) return false;
               }
               return true;
