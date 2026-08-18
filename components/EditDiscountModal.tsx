@@ -85,7 +85,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
       setPinVerified(true);
       setPinError('');
     } else {
-      setPinError('Maling PIN. Subukan ulit.');
+      setPinError('Incorrect PIN. Please try again.');
       setPin('');
     }
   };
@@ -93,7 +93,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (mode === 'special' && !pinVerified) {
-      setPinError('Kailangan muna ng Admin PIN para sa special discount.');
+      setPinError('Admin PIN is required to apply a special discount.');
       return;
     }
     if (mode === 'existing' && !selectedDiscountId) {
@@ -194,7 +194,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-zinc-500">Select Discount</p>
                 {activeDiscounts.length === 0 ? (
-                  <p className="text-sm text-zinc-400 italic">Walang active discounts. Gumawa sa Discounts page.</p>
+                  <p className="text-sm text-zinc-400 italic">No active discounts. Create one on the Discounts page.</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {activeDiscounts.map(d => {

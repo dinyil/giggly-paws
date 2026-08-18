@@ -1383,7 +1383,7 @@ const Grooming: React.FC = () => {
                                                     if (linkedTx) {
                                                         setEditDiscountTarget({ apt, tx: linkedTx });
                                                     } else {
-                                                        alert('Walang linked transaction. I-complete muna ang payment.');
+                                                        alert('No linked transaction found. Complete the payment first.');
                                                     }
                                                 }}
                                             >
