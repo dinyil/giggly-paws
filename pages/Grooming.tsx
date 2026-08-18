@@ -1376,7 +1376,7 @@ const Grooming: React.FC = () => {
                                             {(() => {
                                                 const txId = 'A-' + apt.id.slice(-6);
                                                 const linkedTx = transactions.find(t => t.id === txId);
-                                                const hasDiscount = linkedTx && linkedTx.discount > 0;
+                                                const hasDiscount = linkedTx && Number(linkedTx.discount ?? 0) > 0;
                                                 return (
                                                     <Button
                                                         variant="secondary"

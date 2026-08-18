@@ -62,13 +62,16 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
       const n = parseFloat(specialAmount);
       return isNaN(n) || n < 0 ? 0 : n;
     }
-    if (mode === 'existing' && selectedDiscountId) {
-      const d = activeDiscounts.find(d => d.id === selectedDiscountId);
-      if (!d) return 0;
-      return d.type === 'PERCENTAGE' ? grossTotal * (d.value / 100) : d.value;
+    if (mode === 'existing') {
+      if (selectedDiscountId) {
+        const d = activeDiscounts.find(d => d.id === selectedDiscountId);
+        if (d) return d.type === 'PERCENTAGE' ? grossTotal * (d.value / 100) : d.value;
+      }
+      // Fallback: no selection yet — show current applied discount so preview is accurate
+      return Number(transaction.discount ?? 0);
     }
     return 0;
-  }, [mode, selectedDiscountId, specialAmount, grossTotal, activeDiscounts]);
+  }, [mode, selectedDiscountId, specialAmount, grossTotal, activeDiscounts, transaction.discount]);
 
   // ── Recalculate totals ───────────────────────────────────────────────────
   const newNetTotal  = Math.max(0, grossTotal - newDiscountAmount - downpayment);
