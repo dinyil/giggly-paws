@@ -622,7 +622,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // SMS Usage Sync
             const now = new Date();
             const hourKey = `${now.toISOString().split('T')[0]}-${now.getHours()}`;
-            const { data: smsData } = await supabase.from('sms_tracker').select('*').eq('hour_key', hourKey).single();
+            const { data: smsData } = await supabase.from('sms_tracker').select('*').eq('hour_key', hourKey).maybeSingle();
             if (smsData) {
                 setSmsUsage({
                     count: smsData.count,
@@ -829,7 +829,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSmsUsage({ count: newCount, lastSentHour: currentHour, lastSentDate: currentDate });
 
       const updateDb = async () => {
-          const { data } = await supabase.from('sms_tracker').select('count').eq('hour_key', hourKey).single();
+          const { data } = await supabase.from('sms_tracker').select('count').eq('hour_key', hourKey).maybeSingle();
           let dbCount = data ? data.count : 0;
           dbCount++;
           await supabase.from('sms_tracker').upsert({ hour_key: hourKey, count: dbCount, updated_at: new Date().toISOString() });

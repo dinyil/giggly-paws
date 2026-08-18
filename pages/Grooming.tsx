@@ -55,7 +55,7 @@ const sanitizeContactNumber = (num: string) => {
 };
 
 const Grooming: React.FC = () => {
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, products, users, clients, storeSettings, addLog, checkAndIncrementSms, addTransaction, currentUser, discounts, transactions } = useStore();
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, products, users, clients, storeSettings, addLog, checkAndIncrementSms, addTransaction, updateTransaction, currentUser, discounts, transactions } = useStore();
   const { startBroadcast } = useBroadcast(); // Use the background broadcaster queue
   
   // FIX: Force Philippine Time (Asia/Manila) regardless of system time for filtering
