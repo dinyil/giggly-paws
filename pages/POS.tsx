@@ -285,7 +285,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
 }
 
 const POS: React.FC = () => {
-  const { products, discounts, addTransaction, addAppointment, currentUser, productCategories, serviceCategories, storeSettings, clients, users, addClient } = useStore();
+  const { products, discounts, addTransaction, addAppointment, updateAppointment, currentUser, productCategories, serviceCategories, storeSettings, clients, users, addClient } = useStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   
@@ -797,6 +797,13 @@ const POS: React.FC = () => {
             status: 'SCHEDULED',
         };
         addAppointment(newApt);
+
+        // Stamp the appointment as pre-paid via POS — so the Grooming page
+        // shows "Paid via POS" instead of the payment collection modal.
+        // We update immediately after addAppointment so it gets saved to DB.
+        setTimeout(() => {
+            updateAppointment({ ...newApt, paidViaPOS: true, posTransactionId: transaction.id });
+        }, 300); // small delay to ensure addAppointment's upsert fires first
     }
 
     setCart([]);

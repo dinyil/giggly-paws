@@ -130,7 +130,10 @@ const Grooming: React.FC = () => {
   const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
   const paperSize = (storeSettings.receiptPaperSize || '80mm') as '48mm' | '58mm' | '80mm';
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
-  
+
+  // Paid via POS modal (skip payment, just mark complete)
+  const [posPrePaidModal, setPosPrePaidModal] = useState<{ isOpen: boolean; apt: GroomingAppointment | null }>({ isOpen: false, apt: null });
+
   // Delete Confirmation State
   const [deleteConfirmation, setDeleteConfirmation] = useState<{isOpen: boolean, id: string | null, petName: string}>({
     isOpen: false, id: null, petName: ''
@@ -656,9 +659,14 @@ const Grooming: React.FC = () => {
   const handleProceedToPayment = (apt: GroomingAppointment) => {
       const isWalkIn = (apt.hairCut || '').includes('Paid at POS');
       
-      if (isWalkIn) {
-          // SKIP PAYMENT MODAL FOR WALK-INS
-          setCompletionModal({ isOpen: true, apt });
+      if (apt.paidViaPOS || isWalkIn) {
+          if (apt.paidViaPOS) {
+              // NEW: Dedicated "Paid via POS" modal — no payment collection needed
+              setPosPrePaidModal({ isOpen: true, apt });
+          } else {
+              // Legacy walk-in check (hairCut-based) — skip payment, go to completion
+              setCompletionModal({ isOpen: true, apt });
+          }
       } else {
           // NORMAL RESERVED APPOINTMENT FLOW
           setPaymentApt(apt);
@@ -1779,6 +1787,74 @@ const Grooming: React.FC = () => {
         }}
         onClose={() => setQeShowAdminPin(false)}
       />
+
+       {/* PAID VIA POS MODAL — no payment collection, just mark complete */}
+       {posPrePaidModal.isOpen && posPrePaidModal.apt && (() => {
+           const apt = posPrePaidModal.apt;
+           const svc = products.find(p => p.id === apt.serviceId);
+           const svcPrice = svc ? svc.price : 0;
+           const addonsPrice = (apt.addonIds || []).reduce((s, id) => {
+               const p = products.find(prod => prod.id === id);
+               return s + (p ? p.price : 0);
+           }, 0);
+           const extraPetsPrice = (apt.pets || []).reduce((s, pet) => {
+               const ps = products.find(p => p.id === pet.serviceId);
+               const pa = (pet.addonIds || []).reduce((ss, id) => {
+                   const pp = products.find(prod => prod.id === id);
+                   return ss + (pp ? pp.price : 0);
+               }, 0);
+               return s + (ps ? ps.price : 0) + pa;
+           }, 0);
+           const paidTotal = svcPrice + addonsPrice + extraPetsPrice;
+           const posRef = apt.posTransactionId ? `#${apt.posTransactionId.slice(-6)}` : 'POS';
+
+           return (
+               <Dialog open={true} onClose={() => setPosPrePaidModal({ isOpen: false, apt: null })} className="relative z-50">
+                   <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
+                   <div className="fixed inset-0 flex items-center justify-center p-4">
+                       <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl relative">
+                           <button onClick={() => setPosPrePaidModal({ isOpen: false, apt: null })} className="absolute top-4 right-4 text-gray-400 hover:text-purple-900"><X className="w-5 h-5"/></button>
+
+                           <div className="text-center mb-5">
+                               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 text-green-600">
+                                   <CheckCircle className="w-9 h-9" />
+                               </div>
+                               <h3 className="text-xl font-bold text-zinc-900">Already Paid via POS</h3>
+                               <p className="text-zinc-500 text-sm mt-1">{apt.ownerName} — {apt.petName}</p>
+                           </div>
+
+                           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-5 space-y-2 text-sm">
+                               <div className="flex justify-between text-zinc-600">
+                                   <span>POS Transaction</span>
+                                   <span className="font-bold text-zinc-900">{posRef}</span>
+                               </div>
+                               <div className="flex justify-between text-zinc-600">
+                                   <span>Amount Collected</span>
+                                   <span className="font-bold text-green-700">₱{paidTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                               </div>
+                               <div className="border-t border-green-200 pt-2 text-xs text-green-700 flex items-center gap-1">
+                                   <CheckCircle className="w-3.5 h-3.5" /> Payment already collected at POS counter
+                               </div>
+                           </div>
+
+                           <p className="text-center text-sm text-zinc-500 mb-5">
+                               No additional payment needed. Click below to mark the appointment as complete and send notification.
+                           </p>
+
+                           <Button
+                               className="w-full text-base font-bold"
+                               onClick={() => {
+                                   setPosPrePaidModal({ isOpen: false, apt: null });
+                                   setCompletionModal({ isOpen: true, apt });
+                               }}
+                           >
+                               <CheckCircle className="w-5 h-5 mr-2" /> Mark as Complete
+                           </Button>
+                       </Dialog.Panel>
+                   </div>
+               </Dialog>
+           );
+       })()}
 
        {/* COMPLETION MODAL */}
 

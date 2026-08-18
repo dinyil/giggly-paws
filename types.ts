@@ -132,6 +132,8 @@ export interface GroomingAppointment {
   downpayment?: number; // Advance payment collected at booking, auto-deducted from final bill
   preAppliedDiscountId?: string;    // Discount ID set via Quick Edit — auto-loaded at payment
   preAppliedSpecialDiscount?: number; // Special discount amount set via Quick Edit — auto-loaded at payment
+  paidViaPOS?: boolean;             // true = already collected at POS, skip payment modal at grooming completion
+  posTransactionId?: string;        // ID of the POS transaction that paid for this appointment
 }
 
 export interface Pet {

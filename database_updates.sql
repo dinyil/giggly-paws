@@ -127,6 +127,11 @@ ALTER TABLE appointments
 ALTER TABLE appointments
   ADD COLUMN IF NOT EXISTS "preAppliedSpecialDiscount" NUMERIC DEFAULT 0;
 
+-- POS Pre-Paid Link (prevent double billing when service paid at POS)
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "paidViaPOS" BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS "posTransactionId" TEXT;
+
 -- ============================================================
 -- RUN ALL OF THE ABOVE in the Supabase SQL Editor.
 -- Each statement is safe to run multiple times (IF NOT EXISTS).

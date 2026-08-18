@@ -139,6 +139,8 @@ const mapAppointment = (a: any): GroomingAppointment => ({
     downpayment: Number(a.downpayment || 0),
     preAppliedDiscountId: a.preAppliedDiscountId || undefined,
     preAppliedSpecialDiscount: a.preAppliedSpecialDiscount ? Number(a.preAppliedSpecialDiscount) : undefined,
+    paidViaPOS: a.paidViaPOS === true,
+    posTransactionId: a.posTransactionId || undefined,
 });
 
 const mapAppointmentPayload = (a: GroomingAppointment) => {
@@ -163,10 +165,12 @@ const mapAppointmentPayload = (a: GroomingAppointment) => {
         "groomerId": a.groomerId,
         downpayment: a.downpayment || 0,
     };
-    // Only include pre-applied discount columns if they have values
+    // Only include pre-applied discount + POS columns if they have values
     // (these columns require running database_updates.sql migration first)
     if (a.preAppliedDiscountId !== undefined) payload["preAppliedDiscountId"] = a.preAppliedDiscountId;
     if (a.preAppliedSpecialDiscount !== undefined) payload["preAppliedSpecialDiscount"] = a.preAppliedSpecialDiscount;
+    if (a.paidViaPOS !== undefined) payload["paidViaPOS"] = a.paidViaPOS;
+    if (a.posTransactionId !== undefined) payload["posTransactionId"] = a.posTransactionId;
     return payload;
 };
 
