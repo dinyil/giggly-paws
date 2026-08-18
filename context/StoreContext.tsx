@@ -1496,49 +1496,127 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // ── Recover lost transactions from audit logs ─────────────────────
-  // Parses all 'POS' log entries, extracts total & timestamp, and
-  // inserts stub transactions for any that are missing from the DB.
+  // For each POS log entry:
+  //   1. Try to match a COMPLETED grooming appointment by total amount
+  //   2. If matched → reconstruct real items (service + addons + extra pets)
+  //   3. Always OVERWRITE existing RECOVERED- records (idempotent)
   const recoverTransactionsFromLogs = async (): Promise<number> => {
-    // Pattern: "Transaction 629566 completed. Total: 212.5"
     const POS_LOG_RE = /Transaction (\w+) completed\. Total: ([0-9.]+)/;
     let recovered = 0;
 
     const posLogs = logs.filter(l => l.action === 'POS' && POS_LOG_RE.test(l.details));
-    
+
+    // Helper: build items array from a COMPLETED appointment (mirrors handleFinalizePayment)
+    const buildItemsFromApt = (apt: any): any[] => {
+      const makeCartItem = (id: string, nameOverride?: string) => {
+        const p = products.find(prod => prod.id === id);
+        if (!p) return null;
+        return { ...p, name: nameOverride || p.name, quantity: 1, appliedDiscounts: [] };
+      };
+
+      const items: any[] = [];
+      const hasExtraPets = (apt.pets || []).length > 0;
+
+      // Primary service
+      if (apt.serviceId) {
+        const svc = makeCartItem(apt.serviceId, hasExtraPets ? `${products.find(p => p.id === apt.serviceId)?.name || ''} (${apt.petName})` : undefined);
+        if (svc) items.push(svc);
+      }
+      // Primary pet addons
+      (apt.addonIds || []).forEach((id: string) => {
+        const item = makeCartItem(id);
+        if (item) items.push(item);
+      });
+      // Additional pets
+      (apt.pets || []).forEach((pet: any) => {
+        if (pet.serviceId) {
+          const petSvcName = `${products.find(p => p.id === pet.serviceId)?.name || ''} (${pet.petName})`;
+          const svc = makeCartItem(pet.serviceId, petSvcName);
+          if (svc) items.push(svc);
+        }
+        (pet.addonIds || []).forEach((id: string) => {
+          const item = makeCartItem(id);
+          if (item) items.push(item);
+        });
+      });
+      return items;
+    };
+
+    // Helper: compute gross total from items (before VAT split)
+    const computeItemsTotal = (items: any[]): number =>
+      items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    // Track which appointments have been "claimed" for a recovery to avoid double-matching
+    const claimedAptIds = new Set<string>();
+    const completedApts = appointments.filter(a => a.status === 'COMPLETED');
+
     for (const log of posLogs) {
       const match = log.details.match(POS_LOG_RE);
       if (!match) continue;
-      const shortId = match[1];  // last-6-digit suffix used when logging
-      const total   = Number(match[2]);
-      
-      // Check if a transaction with this suffix already exists in memory
-      const alreadyExists = transactions.some(t => t.id.endsWith(shortId));
-      if (alreadyExists) continue;
+      const shortId = match[1];
+      const logTotal = Number(match[2]);
+      const logDate  = log.timestamp ? log.timestamp.split('T')[0] : '';
+      const stubId   = 'RECOVERED-' + shortId;
 
-      // Create a stub transaction
-      const stubId = 'RECOVERED-' + shortId;
+      // Skip real (non-recovered) transactions — only process ones that are missing or already RECOVERED-
+      const existing = transactions.find(t => t.id.endsWith(shortId) && !t.id.startsWith('RECOVERED-'));
+      if (existing) continue; // Real transaction exists — don't overwrite
+
+      // Try to find a matching COMPLETED appointment
+      let matchedItems: any[] = [];
+      let matchedApt: any = null;
+
+      for (const apt of completedApts) {
+        if (claimedAptIds.has(apt.id)) continue;
+        const items = buildItemsFromApt(apt);
+        const aptGross = computeItemsTotal(items);
+        const vatRate = storeSettings.vatRate / 100;
+        // Estimate what the final total would be (after VAT split, no downpayment assumption)
+        // total is the amount collected; gross = subtotal + vat portion
+        // We try: gross matches logTotal directly OR gross/(1+vatRate) + gross*vatRate/(1+vatRate) = gross = logTotal
+        const grossMatch = Math.abs(aptGross - logTotal) < 1;
+        const aptDate = apt.date || '';
+        const sameDay = !logDate || !aptDate || aptDate === logDate;
+        if (grossMatch && sameDay) {
+          matchedItems = items;
+          matchedApt = apt;
+          break;
+        }
+      }
+
+      if (matchedApt) claimedAptIds.add(matchedApt.id);
+
+      // Calculate VAT from total (reverse-calculate like original)
+      const vatRate = storeSettings.vatRate / 100;
+      const vatAmount = matchedItems.length > 0
+        ? parseFloat(((logTotal / (1 + vatRate)) * vatRate).toFixed(2))
+        : 0;
+      const subtotal = parseFloat((logTotal - vatAmount).toFixed(2));
+
       const stub: Transaction = {
         id:            stubId,
-        items:         [],
-        subtotal:      total,
-        vat:           0,
-        total:         total,
+        items:         matchedItems,
+        subtotal:      subtotal,
+        vat:           vatAmount,
+        total:         logTotal,
         discount:      0,
         paymentMethod: 'CASH',
         date:          log.timestamp,
         cashierId:     log.userId || 'unknown',
       };
 
+      // Always overwrite RECOVERED- in state
       setTransactions(prev => {
-        if (prev.some(t => t.id === stubId)) return prev;
-        return [stub, ...prev];
+        const without = prev.filter(t => t.id !== stubId);
+        return [stub, ...without];
       });
-      // Save without downpayment (may not exist in DB yet)
+      // Upsert to DB (overwrite if exists via onConflict: 'id')
       await upsertData('transactions', mapTransactionPayload(stub, false));
       recovered++;
     }
     return recovered;
   };
+
 
 
   return (
