@@ -1905,68 +1905,56 @@ const Grooming: React.FC = () => {
                            </div>
 
                            {/* Optional Discount Section */}
-                           <div className="border border-zinc-200 rounded-2xl p-4 mb-4 space-y-3">
-                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide flex items-center gap-1">
-                                   <Tag className="w-3.5 h-3.5" /> Apply Discount (Optional)
-                               </p>
-
-                               {/* Discount from list */}
-                               <div>
-                                   <label className="text-xs text-zinc-500 mb-1 block">Promo / Discount</label>
-                                   <select
-                                       value={posPrePaidDiscount?.id || ''}
-                                       onChange={e => {
-                                           const d = discounts.find(d => d.id === e.target.value) || null;
-                                           setPosPrePaidDiscount(d);
-                                       }}
-                                       className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                   >
-                                       <option value="">— No Discount —</option>
-                                       {discounts.filter(d => d.isActive).map(d => (
-                                           <option key={d.id} value={d.id}>
-                                               {d.name} ({d.type === 'PERCENTAGE' ? `${d.value}%` : `₱${d.value}`})
-                                           </option>
-                                       ))}
-                                   </select>
-                               </div>
-
-                               {/* Special Discount (admin PIN) */}
-                               <div>
-                                   <label className="text-xs text-zinc-500 mb-1 block">Special Discount</label>
-                                   <div className="flex gap-2">
-                                       <div className="flex border border-zinc-200 rounded-xl overflow-hidden text-xs">
-                                           <button
-                                               onClick={() => setPosPrePaidSpecialType('AMOUNT')}
-                                               className={`px-3 py-2 font-bold transition-all ${posPrePaidSpecialType === 'AMOUNT' ? 'bg-purple-600 text-white' : 'bg-white text-zinc-500'}`}
-                                           >₱</button>
-                                           <button
-                                               onClick={() => setPosPrePaidSpecialType('PERCENT')}
-                                               className={`px-3 py-2 font-bold transition-all ${posPrePaidSpecialType === 'PERCENT' ? 'bg-purple-600 text-white' : 'bg-white text-zinc-500'}`}
-                                           >%</button>
-                                       </div>
-                                       <input
-                                           type="number"
-                                           min="0"
-                                           placeholder="0"
-                                           value={posPrePaidSpecialInput}
-                                           onChange={e => setPosPrePaidSpecialInput(e.target.value)}
-                                           className="flex-1 border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                       />
-                                       <button
-                                           onClick={() => setShowAdminPinForPosPrePaid(true)}
-                                           className="bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 active:scale-95 transition-all"
-                                       >
-                                           Apply
-                                       </button>
-                                   </div>
-                                   {posPrePaidSpecialDiscount > 0 && (
-                                       <div className="flex items-center justify-between mt-1">
-                                           <span className="text-xs text-amber-700">Special discount: ₱{posPrePaidSpecialDiscount.toFixed(2)}</span>
-                                           <button onClick={() => { setPosPrePaidSpecialDiscount(0); setPosPrePaidSpecialInput(''); }} className="text-xs text-red-500 hover:underline">Remove</button>
-                                       </div>
-                                   )}
-                               </div>
-                           </div>
+                            <p className="text-gray-500 text-xs font-bold mb-3 uppercase tracking-widest">Apply Promo / Discount <span className="font-normal normal-case text-gray-400">(optional)</span></p>                                        {/* Promo discount cards */}
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    {discounts.filter(d => d.isActive).map(discount => (
+                                        <button
+                                            key={discount.id}
+                                            onClick={() => setPosPrePaidDiscount(posPrePaidDiscount?.id === discount.id ? null : discount)}
+                                            className={`p-2.5 rounded-xl border text-left transition-all ${
+                                                posPrePaidDiscount?.id === discount.id
+                                                ? 'bg-purple-700 text-white border-purple-700 shadow-md scale-[0.98]'
+                                                : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400'
+                                            }`}
+                                        >
+                                            <span className="block font-bold text-[11px] truncate">{discount.name}</span>
+                                            <span className={`text-[10px] font-bold ${posPrePaidDiscount?.id === discount.id ? 'text-zinc-300' : 'text-green-600'}`}>
+                                                {discount.type === 'PERCENTAGE' ? `${discount.value}% OFF` : `₱${discount.value} OFF`}
+                                            </span>
+                                        </button>
+                                    ))}
+                                    {discounts.filter(d => d.isActive).length === 0 && (
+                                        <p className="col-span-2 text-[10px] text-gray-400 italic text-center py-2 bg-zinc-50 rounded-lg border border-dashed border-zinc-200">No active promotions available.</p>
+                                    )}
+                                </div>
+                                                 {/* Special Discount — amber gold card style */}
+                                <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 overflow-hidden">
+                                    <p className="text-amber-700 text-xs font-bold uppercase tracking-widest px-4 pt-4 pb-1">🏷 Special Discount <span className="font-normal normal-case text-amber-500">(Admin code required)</span></p>
+                                    {posPrePaidSpecialDiscount > 0 ? (
+                                        <div className="flex items-center justify-between px-4 pb-4">
+                                            <span className="text-green-700 font-bold text-base">✓ -₱{posPrePaidSpecialDiscount.toFixed(2)} applied</span>
+                                            <button onClick={() => { setPosPrePaidSpecialDiscount(0); setPosPrePaidSpecialInput(''); }} className="text-sm text-red-500 font-bold px-4 py-2 rounded-xl bg-red-100 active:bg-red-200">Remove</button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 space-y-3">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button onClick={() => setPosPrePaidSpecialType('AMOUNT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${posPrePaidSpecialType === 'AMOUNT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>₱ Fixed Amount</button>
+                                                <button onClick={() => setPosPrePaidSpecialType('PERCENT')} className={`py-3 rounded-xl text-sm font-bold transition-all border ${posPrePaidSpecialType === 'PERCENT' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-600 border-amber-300'}`}>% Percentage</button>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input type="number" inputMode="decimal" min="0" step="1"
+                                                    placeholder={posPrePaidSpecialType === 'AMOUNT' ? '0.00' : '0'}
+                                                    value={posPrePaidSpecialInput}
+                                                    onChange={e => setPosPrePaidSpecialInput(e.target.value)}
+                                                    className="flex-1 h-12 border border-amber-300 rounded-xl px-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                                                <button
+                                                    disabled={!posPrePaidSpecialInput || Number(posPrePaidSpecialInput) <= 0}
+                                                    onClick={() => setShowAdminPinForPosPrePaid(true)}
+                                                    className="h-12 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold disabled:opacity-40 transition-all">Apply</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                            {/* Mark Complete button */}
                            <Button
