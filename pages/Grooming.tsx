@@ -430,10 +430,29 @@ const Grooming: React.FC = () => {
               if (historySearch) {
                   const searchNorm = normalizeText(historySearch);
                   const apt = card.apt;
+
+                  // Look up linked transaction IDs for this appointment
+                  const aptRecoveredId = 'APT-' + apt.id.slice(-10);
+                  const linkedTxIds: string[] = [];
+                  if (apt.posTransactionId) linkedTxIds.push(apt.posTransactionId);
+                  linkedTxIds.push(aptRecoveredId);
+                  // Also check if any real tx matches by serviceId
+                  const linkedTx = transactions.find(t =>
+                      linkedTxIds.includes(t.id) ||
+                      (apt.posTransactionId && t.id === apt.posTransactionId)
+                  );
+
+                  const svcName = products.find(p => p.id === apt.serviceId)?.name || '';
+
                   const matches =
                       normalizeText(apt.petName).includes(searchNorm) ||
                       normalizeText(apt.ownerName).includes(searchNorm) ||
-                      normalizeText(apt.groomerId || '').includes(searchNorm);
+                      normalizeText(apt.groomerId || '').includes(searchNorm) ||
+                      normalizeText(svcName).includes(searchNorm) ||
+                      // Match by transaction ID (partial or full)
+                      (apt.posTransactionId || '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                      aptRecoveredId.toLowerCase().includes(historySearch.toLowerCase()) ||
+                      (linkedTx ? linkedTx.id.toLowerCase().includes(historySearch.toLowerCase()) : false);
                   if (!matches) return false;
               }
               return true;
@@ -454,7 +473,7 @@ const Grooming: React.FC = () => {
           if (a.displayDate !== b.displayDate) return a.displayDate.localeCompare(b.displayDate);
           return a.displayTime.localeCompare(b.displayTime);
       });
-  }, [appointments, activeTab, today, historyTimeRange, historySearch, products]);
+  }, [appointments, activeTab, today, historyTimeRange, historySearch, products, transactions]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
