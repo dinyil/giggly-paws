@@ -78,20 +78,26 @@ const mapTransaction = (t: any): Transaction => ({
     date: t.date || new Date().toISOString()
 });
 
-const mapTransactionPayload = (t: Transaction) => ({
-    id: t.id,
-    items: t.items,
-    subtotal: t.subtotal,
-    vat: t.vat,
-    total: t.total,
-    discount: t.discount,
-    downpayment: t.downpayment ?? null, // save to DB (null if not set)
-    "paymentMethod": t.paymentMethod, // Quoted CamelCase for DB
-    "gcashRef": t.gcashRef,           
-    "cashReceived": t.cashReceived,   
-    date: t.date,
-    "cashierId": t.cashierId          
-});
+const mapTransactionPayload = (t: Transaction, includeDownpayment = true) => {
+    const payload: any = {
+        id: t.id,
+        items: t.items,
+        subtotal: t.subtotal,
+        vat: t.vat,
+        total: t.total,
+        discount: t.discount,
+        "paymentMethod": t.paymentMethod, // CamelCase column in DB
+        "gcashRef": t.gcashRef ?? null,
+        "cashReceived": t.cashReceived ?? null,
+        date: t.date,
+        "cashierId": t.cashierId ?? 'unknown'
+    };
+    // Only include downpayment if the column exists (added in migration)
+    if (includeDownpayment && t.downpayment !== undefined) {
+        payload.downpayment = t.downpayment ?? null;
+    }
+    return payload;
+};
 
 // Products (CamelCase "isService")
 const mapProduct = (p: any): Product => ({
@@ -1022,9 +1028,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addTransaction = (transaction: Transaction) => {
+  const addTransaction = async (transaction: Transaction) => {
     setTransactions(prev => [transaction, ...prev]);
-    upsertData('transactions', mapTransactionPayload(transaction));
+    // Try with downpayment first; if it fails (column not yet in DB), retry without it
+    const { error } = await upsertData('transactions', mapTransactionPayload(transaction, true));
+    if (error) {
+        console.warn('[Transaction] Initial upsert failed, retrying without downpayment:', error.message);
+        const { error: error2 } = await upsertData('transactions', mapTransactionPayload(transaction, false));
+        if (error2) {
+            console.error('[Transaction] CRITICAL: Failed to persist transaction to DB:', error2.message);
+        }
+    }
     
     transaction.items.forEach(item => {
       if (!item.isService) {
@@ -1087,8 +1101,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
       }
 
-      const { error } = await upsertData('transactions', mapTransactionPayload(newTx));
-      if (!error) {
+      const { error } = await upsertData('transactions', mapTransactionPayload(newTx, true));
+      const finalError = error ? (await upsertData('transactions', mapTransactionPayload(newTx, false))).error : null;
+      if (!error || !finalError) {
           setTransactions(prev => prev.map(t => t.id === newTx.id ? newTx : t));
           addLog('POS', `Updated Transaction #${newTx.id.slice(-4)}`);
       }
@@ -1450,7 +1465,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const total = parseFloat(Math.max(0, grossTotal - downpayment).toFixed(2));
     const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, downpayment: downpayment > 0 ? downpayment : undefined, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
     setTransactions(prev => [tx, ...prev]);
-    await upsertData('transactions', mapTransactionPayload(tx));
+    const { error: txErr } = await upsertData('transactions', mapTransactionPayload(tx, true));
+    if (txErr) {
+        console.warn('[Hotel TX] Retrying without downpayment:', txErr.message);
+        await upsertData('transactions', mapTransactionPayload(tx, false));
+    }
+
     // Update booking
     const updated = { ...booking, status: 'CHECKED_OUT' as HotelBookingStatus, actual_check_out: new Date().toISOString(), transaction_id: txId };
     setHotelBookings(prev => prev.map(b => b.id === bookingId ? updated : b));

@@ -76,3 +76,50 @@ ALTER TABLE hotel_bookings
 --   → Amount already paid by client at booking time
 --   → Auto-deducted from final bill at checkout
 -- ============================================================
+
+-- ── 7. Transactions — downpayment column ────────────────────
+-- Required so POS transactions with a downpayment save correctly.
+-- Without this column the upsert fails silently and transactions
+-- disappear on page refresh.
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS downpayment NUMERIC DEFAULT 0;
+
+-- ── 8. Products — species & weight size category ────────────
+-- Added for service filtering by pet species and size.
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS pet_species TEXT DEFAULT 'BOTH';
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS weight_size_category TEXT DEFAULT 'ALL';
+
+-- ── 9. Appointments — pre-applied discounts (Quick Edit) ────
+-- Stores a discount pre-selected via "Edit Appointment" so it
+-- auto-loads when the groomer opens the payment modal.
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "preAppliedDiscountId" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "preAppliedSpecialDiscount" NUMERIC DEFAULT 0;
+
+-- ── 10. Appointments — species & size category ──────────────
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "petSpecies" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "detectedSizeCategory" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "weightSize" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "contactNumber" TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS "addonIds" JSONB DEFAULT '[]'::jsonb;
+
+-- ── 11. Store Settings — additional columns ─────────────────
+ALTER TABLE store_settings
+  ADD COLUMN IF NOT EXISTS auto_approve_users BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE store_settings
+  ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT true;
+
+-- ============================================================
+-- RUN ALL OF THE ABOVE in the Supabase SQL Editor.
+-- Each statement is safe to run multiple times (IF NOT EXISTS).
+-- ============================================================
