@@ -855,6 +855,37 @@ const Grooming: React.FC = () => {
       }, 0);
       const expectedGross = price + addonPricesForMatch + extraPetPricesForMatch;
 
+      // PRIORITY 0: Direct lookup by posTransactionId (for POS pre-paid appointments)
+      //   This is the most reliable match — the POS transaction ID is stamped on the appointment.
+      if (apt.paidViaPOS && apt.posTransactionId) {
+          const posTx = transactions.find(t => t.id === apt.posTransactionId);
+          if (posTx) {
+              // If a discount was applied at completion, overlay it onto the receipt
+              const preDisc = apt.preAppliedDiscountId
+                  ? discounts.find(d => d.id === apt.preAppliedDiscountId) || null
+                  : null;
+              const specialDiscAmt = apt.preAppliedSpecialDiscount || 0;
+              const grossForDisc = expectedGross;
+              const discAmt = preDisc
+                  ? (preDisc.type === 'PERCENTAGE' ? grossForDisc * (preDisc.value / 100) : preDisc.value)
+                  : 0;
+              const totalAfterDisc = Math.max(0, grossForDisc - discAmt - specialDiscAmt);
+
+              const txForReceipt = (preDisc || specialDiscAmt > 0)
+                  ? {
+                      ...posTx,
+                      total: totalAfterDisc,
+                      appliedDiscounts: preDisc ? [preDisc] : [],
+                      specialDiscount: specialDiscAmt > 0 ? specialDiscAmt : undefined,
+                    }
+                  : posTx;
+
+              setPrintingTransaction(txForReceipt);
+              setShowReceiptPreview(true);
+              return;
+          }
+      }
+
       // Check for recovered APT- transaction first (most reliable match)
       const aptTxId = 'APT-' + apt.id.slice(-10);
       const aptRecovered = transactions.find(t => t.id === aptTxId);
