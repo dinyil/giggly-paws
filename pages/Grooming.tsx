@@ -509,34 +509,43 @@ const Grooming: React.FC = () => {
   const openQuickEditModal = (apt: GroomingAppointment) => {
     setQuickEditApt(apt);
     setQuickEditData({ ...apt });
-    setQeDiscount(null);
-    setQeSpecialDiscountInput('');
+    // Pre-load any previously saved discounts
+    const savedDiscount = apt.preAppliedDiscountId ? discounts.find(d => d.id === apt.preAppliedDiscountId) || null : null;
+    setQeDiscount(savedDiscount);
+    setQeSpecialDiscountInput(apt.preAppliedSpecialDiscount ? String(apt.preAppliedSpecialDiscount) : '');
     setQeSpecialDiscountType('AMOUNT');
-    setQeAppliedSpecialDiscount(0);
+    setQeAppliedSpecialDiscount(apt.preAppliedSpecialDiscount || 0);
+  };
+
+  // Helper: compute full combined price for an appointment (all pets)
+  const computeAptBase = (apt: GroomingAppointment) => {
+    const primaryService = products.find(p => p.id === apt.serviceId);
+    const primaryPrice = primaryService ? primaryService.price : 0;
+    const primaryAddonTotal = (apt.addonIds || []).reduce((s, id) => {
+      const p = products.find(x => x.id === id); return s + (p ? p.price : 0);
+    }, 0);
+    const extraPetsTotal = (apt.pets || []).reduce((s, pet) => {
+      const petService = products.find(p => p.id === pet.serviceId);
+      const petServicePrice = petService ? petService.price : 0;
+      const petAddonTotal = (pet.addonIds || []).reduce((ss, id) => {
+        const p = products.find(x => x.id === id); return ss + (p ? p.price : 0);
+      }, 0);
+      return s + petServicePrice + petAddonTotal;
+    }, 0);
+    return primaryPrice + primaryAddonTotal + extraPetsTotal;
   };
 
   const handleSaveQuickEdit = () => {
     if (!quickEditApt) return;
-    const service = products.find(p => p.id === (quickEditData.serviceId || quickEditApt.serviceId));
-    const price = service ? service.price : 0;
-    const addonTotal = (quickEditData.addonIds || quickEditApt.addonIds || []).reduce((sum, id) => {
-      const p = products.find(prod => prod.id === id); return sum + (p ? p.price : 0);
-    }, 0);
-    const base = price + addonTotal;
-    let discountAmt = 0;
-    if (qeDiscount) {
-      discountAmt = qeDiscount.type === 'PERCENTAGE' ? base * (qeDiscount.value / 100) : qeDiscount.value;
-    }
-    const discountNotes = [
-      qeDiscount ? `[Promo: ${qeDiscount.name} -${discountAmt.toFixed(2)}]` : '',
-      qeAppliedSpecialDiscount > 0 ? `[Special Discount: -${qeAppliedSpecialDiscount.toFixed(2)}]` : ''
-    ].filter(Boolean).join(' ');
     const updated: GroomingAppointment = {
       ...quickEditApt,
       ...quickEditData,
       status: quickEditApt.status, // PRESERVE STATUS - do not reset
       id: quickEditApt.id,
-      hairCut: [quickEditData.hairCut || '', discountNotes].filter(Boolean).join(' '),
+      hairCut: quickEditData.hairCut || quickEditApt.hairCut || '',
+      // Store discount info as proper fields (not just text notes)
+      preAppliedDiscountId: qeDiscount ? qeDiscount.id : undefined,
+      preAppliedSpecialDiscount: qeAppliedSpecialDiscount > 0 ? qeAppliedSpecialDiscount : undefined,
     };
     updateAppointment(updated);
     setQuickEditApt(null);
@@ -656,9 +665,11 @@ const Grooming: React.FC = () => {
           setPaymentMethod('CASH');
           setSplitCashAmount('');
           setGcashRef('');
-          setSelectedDiscount(null); // Reset discount
-          setAppliedSpecialDiscount(0);
-          setSpecialDiscountInput('');
+          // Auto-load any discounts pre-set via Quick Edit
+          const preDiscount = apt.preAppliedDiscountId ? discounts.find(d => d.id === apt.preAppliedDiscountId) || null : null;
+          setSelectedDiscount(preDiscount);
+          setAppliedSpecialDiscount(apt.preAppliedSpecialDiscount || 0);
+          setSpecialDiscountInput(apt.preAppliedSpecialDiscount ? String(apt.preAppliedSpecialDiscount) : '');
           setIsPaymentModalOpen(true);
       }
   };
@@ -1698,23 +1709,21 @@ const Grooming: React.FC = () => {
               </div>
 
               {/* Summary preview */}
-              {(qeDiscount || qeAppliedSpecialDiscount > 0) && (() => {
-                const svc = products.find(p => p.id === (quickEditData.serviceId || quickEditApt?.serviceId));
-                const base = (svc ? svc.price : 0) +
-                  (quickEditData.addonIds || quickEditApt?.addonIds || []).reduce((s, id) => {
-                    const p = products.find(x => x.id === id); return s + (p ? p.price : 0);
-                  }, 0);
+              {(qeDiscount || qeAppliedSpecialDiscount > 0) && quickEditApt && (() => {
+                const aptForCalc: GroomingAppointment = { ...quickEditApt, ...quickEditData } as GroomingAppointment;
+                const base = computeAptBase(aptForCalc);
                 const promoAmt = qeDiscount ? (qeDiscount.type === 'PERCENTAGE' ? base * (qeDiscount.value / 100) : qeDiscount.value) : 0;
                 const finalTotal = Math.max(0, base - promoAmt - qeAppliedSpecialDiscount);
                 return (
                   <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100 text-sm space-y-1">
-                    <div className="flex justify-between text-zinc-500"><span>Service Total</span><span>&#8369;{base.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-zinc-500"><span>All Pets Total</span><span>&#8369;{base.toFixed(2)}</span></div>
                     {promoAmt > 0 && <div className="flex justify-between text-green-600"><span>Promo Discount</span><span>-&#8369;{promoAmt.toFixed(2)}</span></div>}
                     {qeAppliedSpecialDiscount > 0 && <div className="flex justify-between text-amber-600 font-bold"><span>&#127991; Special Discount</span><span>-&#8369;{qeAppliedSpecialDiscount.toFixed(2)}</span></div>}
                     <div className="flex justify-between font-bold text-zinc-900 border-t border-zinc-200 pt-1"><span>Estimated Total</span><span>&#8369;{finalTotal.toFixed(2)}</span></div>
                   </div>
                 );
               })()}
+
 
             </div>
 
@@ -1733,11 +1742,9 @@ const Grooming: React.FC = () => {
         title="Apply Special Discount"
         description="Enter admin PIN to authorize this discount."
         onSuccess={() => {
-          const svc = products.find(p => p.id === (quickEditData.serviceId || quickEditApt?.serviceId));
-          const base = (svc ? svc.price : 0) +
-            (quickEditData.addonIds || quickEditApt?.addonIds || []).reduce((s, id) => {
-              const p = products.find(x => x.id === id); return s + (p ? p.price : 0);
-            }, 0);
+          if (!quickEditApt) return;
+          const aptForCalc: GroomingAppointment = { ...quickEditApt, ...quickEditData } as GroomingAppointment;
+          const base = computeAptBase(aptForCalc);
           const raw = Number(qeSpecialDiscountInput || 0);
           const computed = qeSpecialDiscountType === 'PERCENT' ? base * (raw / 100) : raw;
           setQeAppliedSpecialDiscount(Math.round(Math.min(computed, base) * 100) / 100);

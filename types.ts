@@ -130,6 +130,8 @@ export interface GroomingAppointment {
   status: 'SCHEDULED' | 'ONGOING' | 'COMPLETED';
   groomerId: string; // Stores the Groomer's Name for display
   downpayment?: number; // Advance payment collected at booking, auto-deducted from final bill
+  preAppliedDiscountId?: string;    // Discount ID set via Quick Edit — auto-loaded at payment
+  preAppliedSpecialDiscount?: number; // Special discount amount set via Quick Edit — auto-loaded at payment
 }
 
 export interface Pet {
