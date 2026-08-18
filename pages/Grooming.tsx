@@ -1865,7 +1865,8 @@ const Grooming: React.FC = () => {
                <Dialog open={true} onClose={closePosModal} className="relative z-50">
                    <div className="fixed inset-0 bg-purple-700/50 backdrop-blur-sm" aria-hidden="true" />
                    <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
-                       <Dialog.Panel className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl relative my-4">
+                       <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
+                           <div className="p-6">
                            <button onClick={closePosModal} className="absolute top-4 right-4 text-gray-400 hover:text-purple-900"><X className="w-5 h-5"/></button>
 
                            {/* Header */}
@@ -1907,7 +1908,7 @@ const Grooming: React.FC = () => {
                            {/* Optional Discount Section */}
                             <p className="text-gray-500 text-xs font-bold mb-3 uppercase tracking-widest">Apply Promo / Discount <span className="font-normal normal-case text-gray-400">(optional)</span></p>                                        {/* Promo discount cards */}
                                 <div className="grid grid-cols-2 gap-2 mb-4">
-                                    {discounts.filter(d => d.isActive).map(discount => (
+                                    {discounts.filter(d => d.active).map(discount => (
                                         <button
                                             key={discount.id}
                                             onClick={() => setPosPrePaidDiscount(posPrePaidDiscount?.id === discount.id ? null : discount)}
@@ -1923,7 +1924,7 @@ const Grooming: React.FC = () => {
                                             </span>
                                         </button>
                                     ))}
-                                    {discounts.filter(d => d.isActive).length === 0 && (
+                                    {discounts.filter(d => d.active).length === 0 && (
                                         <p className="col-span-2 text-[10px] text-gray-400 italic text-center py-2 bg-zinc-50 rounded-lg border border-dashed border-zinc-200">No active promotions available.</p>
                                     )}
                                 </div>
@@ -1972,7 +1973,8 @@ const Grooming: React.FC = () => {
                                }}
                            >
                                <CheckCircle className="w-5 h-5 mr-2" /> Mark as Complete
-                           </Button>
+                            </Button>
+                           </div>{/* end p-6 */}
                        </Dialog.Panel>
                    </div>
                </Dialog>
