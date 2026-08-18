@@ -182,7 +182,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
                     const amt = d.type === 'PERCENTAGE' ? grossTotal * (d.value / 100) : d.value;
                     const isSelected = selectedDiscountId === d.id;
                     return (
-                      <button key={d.id} onClick={() => setSelectedDiscountId(d.id)}
+                      <button key={d.id} onClick={() => setSelectedDiscountId(prev => prev === d.id ? '' : d.id)}
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all ${
                           isSelected
                             ? 'border-purple-400 bg-purple-50'
@@ -253,7 +253,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
                     value={specialValue}
                     onChange={e => setSpecialValue(e.target.value)}
                     placeholder={specialType === 'percent' ? '0' : '0.00'}
-                    className="w-full border-2 border-zinc-200 rounded-xl pl-9 pr-4 py-3 text-lg font-bold focus:border-purple-400 focus:outline-none transition"
+                   className="w-full border-2 border-zinc-200 rounded-xl pl-9 pr-28 py-3 text-lg font-bold focus:border-purple-400 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   {specialValue && parseFloat(specialValue) > 0 && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-600 font-bold text-sm">
