@@ -431,7 +431,7 @@ interface StoreContextType {
   addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
   updateTransaction: (oldTx: Transaction, newTx: Transaction) => void;
-  recoverTransactionsFromLogs: () => Promise<number>; // returns count of recovered transactions
+  recoverTransactionsFromLogs: () => Promise<{ grooming: number; pos: number }>; // returns count of recovered transactions
 
   addAppointment: (apt: GroomingAppointment) => void;
   updateAppointment: (apt: GroomingAppointment) => void;
@@ -1495,31 +1495,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckout), replace(storeSettings.emailBodyHotelCheckout), 'Checked Out'); }
   };
 
-  // ── Recover lost transactions from audit logs ─────────────────────
-  // For each POS log entry:
-  //   1. Try to match a COMPLETED grooming appointment by total amount
-  //   2. If matched → reconstruct real items (service + addons + extra pets)
-  //   3. Always OVERWRITE existing RECOVERED- records (idempotent)
-  const recoverTransactionsFromLogs = async (): Promise<number> => {
+  // ── Recover lost transactions — two-phase sweep ─────────────────
+  // Phase 1: ALL COMPLETED grooming appointments → exact items, totals, VAT
+  //          Deterministic ID: 'APT-' + apt.id.slice(-10) → idempotent
+  // Phase 2: POS logs for entries not matched in Phase 1 (product sales)
+  //          ID: 'RECOVERED-' + shortId
+  // Always OVERWRITES existing APT-/RECOVERED- records on re-run.
+  const recoverTransactionsFromLogs = async (): Promise<{ grooming: number; pos: number }> => {
     const POS_LOG_RE = /Transaction (\w+) completed\. Total: ([0-9.]+)/;
-    let recovered = 0;
+    const vatRate = storeSettings.vatRate / 100;
+    let groomingCount = 0;
+    let posCount = 0;
 
-    const posLogs = logs.filter(l => l.action === 'POS' && POS_LOG_RE.test(l.details));
-
-    // Helper: build items array from a COMPLETED appointment (mirrors handleFinalizePayment)
+    // ── Helper: build CartItems from a COMPLETED appointment ──────────
     const buildItemsFromApt = (apt: any): any[] => {
       const makeCartItem = (id: string, nameOverride?: string) => {
         const p = products.find(prod => prod.id === id);
         if (!p) return null;
         return { ...p, name: nameOverride || p.name, quantity: 1, appliedDiscounts: [] };
       };
-
       const items: any[] = [];
       const hasExtraPets = (apt.pets || []).length > 0;
 
-      // Primary service
+      // Primary pet service
       if (apt.serviceId) {
-        const svc = makeCartItem(apt.serviceId, hasExtraPets ? `${products.find(p => p.id === apt.serviceId)?.name || ''} (${apt.petName})` : undefined);
+        const label = hasExtraPets
+          ? `${products.find(p => p.id === apt.serviceId)?.name || ''} (${apt.petName})`
+          : undefined;
+        const svc = makeCartItem(apt.serviceId, label);
         if (svc) items.push(svc);
       }
       // Primary pet addons
@@ -1530,8 +1533,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Additional pets
       (apt.pets || []).forEach((pet: any) => {
         if (pet.serviceId) {
-          const petSvcName = `${products.find(p => p.id === pet.serviceId)?.name || ''} (${pet.petName})`;
-          const svc = makeCartItem(pet.serviceId, petSvcName);
+          const svcName = `${products.find(p => p.id === pet.serviceId)?.name || ''} (${pet.petName})`;
+          const svc = makeCartItem(pet.serviceId, svcName);
           if (svc) items.push(svc);
         }
         (pet.addonIds || []).forEach((id: string) => {
@@ -1542,79 +1545,101 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return items;
     };
 
-    // Helper: compute gross total from items (before VAT split)
-    const computeItemsTotal = (items: any[]): number =>
-      items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const computeGross = (items: any[]) =>
+      items.reduce((s, i) => s + i.price * i.quantity, 0);
 
-    // Track which appointments have been "claimed" for a recovery to avoid double-matching
-    const claimedAptIds = new Set<string>();
+    const makeStub = (id: string, items: any[], gross: number, date: string, userId: string): Transaction => {
+      // Reverse-calc VAT from the gross total (same formula as handleFinalizePayment)
+      const vat      = items.length > 0 ? parseFloat(((gross / (1 + vatRate)) * vatRate).toFixed(2)) : 0;
+      const subtotal = parseFloat((gross - vat).toFixed(2));
+      return {
+        id, items, subtotal, vat,
+        total:         gross,
+        discount:      0,
+        paymentMethod: 'CASH',
+        date,
+        cashierId:     userId || 'unknown',
+      };
+    };
+
+    const upsertStub = async (stub: Transaction) => {
+      setTransactions(prev => [stub, ...prev.filter(t => t.id !== stub.id)]);
+      await upsertData('transactions', mapTransactionPayload(stub, false));
+    };
+
+    // ── Phase 1: sweep ALL COMPLETED grooming appointments ────────────
+    // Build a set of apt IDs that are already covered by real (non-recovered) transactions
+    const coveredAptIds = new Set<string>();
+    transactions.forEach(t => {
+      if (!t.id.startsWith('APT-') && !t.id.startsWith('RECOVERED-')) {
+        // Real transaction — check if any item matches an appointment service
+        // We can't perfectly link these, so we skip and rely on total+date matching
+      }
+      if (t.id.startsWith('APT-')) {
+        // Already recovered from an appointment — mark apt id covered
+        const aptSuffix = t.id.slice(4); // strip 'APT-'
+        coveredAptIds.add(aptSuffix);
+      }
+    });
+
     const completedApts = appointments.filter(a => a.status === 'COMPLETED');
+    const claimedAptIds = new Set<string>(); // claimed in this run
+
+    for (const apt of completedApts) {
+      const aptTxId = 'APT-' + apt.id.slice(-10);
+
+      // Skip if this apt is already covered by a REAL (non-recovered) transaction
+      // We detect this by checking if any existing non-APT tx has matching total on matching date
+      const aptItems = buildItemsFromApt(apt);
+      if (aptItems.length === 0) continue; // no service → skip
+      const aptGross = computeGross(aptItems);
+      const aptDate  = apt.date || '';
+
+      const hasRealTx = transactions.some(t =>
+        !t.id.startsWith('APT-') && !t.id.startsWith('RECOVERED-') &&
+        Math.abs(t.total - aptGross) < 1 &&
+        (t.date || '').split('T')[0] === aptDate
+      );
+      if (hasRealTx) { claimedAptIds.add(apt.id); continue; }
+
+      const stub = makeStub(aptTxId, aptItems, aptGross, apt.date + 'T12:00:00.000Z', 'recovered');
+      await upsertStub(stub);
+      claimedAptIds.add(apt.id);
+      groomingCount++;
+    }
+
+    // ── Phase 2: POS logs for product sales not covered by Phase 1 ───
+    const posLogs = logs.filter(l => l.action === 'POS' && POS_LOG_RE.test(l.details));
 
     for (const log of posLogs) {
       const match = log.details.match(POS_LOG_RE);
       if (!match) continue;
       const shortId = match[1];
       const logTotal = Number(match[2]);
-      const logDate  = log.timestamp ? log.timestamp.split('T')[0] : '';
+      const logDate  = (log.timestamp || '').split('T')[0];
       const stubId   = 'RECOVERED-' + shortId;
 
-      // Skip real (non-recovered) transactions — only process ones that are missing or already RECOVERED-
-      const existing = transactions.find(t => t.id.endsWith(shortId) && !t.id.startsWith('RECOVERED-'));
-      if (existing) continue; // Real transaction exists — don't overwrite
+      // Skip if a real (non-recovered) transaction already exists for this log entry
+      const hasReal = transactions.some(
+        t => !t.id.startsWith('RECOVERED-') && !t.id.startsWith('APT-') && t.id.endsWith(shortId)
+      );
+      if (hasReal) continue;
 
-      // Try to find a matching COMPLETED appointment
-      let matchedItems: any[] = [];
-      let matchedApt: any = null;
-
-      for (const apt of completedApts) {
-        if (claimedAptIds.has(apt.id)) continue;
+      // Skip if this total+date was already covered in Phase 1 (grooming)
+      const coveredByApt = completedApts.some(apt => {
+        if (!claimedAptIds.has(apt.id)) return false;
         const items = buildItemsFromApt(apt);
-        const aptGross = computeItemsTotal(items);
-        const vatRate = storeSettings.vatRate / 100;
-        // Estimate what the final total would be (after VAT split, no downpayment assumption)
-        // total is the amount collected; gross = subtotal + vat portion
-        // We try: gross matches logTotal directly OR gross/(1+vatRate) + gross*vatRate/(1+vatRate) = gross = logTotal
-        const grossMatch = Math.abs(aptGross - logTotal) < 1;
-        const aptDate = apt.date || '';
-        const sameDay = !logDate || !aptDate || aptDate === logDate;
-        if (grossMatch && sameDay) {
-          matchedItems = items;
-          matchedApt = apt;
-          break;
-        }
-      }
-
-      if (matchedApt) claimedAptIds.add(matchedApt.id);
-
-      // Calculate VAT from total (reverse-calculate like original)
-      const vatRate = storeSettings.vatRate / 100;
-      const vatAmount = matchedItems.length > 0
-        ? parseFloat(((logTotal / (1 + vatRate)) * vatRate).toFixed(2))
-        : 0;
-      const subtotal = parseFloat((logTotal - vatAmount).toFixed(2));
-
-      const stub: Transaction = {
-        id:            stubId,
-        items:         matchedItems,
-        subtotal:      subtotal,
-        vat:           vatAmount,
-        total:         logTotal,
-        discount:      0,
-        paymentMethod: 'CASH',
-        date:          log.timestamp,
-        cashierId:     log.userId || 'unknown',
-      };
-
-      // Always overwrite RECOVERED- in state
-      setTransactions(prev => {
-        const without = prev.filter(t => t.id !== stubId);
-        return [stub, ...without];
+        return Math.abs(computeGross(items) - logTotal) < 1 && apt.date === logDate;
       });
-      // Upsert to DB (overwrite if exists via onConflict: 'id')
-      await upsertData('transactions', mapTransactionPayload(stub, false));
-      recovered++;
+      if (coveredByApt) continue;
+
+      // Pure POS product sale — stub with correct total, no items recoverable
+      const stub = makeStub(stubId, [], logTotal, log.timestamp, log.userId);
+      await upsertStub(stub);
+      posCount++;
     }
-    return recovered;
+
+    return { grooming: groomingCount, pos: posCount };
   };
 
 

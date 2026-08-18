@@ -36,13 +36,13 @@ const Transactions: React.FC = () => {
   const [editDate, setEditDate] = useState('');
   const [editSearch, setEditSearch] = useState(''); // Search for adding items
   const [isRecovering, setIsRecovering] = useState(false);
-  const [recoveryResult, setRecoveryResult] = useState<number | null>(null);
+  const [recoveryResult, setRecoveryResult] = useState<{ grooming: number; pos: number } | null>(null);
 
   const handleRecoverTransactions = async () => {
     setIsRecovering(true);
-    const count = await recoverTransactionsFromLogs();
+    const result = await recoverTransactionsFromLogs();
     setIsRecovering(false);
-    setRecoveryResult(count);
+    setRecoveryResult(result);
   };
 
   const filteredTransactions = useMemo(() => {
@@ -254,27 +254,44 @@ const Transactions: React.FC = () => {
       </div>
 
       {/* Recovery Result Modal */}
-      {recoveryResult !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
-            <div className="text-5xl mb-4">{recoveryResult > 0 ? '✅' : 'ℹ️'}</div>
-            <h3 className="text-xl font-bold text-zinc-900 mb-2">
-              {recoveryResult > 0 ? `Recovered ${recoveryResult} Transaction${recoveryResult !== 1 ? 's' : ''}!` : 'Nothing to Recover'}
-            </h3>
-            <p className="text-zinc-500 text-sm mb-6">
-              {recoveryResult > 0
-                ? `${recoveryResult} missing transaction${recoveryResult !== 1 ? 's were' : ' was'} restored from audit logs. Items list is empty but totals are accurate.`
-                : 'All transactions from audit logs are already in the database.'}
-            </p>
-            <button
-              onClick={() => setRecoveryResult(null)}
-              className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold hover:bg-zinc-700 transition-all"
-            >
-              OK
-            </button>
+      {recoveryResult !== null && (() => {
+        const total = recoveryResult.grooming + recoveryResult.pos;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+              <div className="text-5xl mb-4">{total > 0 ? '✅' : 'ℹ️'}</div>
+              <h3 className="text-xl font-bold text-zinc-900 mb-2">
+                {total > 0 ? `Recovered ${total} Transaction${total !== 1 ? 's' : ''}!` : 'Nothing to Recover'}
+              </h3>
+              {total > 0 ? (
+                <div className="text-left bg-zinc-50 rounded-xl p-4 mb-4 space-y-2">
+                  {recoveryResult.grooming > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600 font-bold">✂️ {recoveryResult.grooming}</span>
+                      <span className="text-zinc-600">Grooming — full items & receipt recovered</span>
+                    </div>
+                  )}
+                  {recoveryResult.pos > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-amber-600 font-bold">🛒 {recoveryResult.pos}</span>
+                      <span className="text-zinc-600">POS sales — total recovered, items not recoverable from logs</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-zinc-500 text-sm mb-4">All transactions are already in the database.</p>
+              )}
+              <button
+                onClick={() => setRecoveryResult(null)}
+                className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold hover:bg-zinc-700 transition-all"
+              >
+                OK
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
 
       <div className="p-4 bg-white border-b border-zinc-100 flex flex-col xl:flex-row gap-4">
         {/* Search */}
