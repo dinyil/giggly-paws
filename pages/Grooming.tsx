@@ -825,21 +825,49 @@ const Grooming: React.FC = () => {
       const price = service ? service.price : 0;
 
       // 1. Try to find the REAL transaction from the database first
-      //    Match: transaction must contain this service as an item AND owner name matches (via grooming appointment)
-      const realTransaction = transactions.find(t =>
-          t.items?.some(item => item.id === apt.serviceId)
-          && new Date(t.date).toDateString() === new Date(apt.date).toDateString()
-      );
+      //    Priority: APT-{id} recovered transaction (most accurate), then real tx matched strictly
 
-      if (realTransaction) {
-          // Use the actual saved transaction — correct payment method, cashier, date, totals
-          // Also merge downpayment from the appointment in case transactions table column doesn't exist yet
+      // Build the expected total for this appointment (same logic as handleFinalizePayment)
+      const addonPricesForMatch = (apt.addonIds || []).reduce((sum, id) => {
+          const p = products.find(prod => prod.id === id);
+          return sum + (p ? p.price : 0);
+      }, 0);
+      const extraPetPricesForMatch = (apt.pets || []).reduce((sum, pet) => {
+          const svcP = products.find(p => p.id === pet.serviceId);
+          const addonsP = (pet.addonIds || []).reduce((s, id) => {
+              const p = products.find(prod => prod.id === id);
+              return s + (p ? p.price : 0);
+          }, 0);
+          return sum + (svcP ? svcP.price : 0) + addonsP;
+      }, 0);
+      const expectedGross = price + addonPricesForMatch + extraPetPricesForMatch;
+
+      // Check for recovered APT- transaction first (most reliable match)
+      const aptTxId = 'APT-' + apt.id.slice(-10);
+      const aptRecovered = transactions.find(t => t.id === aptTxId);
+      
+      // Then look for a real transaction: must match service, date AND total (strict)
+      const aptDateStr = apt.date ? apt.date.split('T')[0] : apt.date;
+      const realTransaction = !aptRecovered ? transactions.find(t => {
+          if (t.id.startsWith('APT-') || t.id.startsWith('RECOVERED-')) return false;
+          const txDateStr = t.date
+              ? new Date(t.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+              : '';
+          const dateMatch = txDateStr === aptDateStr;
+          const serviceMatch = t.items?.some(item => item.id === apt.serviceId);
+          const totalMatch = Math.abs(t.total - expectedGross) < 1;
+          return dateMatch && serviceMatch && totalMatch;
+      }) : null;
+
+      const matchedTx = aptRecovered || realTransaction;
+
+      if (matchedTx) {
           const dpFromApt = apt.downpayment || 0;
-          const txWithDp = (realTransaction.downpayment && realTransaction.downpayment > 0)
-              ? realTransaction
+          const txWithDp = (matchedTx.downpayment && matchedTx.downpayment > 0)
+              ? matchedTx
               : dpFromApt > 0
-                  ? { ...realTransaction, downpayment: dpFromApt }
-                  : realTransaction;
+                  ? { ...matchedTx, downpayment: dpFromApt }
+                  : matchedTx;
           setPrintingTransaction(txWithDp);
           setShowReceiptPreview(true);
           return;
