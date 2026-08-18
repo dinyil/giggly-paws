@@ -8,7 +8,7 @@ import { Transaction, CartItem } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 const Transactions: React.FC = () => {
-  const { transactions, storeSettings, deleteTransaction, updateTransaction, products } = useStore();
+  const { transactions, storeSettings, deleteTransaction, updateTransaction, products, recoverTransactionsFromLogs } = useStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -35,6 +35,15 @@ const Transactions: React.FC = () => {
   const [editGcashRef, setEditGcashRef] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editSearch, setEditSearch] = useState(''); // Search for adding items
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryResult, setRecoveryResult] = useState<number | null>(null);
+
+  const handleRecoverTransactions = async () => {
+    setIsRecovering(true);
+    const count = await recoverTransactionsFromLogs();
+    setIsRecovering(false);
+    setRecoveryResult(count);
+  };
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -222,10 +231,50 @@ const Transactions: React.FC = () => {
         <h2 className="text-xl font-bold flex items-center gap-2 text-zinc-900">
           <Wallet className="w-5 h-5" /> Transaction History
         </h2>
-        <Button onClick={() => navigate('/pos')} size="sm">
+        <div className="flex items-center gap-2">
+          {/* Recover lost transactions from audit logs */}
+          <button
+            onClick={handleRecoverTransactions}
+            disabled={isRecovering}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all active:scale-95 disabled:opacity-50"
+            title="Recover transactions that were processed but not saved to database"
+          >
+            {isRecovering ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            ) : '🔄'}
+            {isRecovering ? 'Recovering...' : 'Recover from Logs'}
+          </button>
+          <Button onClick={() => navigate('/pos')} size="sm">
             <Plus className="w-4 h-4" /> New Transaction
-        </Button>
+          </Button>
+        </div>
       </div>
+
+      {/* Recovery Result Modal */}
+      {recoveryResult !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+            <div className="text-5xl mb-4">{recoveryResult > 0 ? '✅' : 'ℹ️'}</div>
+            <h3 className="text-xl font-bold text-zinc-900 mb-2">
+              {recoveryResult > 0 ? `Recovered ${recoveryResult} Transaction${recoveryResult !== 1 ? 's' : ''}!` : 'Nothing to Recover'}
+            </h3>
+            <p className="text-zinc-500 text-sm mb-6">
+              {recoveryResult > 0
+                ? `${recoveryResult} missing transaction${recoveryResult !== 1 ? 's were' : ' was'} restored from audit logs. Items list is empty but totals are accurate.`
+                : 'All transactions from audit logs are already in the database.'}
+            </p>
+            <button
+              onClick={() => setRecoveryResult(null)}
+              className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold hover:bg-zinc-700 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 bg-white border-b border-zinc-100 flex flex-col xl:flex-row gap-4">
         {/* Search */}

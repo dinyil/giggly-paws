@@ -431,6 +431,7 @@ interface StoreContextType {
   addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
   updateTransaction: (oldTx: Transaction, newTx: Transaction) => void;
+  recoverTransactionsFromLogs: () => Promise<number>; // returns count of recovered transactions
 
   addAppointment: (apt: GroomingAppointment) => void;
   updateAppointment: (apt: GroomingAppointment) => void;
@@ -1494,6 +1495,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckout), replace(storeSettings.emailBodyHotelCheckout), 'Checked Out'); }
   };
 
+  // ── Recover lost transactions from audit logs ─────────────────────
+  // Parses all 'POS' log entries, extracts total & timestamp, and
+  // inserts stub transactions for any that are missing from the DB.
+  const recoverTransactionsFromLogs = async (): Promise<number> => {
+    // Pattern: "Transaction 629566 completed. Total: 212.5"
+    const POS_LOG_RE = /Transaction (\w+) completed\. Total: ([0-9.]+)/;
+    let recovered = 0;
+
+    const posLogs = logs.filter(l => l.action === 'POS' && POS_LOG_RE.test(l.details));
+    
+    for (const log of posLogs) {
+      const match = log.details.match(POS_LOG_RE);
+      if (!match) continue;
+      const shortId = match[1];  // last-6-digit suffix used when logging
+      const total   = Number(match[2]);
+      
+      // Check if a transaction with this suffix already exists in memory
+      const alreadyExists = transactions.some(t => t.id.endsWith(shortId));
+      if (alreadyExists) continue;
+
+      // Create a stub transaction
+      const stubId = 'RECOVERED-' + shortId;
+      const stub: Transaction = {
+        id:            stubId,
+        items:         [],
+        subtotal:      total,
+        vat:           0,
+        total:         total,
+        discount:      0,
+        paymentMethod: 'CASH',
+        date:          log.timestamp,
+        cashierId:     log.userId || 'unknown',
+      };
+
+      setTransactions(prev => {
+        if (prev.some(t => t.id === stubId)) return prev;
+        return [stub, ...prev];
+      });
+      // Save without downpayment (may not exist in DB yet)
+      await upsertData('transactions', mapTransactionPayload(stub, false));
+      recovered++;
+    }
+    return recovered;
+  };
+
 
   return (
     <StoreContext.Provider value={{
@@ -1507,7 +1553,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       registerDevice, updateDeviceStatus, deleteDevice,
       addProduct, updateProduct, deleteProduct,
       adjustStock, 
-      addTransaction, deleteTransaction, updateTransaction,
+      addTransaction, deleteTransaction, updateTransaction, recoverTransactionsFromLogs,
       addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, 
       addLog, addClient, updateClient, deleteClient,
       addDiscount, toggleDiscount, deleteDiscount,
