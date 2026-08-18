@@ -280,23 +280,33 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
                     <div className="flex items-center gap-2 text-amber-700 text-xs font-bold">
                       <Lock className="w-4 h-4" /> Admin PIN Required
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={pin}
-                        onChange={e => setPin(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleVerifyPin()}
-                        placeholder="Enter PIN"
-                        className="flex-1 border border-amber-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 bg-white"
-                      />
-                      <button onClick={handleVerifyPin}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-sm font-bold transition">
-                        Verify
-                      </button>
+                    {/* Dot indicators */}
+                    <div className="flex justify-center gap-3 py-1">
+                      {[0,1,2,3].map(i => (
+                        <div key={i} className={`w-3 h-3 rounded-full transition-all ${
+                          pin.length > i ? 'bg-amber-500 scale-110' : 'bg-amber-200'
+                        }`} />
+                      ))}
                     </div>
-                    {pinError && <p className="text-red-500 text-xs">{pinError}</p>}
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={pin}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setPin(val);
+                        setPinError('');
+                        if (val.length === 4) {
+                          if (val === adminPin) { setPinVerified(true); setPinError(''); }
+                          else { setPinError('Incorrect PIN. Please try again.'); setPin(''); }
+                        }
+                      }}
+                      placeholder="Enter 4-digit PIN"
+                      className="w-full border border-amber-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.5em] focus:outline-none focus:border-amber-500 bg-white"
+                      autoFocus
+                    />
+                    {pinError && <p className="text-red-500 text-xs text-center">{pinError}</p>}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-green-700 text-xs font-bold bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
