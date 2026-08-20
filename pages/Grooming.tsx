@@ -1209,7 +1209,7 @@ const Grooming: React.FC = () => {
                                         {card.displayDate === today ? 'TODAY' : new Date(card.displayDate + 'T00:00:00').toLocaleDateString()} • {formatTime(card.displayTime)}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED') && (
+                                        {(apt.status === 'SCHEDULED' || apt.status === 'COMPLETED' || apt.status === 'ONGOING') && (
                                             <div className="flex items-center bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
                                                 <button onClick={() => openEditModal(apt)} className="p-1.5 text-gray-500 hover:text-purple-900 hover:bg-white rounded-md transition-all" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                                                 <div className="w-px h-3 bg-gray-200 mx-0.5"></div>
@@ -1340,16 +1340,17 @@ const Grooming: React.FC = () => {
                                         ) : <div className="w-full text-center py-2 text-sm text-gray-400 font-medium bg-zinc-50 rounded-xl border border-zinc-100">Scheduled</div>
                                     )}
                                     {card.cardStatus === 'ONGOING' && (
-                                        <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100" onClick={() => {
+                                        <>
+                                        <button
+                                            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100"
+                                            onClick={() => {
                                             if (card.hasPrimary) {
                                                 handleProceedToPayment(apt);
                                             } else {
-                                                // Non-primary card: mark pets COMPLETED, show per-card receipt
                                                 const updated = { ...apt, pets: (apt.pets || []).map(p =>
                                                     card.petIds.includes(p.id) ? { ...p, status: 'COMPLETED' as const } : p
                                                 )};
                                                 updateAppointment(updated);
-                                                // Build a synthetic apt for receipt with only these pets
                                                 const syntheticApt = {
                                                     ...apt,
                                                     petName: displayPets[0]?.petName || apt.petName,
@@ -1366,6 +1367,13 @@ const Grooming: React.FC = () => {
                                         }}>
                                             Complete Grooming
                                         </button>
+                                        <button
+                                            onClick={() => handleCancelClick(apt.id, apt.petName)}
+                                            className="w-full mt-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-xl font-bold text-sm flex justify-center items-center gap-2 transition-all active:scale-95"
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Delete Appointment
+                                        </button>
+                                        </>
                                     )}
                                     {card.cardStatus === 'COMPLETED' && (
                                         <div className="flex gap-2">
