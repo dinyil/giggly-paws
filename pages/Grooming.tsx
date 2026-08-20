@@ -17,19 +17,14 @@ type TimeRange = 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR';
 type PetSpecies = 'DOG' | 'CAT' | 'OTHER';
 type SizeCategory = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 
-// Size order for inclusive adjacent-size filtering (Option A)
-// An XL-tagged service will also appear for XXL dogs (±1 step tolerance)
+// Size order for size filtering — strict exact match
+// XL service → XL dog only. XXL service → XXL dog only.
 const SIZE_ORDER: SizeCategory[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const sizeMatchFn = (productSize: string | undefined, dogSize: SizeCategory | null): boolean => {
   if (!dogSize) return true;              // no detected size → show all
   if (!productSize) return true;          // no size tag on product → show all
   if (productSize === 'ALL') return true; // product tagged ALL → show all
-  if (productSize === dogSize) return true; // exact match
-  // Inclusive: also show if product is tagged for the step just below detected size
-  // e.g. XL product shows for XXL dog
-  const prodIdx = SIZE_ORDER.indexOf(productSize as SizeCategory);
-  const dogIdx  = SIZE_ORDER.indexOf(dogSize);
-  return prodIdx >= 0 && dogIdx >= 0 && prodIdx === dogIdx - 1;
+  return productSize === dogSize;         // strict exact match only
 };
 
 // Auto-detect dog size category from weight in kg
