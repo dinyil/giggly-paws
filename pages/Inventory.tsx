@@ -119,8 +119,8 @@ const Inventory: React.FC = () => {
       stock: 0, 
       category: currentCategories[0], 
       isService: activeTab === 'SERVICES',
-      petSpecies: 'BOTH',
-      weightSizeCategory: 'ALL',
+      petSpecies: activeTab === 'SERVICES' ? 'DOG' : 'BOTH', // default DOG for services so size selector shows immediately
+      weightSizeCategory: activeTab === 'SERVICES' ? undefined : 'ALL', // force staff to choose size
     });
     setIsModalOpen(true);
   };
@@ -559,17 +559,24 @@ const Inventory: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── Weight/Size Category — only for DOG ── */}
-              {formData.petSpecies === 'DOG' && (
+              {/* ── Weight/Size Category — shown in Services tab ── */}
+              {activeTab === 'SERVICES' && (
                 <div>
-                  <label className="text-sm font-bold text-gray-700">Dog Size Category <span className="text-xs font-normal text-gray-400">(leave ALL for any size)</span></label>
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                  <label className="text-sm font-bold text-gray-700">
+                    Dog Size Category
+                    {formData.petSpecies === 'DOG' 
+                      ? <span className="text-xs font-normal text-red-500 ml-1">* required for proper filtering</span>
+                      : <span className="text-xs font-normal text-gray-400 ml-1">(only applies to Dog services)</span>
+                    }
+                  </label>
+                  <div className={`flex gap-1.5 mt-2 flex-wrap ${formData.petSpecies !== 'DOG' ? 'opacity-30 pointer-events-none' : ''}`}>
                     {(['ALL','XS','S','M','L','XL','XXL'] as const).map(sz => (
                       <button key={sz} type="button"
                         onClick={() => setFormData(prev => ({ ...prev, weightSizeCategory: sz }))}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                           formData.weightSizeCategory === sz
                             ? sz === 'ALL' ? 'bg-zinc-700 text-white border-zinc-700' : 'bg-blue-600 text-white border-blue-600'
+                            : formData.weightSizeCategory === undefined && sz === 'ALL' ? 'border-2 border-dashed border-red-300 text-red-400'
                             : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
                         }`}>
                         {sz === 'ALL' ? '✦ ALL sizes' : sz}
@@ -577,6 +584,9 @@ const Inventory: React.FC = () => {
                     ))}
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1">XS ≤2kg · S ≤5kg · M ≤10kg · L ≤16kg · XL ≤25kg · XXL &gt;25kg</p>
+                  {formData.petSpecies === 'DOG' && !formData.weightSizeCategory && (
+                    <p className="text-[10px] text-red-400 mt-1 font-bold">⚠ Please select a size — choose ALL if this service applies to all dog sizes</p>
+                  )}
                 </div>
               )}
               
