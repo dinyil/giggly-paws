@@ -17,6 +17,21 @@ type TimeRange = 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR';
 type PetSpecies = 'DOG' | 'CAT' | 'OTHER';
 type SizeCategory = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 
+// Size order for inclusive adjacent-size filtering (Option A)
+// An XL-tagged service will also appear for XXL dogs (±1 step tolerance)
+const SIZE_ORDER: SizeCategory[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const sizeMatchFn = (productSize: string | undefined, dogSize: SizeCategory | null): boolean => {
+  if (!dogSize) return true;              // no detected size → show all
+  if (!productSize) return true;          // no size tag on product → show all
+  if (productSize === 'ALL') return true; // product tagged ALL → show all
+  if (productSize === dogSize) return true; // exact match
+  // Inclusive: also show if product is tagged for the step just below detected size
+  // e.g. XL product shows for XXL dog
+  const prodIdx = SIZE_ORDER.indexOf(productSize as SizeCategory);
+  const dogIdx  = SIZE_ORDER.indexOf(dogSize);
+  return prodIdx >= 0 && dogIdx >= 0 && prodIdx === dogIdx - 1;
+};
+
 // Auto-detect dog size category from weight in kg
 const detectSizeFromWeight = (weightKg: number): SizeCategory => {
   if (weightKg <= 2) return 'XS';
@@ -2424,7 +2439,7 @@ const Grooming: React.FC = () => {
                                            // Species match: show if species matches or product is BOTH
                                            const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === formData.petSpecies;
                                            // Size match (only for dogs with a detected size)
-                                           const sizeMatch = !detectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === detectedSize;
+                                           const sizeMatch = sizeMatchFn(s.weightSizeCategory, detectedSize);
                                            return nameMatch && speciesMatch && sizeMatch;
                                          })
                                          .map(s => (
@@ -2444,7 +2459,7 @@ const Grooming: React.FC = () => {
                                      {groomingServices.filter(s => {
                                        const nameMatch = normalizeText(s.name).includes(normalizeText(serviceSearch));
                                        const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === formData.petSpecies;
-                                       const sizeMatch = !detectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === detectedSize;
+                                       const sizeMatch = sizeMatchFn(s.weightSizeCategory, detectedSize);
                                        return nameMatch && speciesMatch && sizeMatch;
                                      }).length === 0 && (
                                          <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
@@ -2563,7 +2578,7 @@ const Grooming: React.FC = () => {
                                          // Species filter: show BOTH, OTHER (for other pets), or matching species
                                          const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
                                          // Size filter (only for dogs)
-                                         const sizeMatch = !detectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === detectedSize;
+                                         const sizeMatch = sizeMatchFn(p.weightSizeCategory, detectedSize);
                                          return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
                                        })
                                        .map(p => (
@@ -2592,7 +2607,7 @@ const Grooming: React.FC = () => {
                                      const nameMatch = normalizeText(p.name).includes(normalizeText(addonSearch));
                                      const typeMatch = addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService);
                                      const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
-                                     const sizeMatch = !detectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === detectedSize;
+                                     const sizeMatch = sizeMatchFn(p.weightSizeCategory, detectedSize);
                                      return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
                                    }).length === 0 && (
                                        <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
@@ -2649,7 +2664,7 @@ const Grooming: React.FC = () => {
                       const filteredPetServices = groomingServices.filter(s => {
                           const nameMatch = normalizeText(s.name).includes(normalizeText(pet._serviceSearch || ''));
                           const speciesMatch = !s.petSpecies || s.petSpecies === 'BOTH' || s.petSpecies === pet.petSpecies;
-                          const sizeMatch = !petDetectedSize || !s.weightSizeCategory || s.weightSizeCategory === 'ALL' || s.weightSizeCategory === petDetectedSize;
+                          const sizeMatch = sizeMatchFn(s.weightSizeCategory, petDetectedSize);
                           return nameMatch && speciesMatch && sizeMatch;
                       });
 
@@ -2660,7 +2675,7 @@ const Grooming: React.FC = () => {
                           const nameMatch = normalizeText(p.name).includes(normalizeText(pet._addonSearch || ''));
                           const typeMatch = (pet._addonFilter || 'ALL') === 'ALL' || ((pet._addonFilter || 'ALL') === 'SERVICE' ? p.isService : !p.isService);
                           const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === pet.petSpecies || !p.petSpecies;
-                          const sizeMatch = !petDetectedSize || !p.weightSizeCategory || p.weightSizeCategory === 'ALL' || p.weightSizeCategory === petDetectedSize;
+                          const sizeMatch = sizeMatchFn(p.weightSizeCategory, petDetectedSize);
                           return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
                       });
 

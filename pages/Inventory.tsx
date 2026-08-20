@@ -21,6 +21,7 @@ const Inventory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('PRODUCTS');
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [filterSize, setFilterSize] = useState<string>('ALL'); // Size filter for Services tab
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   
   // Pagination
@@ -81,9 +82,15 @@ const Inventory: React.FC = () => {
         // Filter by Category
         if (filterCategory !== 'ALL' && p.category !== filterCategory) return false;
 
+        // Filter by Size (Services tab only, Dog services)
+        if (activeTab === 'SERVICES' && filterSize !== 'ALL') {
+            const sizeVal = (p as any).weightSizeCategory || 'ALL';
+            if (sizeVal !== filterSize) return false;
+        }
+
         return true;
     });
-  }, [products, activeTab, search, filterCategory, showLowStockOnly]);
+  }, [products, activeTab, search, filterCategory, filterSize, showLowStockOnly]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -94,7 +101,7 @@ const Inventory: React.FC = () => {
 
   useEffect(() => {
       setCurrentPage(1);
-  }, [activeTab, search, filterCategory, showLowStockOnly]);
+  }, [activeTab, search, filterCategory, filterSize, showLowStockOnly]);
 
   const handlePageChange = (newPage: number) => {
       setCurrentPage(newPage);
@@ -262,7 +269,7 @@ const Inventory: React.FC = () => {
 
         <div className="flex gap-4">
            <button 
-             onClick={() => { setActiveTab('PRODUCTS'); setFilterCategory('ALL'); setShowLowStockOnly(false); }}
+             onClick={() => { setActiveTab('PRODUCTS'); setFilterCategory('ALL'); setFilterSize('ALL'); setShowLowStockOnly(false); }}
              className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                activeTab === 'PRODUCTS' 
                ? 'bg-purple-700 text-white shadow-lg' 
@@ -272,7 +279,7 @@ const Inventory: React.FC = () => {
              <Bone className="w-5 h-5" /> Products
            </button>
            <button 
-             onClick={() => { setActiveTab('SERVICES'); setFilterCategory('ALL'); setShowLowStockOnly(false); }}
+             onClick={() => { setActiveTab('SERVICES'); setFilterCategory('ALL'); setFilterSize('ALL'); setShowLowStockOnly(false); }}
              className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                activeTab === 'SERVICES' 
                ? 'bg-purple-700 text-white shadow-lg' 
@@ -368,6 +375,27 @@ const Inventory: React.FC = () => {
              <Plus className="w-3 h-3" /> New
            </button>
         </div>
+
+        {/* Size Filter — Services tab only */}
+        {activeTab === 'SERVICES' && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-3 border-t border-zinc-100">
+            <span className="text-xs font-bold text-gray-400 uppercase mr-1 flex-shrink-0">Size:</span>
+            {(['ALL', 'XS', 'S', 'M', 'L', 'XL', 'XXL'] as const).map(sz => (
+              <button
+                key={sz}
+                onClick={() => setFilterSize(sz)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0 ${
+                  filterSize === sz
+                    ? sz === 'ALL' ? 'bg-zinc-800 text-white' : 'bg-blue-600 text-white'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                {sz === 'ALL' ? '✦ ALL sizes' : sz}
+              </button>
+            ))}
+            <span className="text-[10px] text-gray-400 ml-1 whitespace-nowrap">XS ≤2kg · S ≤5kg · M ≤10kg · L ≤16kg · XL ≤25kg · XXL &gt;25kg</span>
+          </div>
+        )}
       </div>
 
       {/* Table */}
