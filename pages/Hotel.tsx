@@ -418,7 +418,7 @@ const BookingForm: React.FC<{
   const overCapacity = !!roomId && (existingInRoom + 1 > roomCap);
   const conflict = overCapacity || inSessionConflict;
 
-  const canSave = ownerName && activePetName && !conflict;
+  const canSave = ownerName && activePetName && roomId && !conflict;
 
   const handleSave = () => {
     if (!canSave) return;
