@@ -375,8 +375,21 @@ const Transactions: React.FC = () => {
               <tr key={t.id} className="hover:bg-zinc-50 transition-colors">
                 <td className="p-4 font-mono text-sm font-semibold text-zinc-700">#{t.id.slice(-8)}</td>
                 <td className="p-4 text-sm text-zinc-600">{formatDate(t.date)}</td>
-                <td className="p-4 text-sm text-zinc-900 max-w-xs truncate">
-                  {t.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                <td className="p-4 text-sm text-zinc-900 max-w-xs" title={t.items.map(i => `${i.quantity}x ${i.name}`).join(' · ')}>
+                  {(() => {
+                    const hotelStays = t.items.filter(i => i.category === 'HOTEL' && i.id?.startsWith('hotel-stay-'));
+                    const otherItems = t.items.filter(i => !(i.category === 'HOTEL' && i.id?.startsWith('hotel-stay-')));
+                    if (hotelStays.length > 1) {
+                      // Extract pet name from "BookingType · petName · Size (Room)"
+                      const petNames = hotelStays.map(i => {
+                        const parts = i.name.split('·');
+                        return parts[1]?.trim() || i.name;
+                      });
+                      const extras = otherItems.length > 0 ? ` + ${otherItems.length} extra${otherItems.length > 1 ? 's' : ''}` : '';
+                      return <span className="truncate block">🏨 {hotelStays.length} pets · <span className="text-zinc-500">{petNames.join(', ')}</span>{extras}</span>;
+                    }
+                    return <span className="truncate block">{t.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</span>;
+                  })()}
                 </td>
                 <td className="p-4 text-sm">
                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${
