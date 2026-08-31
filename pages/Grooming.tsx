@@ -733,24 +733,28 @@ const Grooming: React.FC = () => {
       const service = products.find(p => p.id === paymentApt.serviceId);
       const price = service ? service.price : 0;
 
-      // Build add-on cart items (pet 1)
-      const addonCartItems = (paymentApt.addonIds || []).flatMap(id => {
+      // Build add-on cart items (pet 1) — group duplicates into qty
+      const addonCartItems = Object.entries(
+          (paymentApt.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+      ).flatMap(([id, qty]) => {
           const p = products.find(prod => prod.id === id);
           if (!p) return [];
-          return [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }];
+          return [{ ...p, quantity: qty, appliedDiscounts: [] as Discount[] }];
       });
-      const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price, 0);
+      const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-      // Build additional pets' service + add-on items
+      // Build additional pets' service + add-on items — group addon duplicates
       const extraPetItems = (paymentApt.pets || []).flatMap(pet => {
           const petService = products.find(p => p.id === pet.serviceId);
-          const petAddons = (pet.addonIds || []).flatMap(id => {
+          const petAddons = Object.entries(
+              (pet.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+          ).flatMap(([id, qty]) => {
               const p = products.find(prod => prod.id === id);
-              return p ? [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }] : [];
+              return p ? [{ ...p, quantity: qty, appliedDiscounts: [] as Discount[] }] : [];
           });
           return petService ? [{ ...petService, name: `${petService.name} (${pet.petName})`, quantity: 1, appliedDiscounts: [] as Discount[] }, ...petAddons] : petAddons;
       });
-      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price, 0);
+      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
       const combinedPrice = price + addonTotal + extraPetTotal;
       
@@ -992,26 +996,30 @@ const Grooming: React.FC = () => {
           return;
       }
 
-      // 2. Fallback: build from appointment data (no saved transaction found, e.g. old records)
-      const addonCartItems = (apt.addonIds || []).flatMap(id => {
+      // 2. Fallback: build from appointment data — group addon duplicates
+      const addonCartItems = Object.entries(
+          (apt.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+      ).flatMap(([id, qty]) => {
           const p = products.find(prod => prod.id === id);
           if (!p) return [];
-          return [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }];
+          return [{ ...p, quantity: qty, appliedDiscounts: [] as Discount[] }];
       });
-      const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price, 0);
+      const addonTotal = addonCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-      // Include additional pets in fallback receipt
+      // Include additional pets in fallback receipt — group addon duplicates
       const extraPetItems = (apt.pets || []).flatMap(pet => {
           const petService = products.find(p => p.id === pet.serviceId);
-          const petAddons = (pet.addonIds || []).flatMap(id => {
+          const petAddons = Object.entries(
+              (pet.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+          ).flatMap(([id, qty]) => {
               const p = products.find(prod => prod.id === id);
-              return p ? [{ ...p, quantity: 1, appliedDiscounts: [] as Discount[] }] : [];
+              return p ? [{ ...p, quantity: qty, appliedDiscounts: [] as Discount[] }] : [];
           });
           return petService
               ? [{ ...petService, name: `${petService.name} (${pet.petName})`, quantity: 1, appliedDiscounts: [] as Discount[] }, ...petAddons]
               : petAddons;
       });
-      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price, 0);
+      const extraPetTotal = extraPetItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const combinedPrice = price + addonTotal + extraPetTotal;
 
       const vatRate = storeSettings.vatRate / 100;
@@ -1463,14 +1471,21 @@ const Grooming: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
             
-            {/* Header Section */}
-            <div className="p-6 pb-4 border-b border-zinc-100 flex-shrink-0">
-                <h2 className="text-xl font-bold text-zinc-900 mb-4">Grooming Payment</h2>
-                
-                {/* Order Summary Section */}
-                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100">
+            {/* Header Section - title only, so order summary can scroll */}
+            <div className="px-6 py-4 border-b border-zinc-100 flex-shrink-0 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-zinc-900">Grooming Payment</h2>
+                <span className="text-sm font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">
+                    ₱{paymentDetails.balanceToPay.toFixed(2)}
+                </span>
+            </div>
+
+            {/* Scrollable Content — order summary + discounts + payment */}
+            <div ref={checkoutScrollRef} className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+
+                {/* Order Summary */}
+                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 mb-5">
                     <div className="space-y-1 text-sm text-zinc-600 mb-2 border-b border-zinc-200 pb-2">
-                        {/* ── Primary Pet ── */}
+                        {/* Primary Pet */}
                         {(paymentApt?.pets || []).length > 0 && (
                             <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">🐾 {paymentApt?.petName || 'Pet 1'}</p>
                         )}
@@ -1478,24 +1493,31 @@ const Grooming: React.FC = () => {
                             <span>{paymentDetails.name}</span>
                             <span>₱{paymentDetails.price.toFixed(2)}</span>
                         </div>
-                        {/* Primary pet add-ons */}
-                        {(paymentApt?.addonIds || []).map(id => {
+                        {/* Primary pet add-ons (grouped by ID for qty display) */}
+                        {Object.entries(
+                            (paymentApt?.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+                        ).map(([id, qty]) => {
                             const product = products.find(p => p.id === id);
                             if (!product) return null;
+                            const lineTotal = product.price * qty;
                             return (
                                 <div key={id} className="flex justify-between text-zinc-500">
                                     <span className="flex items-center gap-1 pl-2">
-                                        <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />{product.name}
+                                        <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />
+                                        {product.name}{qty > 1 ? ` x${qty}` : ''}
                                     </span>
-                                    <span>₱{product.price.toFixed(2)}</span>
+                                    <span>₱{lineTotal.toFixed(2)}</span>
                                 </div>
                             );
                         })}
 
-                        {/* ── Additional Pets ── */}
+                        {/* Additional Pets */}
                         {(paymentApt?.pets || []).map((extraPet, pi) => {
                             const petSvc = products.find(p => p.id === extraPet.serviceId);
-                            const petAddonTotal = (extraPet.addonIds || []).reduce((s, id) => s + (products.find(p => p.id === id)?.price || 0), 0);
+                            const addonGroups = Object.entries(
+                                (extraPet.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+                            );
+                            const petAddonTotal = addonGroups.reduce((s, [id, qty]) => s + (products.find(p => p.id === id)?.price || 0) * qty, 0);
                             const petSubtotal = (petSvc?.price || 0) + petAddonTotal;
                             return (
                                 <div key={pi} className="mt-2 pt-2 border-t border-zinc-200">
@@ -1506,15 +1528,16 @@ const Grooming: React.FC = () => {
                                             <span>₱{petSvc.price.toFixed(2)}</span>
                                         </div>
                                     )}
-                                    {(extraPet.addonIds || []).map(id => {
+                                    {addonGroups.map(([id, qty]) => {
                                         const p = products.find(pr => pr.id === id);
                                         if (!p) return null;
                                         return (
                                             <div key={id} className="flex justify-between text-zinc-500">
                                                 <span className="flex items-center gap-1 pl-2">
-                                                    <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />{p.name}
+                                                    <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />
+                                                    {p.name}{qty > 1 ? ` x${qty}` : ''}
                                                 </span>
-                                                <span>₱{p.price.toFixed(2)}</span>
+                                                <span>₱{(p.price * qty).toFixed(2)}</span>
                                             </div>
                                         );
                                     })}
@@ -1559,11 +1582,7 @@ const Grooming: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
-            {/* Scrollable Content */}
-            <div ref={checkoutScrollRef} className="flex-1 overflow-y-auto p-6 pt-0 custom-scrollbar">
-                
                 {/* DISCOUNT SELECTION */}
                 <p className="text-gray-500 text-xs font-bold mb-3 mt-4 uppercase tracking-widest">Apply Promo / Discount</p>
                 <div className="grid grid-cols-2 gap-2 mb-6">
@@ -2490,7 +2509,9 @@ const Grooming: React.FC = () => {
                   {/* Selected add-on items list */}
                   {addonItems.length > 0 && (
                       <div className="space-y-1.5">
-                          {addonItems.map((productId) => {
+                          {Object.entries(
+                              addonItems.reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+                          ).map(([productId, qty]) => {
                               const product = products.find(p => p.id === productId);
                               if (!product) return null;
                               return (
@@ -2500,15 +2521,25 @@ const Grooming: React.FC = () => {
                                               {product.isService ? 'SERVICE' : 'PRODUCT'}
                                           </span>
                                           <span className="text-sm font-bold text-zinc-800 truncate">{product.name}</span>
-                                          <span className="text-xs text-gray-400 flex-shrink-0">₱{product.price.toFixed(2)}</span>
+                                          <span className="text-xs text-gray-400 flex-shrink-0">₱{(product.price * qty).toFixed(2)}</span>
                                       </div>
-                                      <button
-                                          type="button"
-                                          onClick={() => setAddonItems(prev => prev.filter(id => id !== productId))}
-                                          className="ml-2 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0"
-                                      >
-                                          <X className="w-3.5 h-3.5" />
-                                      </button>
+                                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                          <button
+                                              type="button"
+                                              onClick={() => setAddonItems(prev => { const idx = prev.lastIndexOf(productId); return prev.filter((_, i) => i !== idx); })}
+                                              className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-200 text-zinc-700 hover:bg-zinc-300 text-xs font-bold leading-none">−</button>
+                                          <span className="w-5 text-center text-sm font-bold text-zinc-700">{qty}</span>
+                                          <button
+                                              type="button"
+                                              onClick={() => setAddonItems(prev => [...prev, productId])}
+                                              className="w-6 h-6 flex items-center justify-center rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 text-xs font-bold leading-none">+</button>
+                                          <button
+                                              type="button"
+                                              onClick={() => setAddonItems(prev => prev.filter(id => id !== productId))}
+                                              className="ml-1 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0">
+                                              <X className="w-3.5 h-3.5" />
+                                          </button>
+                                      </div>
                                   </div>
                               );
                           })}
@@ -2567,14 +2598,13 @@ const Grooming: React.FC = () => {
                                    {products
                                        .filter(p => {
                                          const notSelected = p.id !== formData.serviceId;
-                                         const notAdded = !addonItems.includes(p.id);
                                          const nameMatch = normalizeText(p.name).includes(normalizeText(addonSearch));
                                          const typeMatch = addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService);
                                          // Species filter: show BOTH, OTHER (for other pets), or matching species
                                          const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
                                          // Size filter (only for dogs)
                                          const sizeMatch = sizeMatchFn(p.weightSizeCategory, detectedSize);
-                                         return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
+                                         return notSelected && nameMatch && typeMatch && speciesMatch && sizeMatch;
                                        })
                                        .map(p => (
                                            <div
@@ -2590,7 +2620,10 @@ const Grooming: React.FC = () => {
                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
                                                        {p.isService ? 'SERVICE' : 'PRODUCT'}
                                                    </span>
-                                                   <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                                   <div className="flex items-center gap-1.5">
+                                                      {addonItems.includes(p.id) && <span className="text-[9px] font-black bg-green-100 text-green-600 px-1 py-0.5 rounded">+{addonItems.filter(id => id === p.id).length}</span>}
+                                                      <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                                   </div>
                                                </div>
                                                <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
                                            </div>
@@ -2598,12 +2631,11 @@ const Grooming: React.FC = () => {
                                    }
                                    {products.filter(p => {
                                      const notSelected = p.id !== formData.serviceId;
-                                     const notAdded = !addonItems.includes(p.id);
                                      const nameMatch = normalizeText(p.name).includes(normalizeText(addonSearch));
                                      const typeMatch = addonFilter === 'ALL' || (addonFilter === 'SERVICE' ? p.isService : !p.isService);
                                      const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === formData.petSpecies || !p.petSpecies;
                                      const sizeMatch = sizeMatchFn(p.weightSizeCategory, detectedSize);
-                                     return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
+                                     return notSelected && nameMatch && typeMatch && speciesMatch && sizeMatch;
                                    }).length === 0 && (
                                        <div className="p-4 text-center text-gray-400 text-xs flex flex-col items-center gap-1">
                                            <Search className="w-5 h-5 opacity-20" />
@@ -2666,12 +2698,11 @@ const Grooming: React.FC = () => {
                       // Filtered add-ons — same logic as primary pet
                       const filteredPetAddons = products.filter(p => {
                           const notSelected = p.id !== pet.serviceId;
-                          const notAdded = !(pet.addonIds || []).includes(p.id);
                           const nameMatch = normalizeText(p.name).includes(normalizeText(pet._addonSearch || ''));
                           const typeMatch = (pet._addonFilter || 'ALL') === 'ALL' || ((pet._addonFilter || 'ALL') === 'SERVICE' ? p.isService : !p.isService);
                           const speciesMatch = p.petSpecies === 'BOTH' || p.petSpecies === pet.petSpecies || !p.petSpecies;
                           const sizeMatch = sizeMatchFn(p.weightSizeCategory, petDetectedSize);
-                          return notSelected && notAdded && nameMatch && typeMatch && speciesMatch && sizeMatch;
+                          return notSelected && nameMatch && typeMatch && speciesMatch && sizeMatch;
                       });
 
                       const petSvc = products.find(p => p.id === pet.serviceId);
@@ -2931,7 +2962,9 @@ const Grooming: React.FC = () => {
                                       {/* Selected add-ons list */}
                                       {(pet.addonIds || []).length > 0 && (
                                           <div className="space-y-1.5">
-                                              {(pet.addonIds || []).map((productId) => {
+                                              {Object.entries(
+                                                  (pet.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+                                              ).map(([productId, qty]) => {
                                                   const p = products.find(pr => pr.id === productId);
                                                   if (!p) return null;
                                                   return (
@@ -2941,12 +2974,22 @@ const Grooming: React.FC = () => {
                                                                   {p.isService ? 'SERVICE' : 'PRODUCT'}
                                                               </span>
                                                               <span className="text-sm font-bold text-zinc-800 truncate">{p.name}</span>
-                                                              <span className="text-xs text-gray-400 flex-shrink-0">₱{p.price.toFixed(2)}</span>
+                                                              <span className="text-xs text-gray-400 flex-shrink-0">₱{(p.price * qty).toFixed(2)}</span>
                                                           </div>
-                                                          <button type="button" onClick={() => updatePet('addonIds', (pet.addonIds || []).filter(id => id !== productId))}
-                                                              className="ml-2 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0">
-                                                              <X className="w-3.5 h-3.5" />
-                                                          </button>
+                                                          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                                              <button type="button"
+                                                                  onClick={() => { const cur = pet.addonIds || []; const idx = cur.lastIndexOf(productId); updatePet('addonIds', cur.filter((_, i) => i !== idx)); }}
+                                                                  className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-200 text-zinc-700 hover:bg-zinc-300 text-xs font-bold leading-none">−</button>
+                                                              <span className="w-5 text-center text-sm font-bold text-zinc-700">{qty}</span>
+                                                              <button type="button"
+                                                                  onClick={() => updatePet('addonIds', [...(pet.addonIds || []), productId])}
+                                                                  className="w-6 h-6 flex items-center justify-center rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 text-xs font-bold leading-none">+</button>
+                                                              <button type="button"
+                                                                  onClick={() => updatePet('addonIds', (pet.addonIds || []).filter(id => id !== productId))}
+                                                                  className="ml-1 text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 flex-shrink-0">
+                                                                  <X className="w-3.5 h-3.5" />
+                                                              </button>
+                                                          </div>
                                                       </div>
                                                   );
                                               })}
@@ -3005,7 +3048,10 @@ const Grooming: React.FC = () => {
                                                                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.isService ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
                                                                       {p.isService ? 'SERVICE' : 'PRODUCT'}
                                                                   </span>
-                                                                  <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                                                  <div className="flex items-center gap-1.5">
+                                                                    {(pet.addonIds || []).includes(p.id) && <span className="text-[9px] font-black bg-green-100 text-green-600 px-1 py-0.5 rounded">+{(pet.addonIds || []).filter(id => id === p.id).length}</span>}
+                                                                    <span className="text-sm font-bold text-zinc-900 group-hover:text-purple-900">{p.name}</span>
+                                                                  </div>
                                                               </div>
                                                               <span className="text-xs font-bold bg-zinc-100 text-zinc-700 px-2 py-1 rounded-lg border border-zinc-200 group-hover:bg-white group-hover:shadow-sm transition-all">₱{p.price}</span>
                                                           </div>
