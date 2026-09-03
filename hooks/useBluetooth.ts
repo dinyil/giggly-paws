@@ -32,8 +32,12 @@ const KNOWN_WRITE_CHARS = [
   '49535343-8841-43f4-a8d4-ecbe34729bb3', // Microchip write
 ];
 
-// Chunk size for BLE writes (MTU - 3 bytes overhead, safe default: 512)
-const CHUNK_SIZE = 512;
+// Chunk size for BLE writes.
+// BLE MTU is typically 20–247 bytes; most cheap thermal printers have a
+// small internal buffer (~128-200 bytes). Sending larger chunks causes the
+// printer to silently drop the remaining data (missing totals, etc.).
+// 128 bytes is a safe default for nearly all BLE thermal printers.
+const CHUNK_SIZE = 128;
 
 export interface BluetoothState {
   isConnected: boolean;
@@ -185,9 +189,9 @@ export function useBluetooth() {
         } else {
           await charRef.current.writeValue(chunk);
         }
-        // Small delay between chunks to avoid buffer overflow
+        // Delay between chunks — gives the printer time to process before next arrives
         if (i + CHUNK_SIZE < data.length) {
-          await new Promise(r => setTimeout(r, 20));
+          await new Promise(r => setTimeout(r, 50));
         }
       }
 

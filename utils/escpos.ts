@@ -12,6 +12,16 @@
 
 import { Transaction, StoreSettings } from '../types';
 
+/**
+ * Pre-rendered 1-bit logo bitmap (produced by BluetoothPrintButton before printing).
+ * widthBytes = Math.ceil(widthDots / 8)
+ */
+export interface LogoBitmap {
+  data: Uint8Array;   // 1-bit packed bitmap, MSB first
+  widthDots: number;  // pixel width
+  heightDots: number; // pixel height
+}
+
 // ── ESC/POS Command Constants ─────────────────────────────────────────────
 const ESC = 0x1B;
 const GS  = 0x1D;
@@ -134,7 +144,8 @@ function concat(...arrays: number[][]): number[] {
 export function buildReceiptBytes(
   transaction: Transaction,
   settings: StoreSettings,
-  paperSize: '48mm' | '58mm' | '80mm' = '58mm'
+  paperSize: '48mm' | '58mm' | '80mm' = '58mm',
+  logoBitmap?: LogoBitmap | null
 ): Uint8Array {
 
   // Character columns per paper size (normal font, standard thermal density)
@@ -147,8 +158,21 @@ export function buildReceiptBytes(
   // ── Initialize ────────────────────────────────────────────────────────
   push(CMD.INIT);
 
-  // ── Header ─────────────────────────────────────────────────────────────
+  // ── Header ────────────────────────────────────────────────────────────
   push(CMD.ALIGN_CENTER);
+
+  // Logo (if provided) — GS v 0 raster bitmap command
+  if (logoBitmap && logoBitmap.data.length > 0) {
+    const bytesPerRow = Math.ceil(logoBitmap.widthDots / 8);
+    const xL = bytesPerRow & 0xFF;
+    const xH = (bytesPerRow >> 8) & 0xFF;
+    const yL = logoBitmap.heightDots & 0xFF;
+    const yH = (logoBitmap.heightDots >> 8) & 0xFF;
+    bytes.push(GS, 0x76, 0x30, 0x00, xL, xH, yL, yH);
+    bytes.push(...logoBitmap.data);
+    push(emptyLine());
+  }
+
   push(CMD.BOLD_ON);
   if (paperSize === '80mm') {
     // Double-size only on wide paper — fits comfortably
