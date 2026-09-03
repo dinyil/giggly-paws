@@ -1254,8 +1254,10 @@ const Grooming: React.FC = () => {
                                 <div className="space-y-2 mb-4 relative z-10">
                                     {displayPets.map((pet, pi) => {
                                         const petSvc = products.find(p => p.id === pet.serviceId);
-                                        const petAddons = (pet.addonIds || []).map(id => products.find(p => p.id === id)).filter(Boolean);
-                                        const petTotal = (petSvc?.price || 0) + petAddons.reduce((s, p) => s + (p!.price || 0), 0);
+                                        const addonGroups = Object.entries(
+                                            (pet.addonIds || []).reduce((acc: Record<string, number>, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {})
+                                        ).map(([id, qty]) => ({ product: products.find(p => p.id === id), qty })).filter(g => g.product);
+                                        const petTotal = (petSvc?.price || 0) + addonGroups.reduce((s, g) => s + (g.product!.price * g.qty), 0);
                                         return (
                                             <div key={pi} className={`rounded-2xl border p-3 ${pi === 0 ? 'border-purple-100 bg-purple-50/40' : 'border-zinc-100 bg-zinc-50/50'}`}>
                                                 <div className="flex items-center justify-between mb-1">
@@ -1284,12 +1286,12 @@ const Grooming: React.FC = () => {
                                                     <span>{petSvc?.name || '—'}</span>
                                                     <span className="font-bold text-purple-700">₱{petTotal.toFixed(2)}</span>
                                                 </div>
-                                                {petAddons.length > 0 && (
+                                                {addonGroups.length > 0 && (
                                                     <div className="mt-1 space-y-0.5">
-                                                        {petAddons.map((p, ai) => (
+                                                        {addonGroups.map((g, ai) => (
                                                             <div key={ai} className="flex justify-between items-center">
-                                                                <span className="text-zinc-400 text-xs pl-2">• {p!.name}</span>
-                                                                <span className="text-xs text-gray-400">₱{p!.price}</span>
+                                                                <span className="text-zinc-400 text-xs pl-2">• {g.product!.name}{g.qty > 1 ? ` (${g.qty})` : ''}</span>
+                                                                <span className="text-xs text-gray-400">₱{(g.product!.price * g.qty).toFixed(2)}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1504,7 +1506,7 @@ const Grooming: React.FC = () => {
                                 <div key={id} className="flex justify-between text-zinc-500">
                                     <span className="flex items-center gap-1 pl-2">
                                         <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />
-                                        {product.name}{qty > 1 ? ` x${qty}` : ''}
+                                        {product.name}{qty > 1 ? ` (${qty})` : ''}
                                     </span>
                                     <span>₱{lineTotal.toFixed(2)}</span>
                                 </div>
@@ -1535,7 +1537,7 @@ const Grooming: React.FC = () => {
                                             <div key={id} className="flex justify-between text-zinc-500">
                                                 <span className="flex items-center gap-1 pl-2">
                                                     <Plus className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0" />
-                                                    {p.name}{qty > 1 ? ` x${qty}` : ''}
+                                                    {p.name}{qty > 1 ? ` (${qty})` : ''}
                                                 </span>
                                                 <span>₱{(p.price * qty).toFixed(2)}</span>
                                             </div>

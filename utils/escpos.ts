@@ -102,13 +102,20 @@ export function buildReceiptBytes(
   // ── Header ────────────────────────────────────────────────────────────
   push(CMD.ALIGN_CENTER);
   push(CMD.BOLD_ON);
-  push(CMD.DOUBLE_SIZE_ON);
-  push(line(settings.name || 'GIGGLYPAWS PET SALON'));
-  push(CMD.NORMAL_SIZE);
+  // Only use double-size on 80mm; smaller paper can't fit it cleanly
+  if (paperSize === '80mm') {
+    push(CMD.DOUBLE_SIZE_ON);
+    push(line(settings.name || 'GIGGLYPAWS PET SALON'));
+    push(CMD.NORMAL_SIZE);
+  } else {
+    // Truncate store name to fit paper width
+    const storeName = (settings.name || 'GIGGLYPAWS PET SALON').slice(0, cols);
+    push(line(storeName));
+  }
   push(CMD.BOLD_OFF);
 
-  if (settings.address) push(line(settings.address));
-  if (settings.contactNumber) push(line(settings.contactNumber));
+  if (settings.address) push(line(settings.address.slice(0, cols)));
+  if (settings.contactNumber) push(line(settings.contactNumber.slice(0, cols)));
   push(emptyLine());
 
   // ── Thank you message ─────────────────────────────────────────────────
@@ -207,11 +214,17 @@ export function buildReceiptBytes(
   // ── Reference & Date ─────────────────────────────────────────────────
   push(emptyLine());
   push(CMD.ALIGN_CENTER);
-  push(line(`Ref: ${transaction.id}`));
+  // Use last 8 chars of ID to keep it short (fits 48mm)
+  push(line(`Ref: ${transaction.id.slice(-8)}`));
 
+  // Use short month on small paper to keep the date line within 24 cols
   const formattedDate = new Date(transaction.date).toLocaleString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
+    month: paperSize === '48mm' ? 'short' : 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
     timeZone: 'Asia/Manila',
   });
   push(line(formattedDate));
