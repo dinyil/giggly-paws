@@ -1,50 +1,44 @@
 /**
- * escpos.ts — ESC/POS Command Builder for 58mm Thermal Printers
+ * escpos.ts — ESC/POS Command Builder for Thermal Printers
  *
  * Converts GigglyPaws Transaction + StoreSettings into raw ESC/POS bytes
  * for direct Bluetooth printing (no third-party app needed).
  *
  * ESC/POS reference: https://reference.epson-biz.com/modules/ref_escpos/
+ *
+ * Paper sizes → character columns (normal font):
+ *   48mm → 24 cols  |  58mm → 32 cols  |  80mm → 48 cols
  */
 
 import { Transaction, StoreSettings } from '../types';
 
 // ── ESC/POS Command Constants ─────────────────────────────────────────────
-const ESC  = 0x1B;
-const GS   = 0x1D;
-const LF   = 0x0A; // Line Feed (newline)
+const ESC = 0x1B;
+const GS  = 0x1D;
+const LF  = 0x0A;
 
-// Printer commands
 const CMD = {
-  INIT:           [ESC, 0x40],           // Initialize printer
-  ALIGN_LEFT:     [ESC, 0x61, 0x00],     // Left align
-  ALIGN_CENTER:   [ESC, 0x61, 0x01],     // Center align
-  ALIGN_RIGHT:    [ESC, 0x61, 0x02],     // Right align
-  BOLD_ON:        [ESC, 0x45, 0x01],     // Bold on
-  BOLD_OFF:       [ESC, 0x45, 0x00],     // Bold off
-  UNDERLINE_ON:   [ESC, 0x2D, 0x01],     // Underline on
-  UNDERLINE_OFF:  [ESC, 0x2D, 0x00],     // Underline off
-  DOUBLE_SIZE_ON: [GS,  0x21, 0x11],     // Double width + height
-  NORMAL_SIZE:    [GS,  0x21, 0x00],     // Normal size
-  FONT_SMALL:     [ESC, 0x4D, 0x01],     // Small font
-  FONT_NORMAL:    [ESC, 0x4D, 0x00],     // Normal font
-  FEED_LINE:      [LF],                  // Feed one line
-  CUT:            [GS,  0x56, 0x00],     // Full cut
-  PARTIAL_CUT:    [GS,  0x56, 0x01],     // Partial cut (preferred)
+  INIT:           [ESC, 0x40],
+  ALIGN_LEFT:     [ESC, 0x61, 0x00],
+  ALIGN_CENTER:   [ESC, 0x61, 0x01],
+  ALIGN_RIGHT:    [ESC, 0x61, 0x02],
+  BOLD_ON:        [ESC, 0x45, 0x01],
+  BOLD_OFF:       [ESC, 0x45, 0x00],
+  DOUBLE_SIZE_ON: [GS,  0x21, 0x11],
+  NORMAL_SIZE:    [GS,  0x21, 0x00],
+  FONT_SMALL:     [ESC, 0x4D, 0x01],
+  FONT_NORMAL:    [ESC, 0x4D, 0x00],
+  FEED_LINE:      [LF],
+  PARTIAL_CUT:    [GS,  0x56, 0x01],
 };
-
-// ── Width: 58mm ≈ 32 chars at default font ────────────────────────────────
-const COLS = 32;
-const DASHED = '-'.repeat(COLS);
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-/** Encode a string to Latin1 bytes (CP437 compatible) */
+/** Encode string to printable Latin-1 bytes */
 function encodeText(text: string): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i);
-    // Replace common UTF-8 characters with ASCII equivalents
     if (code === 0x20B1) { bytes.push(0x50); continue; } // ₱ → P
     if (code > 0x7F)     { bytes.push(0x3F); continue; } // ? for non-ASCII
     bytes.push(code);
@@ -52,7 +46,7 @@ function encodeText(text: string): number[] {
   return bytes;
 }
 
-/** Line followed by LF */
+/** Text line ending in LF */
 function line(text: string): number[] {
   return [...encodeText(text), LF];
 }
@@ -60,20 +54,74 @@ function line(text: string): number[] {
 /** Empty line */
 function emptyLine(): number[] { return [LF]; }
 
-/** Pad string to exact width (truncates if too long) */
+/** Pad string to exact width */
 function padRight(text: string, width: number): string {
   return text.length >= width ? text.slice(0, width) : text.padEnd(width);
 }
 
-function padLeft(text: string, width: number): string {
-  return text.length >= width ? text.slice(0, width) : text.padStart(width);
+/**
+ * Word-wrap text into lines that fit within `cols` characters.
+ * Words that are longer than cols are hard-broken.
+ */
+function wordWrap(text: string, cols: number): string[] {
+  if (!text) return [];
+  if (text.length <= cols) return [text];
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if (!word) continue;
+    // Hard-break words longer than cols
+    if (word.length > cols) {
+      if (current) { lines.push(current); current = ''; }
+      for (let i = 0; i < word.length; i += cols) {
+        lines.push(word.slice(i, i + cols));
+      }
+      continue;
+    }
+    if (current === '') {
+      current = word;
+    } else if (current.length + 1 + word.length <= cols) {
+      current += ' ' + word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
-/** Two-column row: left text + right text aligned to COLS */
-function twoCol(left: string, right: string, total = COLS): number[] {
-  const maxLeft = total - right.length - 1;
-  const leftStr = left.length > maxLeft ? left.slice(0, maxLeft - 1) + '.' : padRight(left, maxLeft);
-  return line(`${leftStr} ${right}`);
+/**
+ * Two-column row: left text + right price.
+ * If the left text is too long, it wraps onto preceding lines and the
+ * price appears on the final line — exactly like the HTML preview.
+ */
+function twoColRow(left: string, right: string, cols: number): number[] {
+  const rightWidth = right.length;
+  const leftWidth  = cols - rightWidth - 1; // -1 for separator space
+
+  const leftWrapped = wordWrap(left, leftWidth);
+  const result: number[] = [];
+
+  if (leftWrapped.length === 0) {
+    result.push(...line(`${padRight('', leftWidth)} ${right}`));
+  } else {
+    for (let i = 0; i < leftWrapped.length; i++) {
+      const isLast = i === leftWrapped.length - 1;
+      if (isLast) {
+        result.push(...line(`${padRight(leftWrapped[i], leftWidth)} ${right}`));
+      } else {
+        result.push(...line(leftWrapped[i]));
+      }
+    }
+  }
+  return result;
+}
+
+/** Print centered text, wrapped to cols */
+function centeredLines(text: string, cols: number): number[][] {
+  return wordWrap(text, cols).map(l => line(l.padStart(Math.floor((cols + l.length) / 2)).padEnd(cols)));
 }
 
 /** Combine multiple byte arrays */
@@ -89,41 +137,47 @@ export function buildReceiptBytes(
   paperSize: '48mm' | '58mm' | '80mm' = '58mm'
 ): Uint8Array {
 
+  // Character columns per paper size (normal font, standard thermal density)
   const cols = paperSize === '80mm' ? 48 : paperSize === '58mm' ? 32 : 24;
   const dashes = '-'.repeat(cols);
 
   const bytes: number[] = [];
-
   const push = (...cmds: number[][]) => bytes.push(...concat(...cmds));
 
   // ── Initialize ────────────────────────────────────────────────────────
   push(CMD.INIT);
 
-  // ── Header ────────────────────────────────────────────────────────────
+  // ── Header ─────────────────────────────────────────────────────────────
   push(CMD.ALIGN_CENTER);
   push(CMD.BOLD_ON);
-  // Only use double-size on 80mm; smaller paper can't fit it cleanly
   if (paperSize === '80mm') {
+    // Double-size only on wide paper — fits comfortably
     push(CMD.DOUBLE_SIZE_ON);
-    push(line(settings.name || 'GIGGLYPAWS PET SALON'));
+    push(line((settings.name || 'GIGGLYPAWS PET SALON').toUpperCase()));
     push(CMD.NORMAL_SIZE);
   } else {
-    // Truncate store name to fit paper width
-    const storeName = (settings.name || 'GIGGLYPAWS PET SALON').slice(0, cols);
-    push(line(storeName));
+    // Smaller paper: bold only, word-wrap store name so it never garbles
+    const nameLines = wordWrap((settings.name || 'GIGGLYPAWS PET SALON').toUpperCase(), cols);
+    for (const l of nameLines) push(line(l));
   }
   push(CMD.BOLD_OFF);
 
-  if (settings.address) push(line(settings.address.slice(0, cols)));
-  if (settings.contactNumber) push(line(settings.contactNumber.slice(0, cols)));
+  // Address — word-wrap to fit paper
+  if (settings.address) {
+    for (const l of wordWrap(settings.address, cols)) push(line(l));
+  }
+  if (settings.contactNumber) {
+    push(line(settings.contactNumber.slice(0, cols)));
+  }
   push(emptyLine());
 
-  // ── Thank you message ─────────────────────────────────────────────────
+  // ── Receipt header message ───────────────────────────────────────────
   if (settings.receiptHeader) {
-    push(line(settings.receiptHeader));
+    for (const l of wordWrap(settings.receiptHeader, cols)) push(line(l));
+    push(emptyLine());
   }
 
-  // ── Dashed separator ─────────────────────────────────────────────────
+  // ── Separator ─────────────────────────────────────────────────────────
   push(CMD.ALIGN_LEFT);
   push(line(dashes));
 
@@ -131,28 +185,32 @@ export function buildReceiptBytes(
   for (const item of transaction.items) {
     const itemTotal = item.price * item.quantity;
 
-    // Parse pet name from "(petName)" format → show on sub-line
-    const petMatch = item.name.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    // Parse "Service Name (Pet Name)" format → pet label on sub-line
+    const petMatch   = item.name.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
     const displayName = petMatch ? petMatch[1].trim() : item.name;
-    const petLabel   = petMatch ? petMatch[2].trim() : null;
+    const petLabel    = petMatch ? petMatch[2].trim() : null;
 
     const priceStr = itemTotal.toFixed(2);
-    push(twoCol(`${item.quantity} x ${displayName}`, priceStr, cols));
+    const prefix   = `${item.quantity} x `;
 
+    // Print "N x Item Name" with price right-aligned; wrap if needed
+    push(...twoColRow(prefix + displayName, priceStr, cols));
+
+    // Pet sub-label on its own indented line
     if (petLabel) {
-      push(line(`   >> ${petLabel}`));
+      push(...(wordWrap(`  >> ${petLabel}`, cols).map(l => line(l))));
     }
 
     // Per-item discounts (only if no transaction-level discount)
     const hasTransactionDiscount = transaction.discount && transaction.discount > 0;
     if (!hasTransactionDiscount && item.appliedDiscounts?.length) {
       for (const d of item.appliedDiscounts) {
-        const discAmt = d.type === 'PERCENTAGE'
+        const discAmt   = d.type === 'PERCENTAGE'
           ? itemTotal * (d.value / 100)
           : d.value * item.quantity;
         const discLabel = `  - ${d.name} (${d.type === 'PERCENTAGE' ? d.value + '%' : 'P' + d.value})`;
         push(CMD.FONT_SMALL);
-        push(twoCol(discLabel, `-${discAmt.toFixed(2)}`, cols));
+        push(...twoColRow(discLabel, `-${discAmt.toFixed(2)}`, cols));
         push(CMD.FONT_NORMAL);
       }
     }
@@ -162,27 +220,27 @@ export function buildReceiptBytes(
 
   // ── Totals ────────────────────────────────────────────────────────────
   push(CMD.ALIGN_LEFT);
-  push(twoCol('Subtotal', transaction.subtotal.toFixed(2), cols));
+  push(...twoColRow('Subtotal', transaction.subtotal.toFixed(2), cols));
 
   if (transaction.discount && transaction.discount > 0) {
-    push(twoCol('Discount', `-${transaction.discount.toFixed(2)}`, cols));
+    push(...twoColRow('Discount', `-${transaction.discount.toFixed(2)}`, cols));
   }
 
-  push(twoCol(`VAT (${settings.vatRate}%)`, transaction.vat.toFixed(2), cols));
+  push(...twoColRow(`VAT (${settings.vatRate}%)`, transaction.vat.toFixed(2), cols));
 
   if (transaction.downpayment && transaction.downpayment > 0) {
     const fullTotal = transaction.total + transaction.downpayment;
-    push(line(dashes.slice(0, cols / 2)));
-    push(twoCol('Full Total', `P${fullTotal.toFixed(2)}`, cols));
-    push(twoCol('Downpayment Paid', `-P${transaction.downpayment.toFixed(2)}`, cols));
+    push(line(dashes));
+    push(...twoColRow('Full Total',        `P${fullTotal.toFixed(2)}`,              cols));
+    push(...twoColRow('Downpayment Paid',  `-P${transaction.downpayment.toFixed(2)}`, cols));
     push(line(dashes));
     push(CMD.BOLD_ON);
-    push(twoCol('BALANCE TO PAY', `P${transaction.total.toFixed(2)}`, cols));
+    push(...twoColRow('BALANCE TO PAY', `P${transaction.total.toFixed(2)}`, cols));
     push(CMD.BOLD_OFF);
   } else {
     push(line(dashes));
     push(CMD.BOLD_ON);
-    push(twoCol('TOTAL', `P${transaction.total.toFixed(2)}`, cols));
+    push(...twoColRow('TOTAL', `P${transaction.total.toFixed(2)}`, cols));
     push(CMD.BOLD_OFF);
   }
 
@@ -196,28 +254,26 @@ export function buildReceiptBytes(
   if (isSplit) {
     const cash  = transaction.cashReceived ?? 0;
     const gcash = Math.max(0, transaction.total - cash);
-    push(twoCol('Cash', `P${cash.toFixed(2)}`, cols));
-    push(twoCol('GCash', `P${gcash.toFixed(2)}`, cols));
-    if (transaction.gcashRef) push(line(`  GCash Ref: ${transaction.gcashRef}`));
+    push(...twoColRow('Cash',  `P${cash.toFixed(2)}`,  cols));
+    push(...twoColRow('GCash', `P${gcash.toFixed(2)}`, cols));
+    if (transaction.gcashRef) push(...(wordWrap(`  GCash Ref: ${transaction.gcashRef}`, cols).map(l => line(l))));
   } else if (isGcash) {
-    push(twoCol('Paid via GCash', `P${transaction.total.toFixed(2)}`, cols));
-    if (transaction.gcashRef) push(line(`  Ref: ${transaction.gcashRef}`));
+    push(...twoColRow('Paid via GCash', `P${transaction.total.toFixed(2)}`, cols));
+    if (transaction.gcashRef) push(...(wordWrap(`  Ref: ${transaction.gcashRef}`, cols).map(l => line(l))));
   } else {
-    push(twoCol('Paid via Cash', `P${transaction.total.toFixed(2)}`, cols));
+    push(...twoColRow('Paid via Cash', `P${transaction.total.toFixed(2)}`, cols));
     if (isCash && transaction.cashReceived && transaction.cashReceived > 0) {
-      push(twoCol('Cash Received', `P${transaction.cashReceived.toFixed(2)}`, cols));
+      push(...twoColRow('Cash Received', `P${transaction.cashReceived.toFixed(2)}`, cols));
       const change = Math.max(0, transaction.cashReceived - transaction.total);
-      if (change > 0) push(twoCol('Change', `P${change.toFixed(2)}`, cols));
+      if (change > 0) push(...twoColRow('Change', `P${change.toFixed(2)}`, cols));
     }
   }
 
-  // ── Reference & Date ─────────────────────────────────────────────────
+  // ── Reference & Date ──────────────────────────────────────────────────
   push(emptyLine());
   push(CMD.ALIGN_CENTER);
-  // Use last 8 chars of ID to keep it short (fits 48mm)
   push(line(`Ref: ${transaction.id.slice(-8)}`));
 
-  // Use short month on small paper to keep the date line within 24 cols
   const formattedDate = new Date(transaction.date).toLocaleString('en-US', {
     month: paperSize === '48mm' ? 'short' : 'long',
     day: 'numeric',
@@ -227,19 +283,16 @@ export function buildReceiptBytes(
     hour12: true,
     timeZone: 'Asia/Manila',
   });
-  push(line(formattedDate));
+  push(line(formattedDate.slice(0, cols)));
 
   // ── Footer ────────────────────────────────────────────────────────────
   push(line(dashes));
   push(CMD.ALIGN_CENTER);
-  if (settings.receiptFooter) {
-    push(line(settings.receiptFooter));
-  } else {
-    push(line('No return, no exchange after 7 days.'));
-  }
+  const footerText = settings.receiptFooter || 'No return, no exchange after 7 days.';
+  for (const l of centeredLines(footerText, cols)) push(l);
 
   // ── Feed + Cut ────────────────────────────────────────────────────────
-  push([ESC, 0x64, 0x04]); // Feed 4 lines
+  push([ESC, 0x64, 0x05]); // Feed 5 lines before cut
   push(CMD.PARTIAL_CUT);
 
   return new Uint8Array(bytes);
