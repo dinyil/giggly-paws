@@ -44,6 +44,11 @@ const parseWeightKg = (input: string): number | null => {
   return isNaN(num) ? null : num;
 };
 
+// Grooming transaction IDs — full appointment ID so two appointments can never share a transaction.
+// Legacy format (A-{last 6 digits}) repeats every ~16 minutes of Date.now(), kept only for lookup of old records.
+const groomingTxId = (aptId: string) => `A-${aptId}`;
+const legacyGroomingTxId = (aptId: string) => `A-${aptId.slice(-6)}`;
+
 // Smart Search Helper: Removes non-alphanumeric chars for loose matching
 const normalizeText = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -67,6 +72,11 @@ const sanitizeContactNumber = (num: string) => {
 const Grooming: React.FC = () => {
   const { appointments, addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, products, users, clients, storeSettings, addLog, checkAndIncrementSms, addTransaction, updateTransaction, currentUser, discounts, transactions } = useStore();
   const { startBroadcast } = useBroadcast(); // Use the background broadcaster queue
+
+  // Find the grooming payment transaction for an appointment (new ID first, then legacy)
+  const findGroomingTx = (apt: GroomingAppointment) =>
+      transactions.find(t => t.id === groomingTxId(apt.id)) ||
+      transactions.find(t => t.id === legacyGroomingTxId(apt.id));
   
   // FIX: Force Philippine Time (Asia/Manila) regardless of system time for filtering
   const getPhTodayStr = () => {
@@ -448,8 +458,8 @@ const Grooming: React.FC = () => {
                   // All pet names (primary + additional pets)
                   const allPetNames = [apt.petName, ...(apt.pets || []).map(p => p.petName)];
 
-                  // Receipt ref format: A-{apt.id.slice(-6)} — same as what's printed on fallback receipt
-                  const receiptRef = `A-${apt.id.slice(-6)}`;
+                  // Receipt ref — new (A-{apt.id}) and legacy (A-{apt.id.slice(-6)}) formats
+                  const receiptRefs = [groomingTxId(apt.id), legacyGroomingTxId(apt.id)];
 
                   // Linked transaction IDs
                   const aptRecoveredId = 'APT-' + apt.id.slice(-10);
@@ -467,7 +477,7 @@ const Grooming: React.FC = () => {
                       normalizeText(apt.groomerId || '').includes(searchNorm) ||
                       normalizeText(svcName).includes(searchNorm) ||
                       // Receipt ref (e.g. A-288959) — exactly what's printed on receipt
-                      receiptRef.toLowerCase().includes(q) ||
+                      receiptRefs.some(r => r.toLowerCase().includes(q)) ||
                       // POS transaction ID
                       (apt.posTransactionId || '').toLowerCase().includes(q) ||
                       // Recovered APT- ID
@@ -771,9 +781,11 @@ const Grooming: React.FC = () => {
       const fullTotal = Math.max(0, combinedPrice - discountAmount - appliedSpecialDiscount);
       const downpayment = Math.min(paymentApt.downpayment || 0, fullTotal);
       const total = Math.max(0, fullTotal - downpayment); // Amount collected today
+      // Prices are VAT-inclusive: VAT is taken from the full sale (before downpayment) and
+      // subtotal is items minus VAT, so the receipt reads Subtotal − Discount + VAT = Full Total
       const vatRate = storeSettings.vatRate / 100;
-      const vatAmount = (total / (1 + vatRate)) * vatRate;
-      const subtotal = total - vatAmount;
+      const vatAmount = (fullTotal / (1 + vatRate)) * vatRate;
+      const subtotal = combinedPrice - vatAmount;
 
       // Validation
       if (paymentMethod === 'GCASH' && !gcashRef) {
@@ -800,9 +812,9 @@ const Grooming: React.FC = () => {
       }
 
       // Create Transaction Record (main service + all add-ons + extra pets)
-      // ID format: A-{apt.id.slice(-6)} — MUST match the Ref shown on the printed receipt
+      // ID is derived from the full appointment ID — MUST match the Ref shown on the printed receipt
       const transaction: Transaction = {
-          id: `A-${paymentApt.id.slice(-6)}`,
+          id: groomingTxId(paymentApt.id),
           items: [
               {
                   ...service!,
@@ -948,11 +960,10 @@ const Grooming: React.FC = () => {
           }
       }
 
-      // PRIORITY 1: Direct lookup by grooming transaction ID (A-{apt.id.slice(-6)})
-      //   handleFinalizePayment now uses this ID format, so this covers all regular grooming
-      //   completions including discounted ones (where total != gross, so total-match fails).
-      const groomingTxId = 'A-' + apt.id.slice(-6);
-      const groomingTx = transactions.find(t => t.id === groomingTxId);
+      // PRIORITY 1: Direct lookup by grooming transaction ID (A-{apt.id}, or legacy A-{last 6})
+      //   Covers all regular grooming completions including discounted ones
+      //   (where total != gross, so total-match fails).
+      const groomingTx = findGroomingTx(apt);
       if (groomingTx) {
           const dpFromApt = apt.downpayment || 0;
           const txWithDp = (groomingTx.downpayment && groomingTx.downpayment > 0)
@@ -1028,7 +1039,7 @@ const Grooming: React.FC = () => {
       const subtotal = total - vat;
 
       const fallbackTransaction: Transaction = {
-          id: `A-${apt.id.slice(-6)}`,
+          id: groomingTxId(apt.id),
           items: [
               { ...service!, quantity: 1, appliedDiscounts: [] },
               ...addonCartItems,
@@ -1402,8 +1413,7 @@ const Grooming: React.FC = () => {
                                             </div>
                                             {/* Edit Discount button — green when discount already applied */}
                                             {(() => {
-                                                const txId = 'A-' + apt.id.slice(-6);
-                                                const linkedTx = transactions.find(t => t.id === txId);
+                                                const linkedTx = findGroomingTx(apt);
                                                 const hasDiscount = linkedTx && Number(linkedTx.discount ?? 0) > 0;
                                                 return (
                                                     <Button
@@ -1866,7 +1876,7 @@ const Grooming: React.FC = () => {
                       !qeDiscount ? 'bg-zinc-800 text-white border-zinc-800' : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
                     }`}
                   >None</button>
-                  {discounts.filter(d => d.isActive !== false).map(d => {
+                  {discounts.filter(d => d.active !== false).map(d => {
                     const isSelected = qeDiscount?.id === d.id;
                     return (
                       <button key={d.id} onClick={() => setQeDiscount(isSelected ? null : d)}
@@ -3190,7 +3200,6 @@ const Grooming: React.FC = () => {
           transaction={editDiscountTarget.tx}
           settings={storeSettings}
           discounts={discounts}
-          adminPin={storeSettings.adminPin || '0828'}
           onSave={handleEditDiscountSave}
           onClose={() => setEditDiscountTarget(null)}
         />

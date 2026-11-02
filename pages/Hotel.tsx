@@ -2246,14 +2246,7 @@ const Hotel: React.FC = () => {
           onConfirm={async (method, cash, ref, recalcTotal, lateAmount, lateLabel, specialDiscount) => {
             const group = checkoutGroup; // capture before clearing
             const bk = group[0]; // primary booking (receives the transaction)
-            // Check out primary with full payment
-            await checkOutGuest(bk.id, method, cash, ref, recalcTotal, lateAmount, lateLabel);
-            // Mark secondary pets as CHECKED_OUT (no separate transaction)
-            for (const b of group.slice(1)) {
-              await updateHotelBooking({ ...b, status: 'CHECKED_OUT', actual_check_out: new Date().toISOString() });
-            }
-            setCheckoutGroup(null);
-            // Build combined receipt for all pets
+            // Build combined itemized receipt for all pets — saved as-is so the DB matches the printout
             const extrasLookup: { id: string; label: string; price: number }[] =
               storeSettings.hotelExtras && storeSettings.hotelExtras.length > 0
                 ? storeSettings.hotelExtras as { id: string; label: string; price: number }[]
@@ -2268,20 +2261,21 @@ const Hotel: React.FC = () => {
               (b.hotel_extras || []).forEach(e => {
                 const extraDef = extrasLookup.find(x => x.id === e.id);
                 if (extraDef && e.qty > 0) {
-                  allItems.push({ id: `hotel-extra-${e.id}-${b.id}`, name: `${extraDef.label}${e.qty > 1 ? ` ×${e.qty}` : ''}`, price: extraDef.price * e.qty, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: e.qty, appliedDiscounts: [] });
+                  allItems.push({ id: `hotel-extra-${e.id}-${b.id}`, name: extraDef.label, price: extraDef.price, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: e.qty, appliedDiscounts: [] });
                 }
               });
             }
             if (lateAmount && lateAmount > 0 && lateLabel) {
               allItems.push({ id: `hotel-late-${bk.id}`, name: `Late Check-Out: ${lateLabel}`, price: lateAmount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] });
             }
-            const subtotal = allItems.reduce((s, i) => s + i.price, 0);
-            const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) / 100 : 0;
-            const vat = parseFloat((subtotal * vatRate).toFixed(2));
-            const grossTotal = parseFloat((subtotal + vat).toFixed(2));
-            const dpAmount = Math.min(bk.downpayment || 0, grossTotal);
-            const total = parseFloat(Math.max(0, grossTotal - dpAmount).toFixed(2));
-            setReceiptTransaction({ id: `HTL-${bk.id.slice(-6)}`, items: allItems, subtotal, vat, total, discount: (dpAmount > 0 || (specialDiscount && specialDiscount > 0)) ? ((specialDiscount || 0)) : undefined, downpayment: dpAmount > 0 ? dpAmount : undefined, paymentMethod: method, gcashRef: ref || '', cashReceived: cash || total, date: new Date().toISOString(), cashierId: 'HOTEL' });
+            // Check out primary with full payment (totals, VAT and downpayment computed in checkOutGuest)
+            const savedTx = await checkOutGuest(bk.id, method, cash, ref, recalcTotal, lateAmount, lateLabel, { items: allItems, specialDiscount });
+            // Mark secondary pets as CHECKED_OUT (no separate transaction)
+            for (const b of group.slice(1)) {
+              await updateHotelBooking({ ...b, status: 'CHECKED_OUT', actual_check_out: new Date().toISOString() });
+            }
+            setCheckoutGroup(null);
+            if (savedTx) setReceiptTransaction(savedTx);
           }}
           onClose={() => setCheckoutGroup(null)}
         />

@@ -8,12 +8,13 @@ import React, { useState, useMemo } from 'react';
 import { Dialog } from '@headlessui/react';
 import { Tag, X, Percent, DollarSign, Trash2, Check, Lock, ShieldCheck } from 'lucide-react';
 import { Transaction, Discount, StoreSettings } from '../types';
+import { useStore } from '../context/StoreContext';
+import { verifyAdminPin } from '../services/crypto';
 
 interface EditDiscountModalProps {
   transaction: Transaction;
   settings: StoreSettings;
   discounts: Discount[];
-  adminPin: string;
   onSave: (updatedTx: Transaction, discountId?: string, specialAmt?: number) => void;
   onClose: () => void;
 }
@@ -25,10 +26,10 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
   transaction,
   settings,
   discounts,
-  adminPin,
   onSave,
   onClose,
 }) => {
+  const { users } = useStore();
   // ── Gross total from items ───────────────────────────────────────────────
   const grossTotal = useMemo(
     () => transaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -81,15 +82,17 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
   }, [mode, selectedDiscountId, specialType, specialValue, grossTotal, activeDiscounts, currentDiscount]);
 
   // ── Recalculate totals ───────────────────────────────────────────────────
-  const vatRate      = (settings.vatRate || 12) / 100;
-  const newNetTotal  = Math.max(0, grossTotal - newDiscountAmount - downpayment);
-  const newVat       = (newNetTotal / (1 + vatRate)) * vatRate;
-  const newSubtotal  = newNetTotal - newVat;
+  // VAT is computed on the full sale (before downpayment) so Subtotal − Discount + VAT = Full Total on the receipt
+  const vatRate      = (settings.vatRate ?? 12) / 100;
+  const newFullTotal = Math.max(0, grossTotal - newDiscountAmount);
+  const newNetTotal  = Math.max(0, newFullTotal - downpayment);
+  const newVat       = (newFullTotal / (1 + vatRate)) * vatRate;
+  const newSubtotal  = grossTotal - newVat;
   const savings      = currentDiscount > 0 ? newDiscountAmount - currentDiscount : newDiscountAmount;
 
-  // ── PIN verification ─────────────────────────────────────────────────────
-  const handleVerifyPin = () => {
-    if (pin === adminPin) { setPinVerified(true); setPinError(''); }
+  // ── PIN verification (any admin user's PIN) ──────────────────────────────
+  const handleVerifyPin = async (value: string) => {
+    if (await verifyAdminPin(users, value)) { setPinVerified(true); setPinError(''); }
     else { setPinError('Incorrect PIN. Please try again.'); setPin(''); }
   };
 
@@ -297,10 +300,7 @@ const EditDiscountModal: React.FC<EditDiscountModalProps> = ({
                         const val = e.target.value.replace(/\D/g, '').slice(0, 4);
                         setPin(val);
                         setPinError('');
-                        if (val.length === 4) {
-                          if (val === adminPin) { setPinVerified(true); setPinError(''); }
-                          else { setPinError('Incorrect PIN. Please try again.'); setPin(''); }
-                        }
+                        if (val.length === 4) handleVerifyPin(val);
                       }}
                       placeholder="Enter 4-digit PIN"
                       className="w-full border border-amber-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.5em] focus:outline-none focus:border-amber-500 bg-white"

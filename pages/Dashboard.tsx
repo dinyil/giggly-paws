@@ -10,7 +10,7 @@ type ViewMetric = 'REVENUE' | 'PROFIT';
 
 const Dashboard: React.FC = () => {
   const { transactions, appointments, products, hotelRooms, hotelBookings } = useStore();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
   
   // Controls
   const [timeRange, setTimeRange] = useState<TimeRange>('WEEK');

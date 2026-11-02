@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Shield, X } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 import { useStore } from '../context/StoreContext';
-import { Role } from '../types';
-import { hashPin } from '../services/crypto';
+import { verifyAdminPin } from '../services/crypto';
 
 interface AdminPinModalProps {
   isOpen: boolean;
@@ -31,17 +30,7 @@ const AdminPinModal: React.FC<AdminPinModalProps> = ({
   const handleSubmit = async () => {
     if (!pin) { setError('Enter PIN.'); return; }
     setIsVerifying(true);
-    const adminUsers = users.filter(u => u.role === Role.ADMIN || u.id === 'super-admin');
-    let authorized = false;
-    for (const user of adminUsers) {
-      let storedPin = user.pin; let storedSalt = ''; let isLegacy = false;
-      if (storedPin.includes(':')) { [storedSalt, storedPin] = storedPin.split(':'); }
-      else if (user.salt) { storedSalt = user.salt; } else { isLegacy = true; }
-      let isValid = false;
-      if (!isLegacy && storedSalt) { const hash = await hashPin(pin, storedSalt); isValid = hash === storedPin; }
-      else { isValid = storedPin === pin; }
-      if (isValid) { authorized = true; break; }
-    }
+    const authorized = await verifyAdminPin(users, pin);
     setIsVerifying(false);
     if (authorized) { setPin(''); setError(''); onSuccess(); onClose(); }
     else { setError('Invalid admin PIN.'); setPin(''); }

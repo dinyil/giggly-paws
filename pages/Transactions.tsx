@@ -691,7 +691,6 @@ const Transactions: React.FC = () => {
         transaction={editDiscountTx}
         settings={storeSettings}
         discounts={discounts}
-        adminPin={storeSettings.adminPin || '0828'}
         onSave={(updatedTx) => {
           updateTransaction(editDiscountTx, updatedTx);
           setEditDiscountTx(null);

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { Product, User, Transaction, GroomingAppointment, Discount, Log, StoreSettings, Role, Device, Client, Pet, DiscountTrigger, SmsUsage, TemplateHistory, Message, HotelRoom, HotelBooking, HotelBookingStatus } from '../types';
+import { Product, User, Transaction, CartItem, GroomingAppointment, Discount, Log, StoreSettings, Role, Device, Client, Pet, DiscountTrigger, SmsUsage, TemplateHistory, Message, HotelRoom, HotelBooking, HotelBookingStatus } from '../types';
 import { 
   INITIAL_STORE_SETTINGS
 } from '../constants';
@@ -479,7 +479,7 @@ interface StoreContextType {
   updateHotelBooking: (booking: HotelBooking) => Promise<void>;
   deleteHotelBooking: (id: string) => Promise<void>;
   checkInGuest: (bookingId: string) => Promise<void>;
-  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => Promise<void>;
+  checkOutGuest: (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string, receipt?: { items: CartItem[]; specialDiscount?: number }) => Promise<Transaction | undefined>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -1450,9 +1450,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckin), replace(storeSettings.emailBodyHotelCheckin), 'Checked In'); }
   };
 
-  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string) => {
+  const checkOutGuest = async (bookingId: string, paymentMethod: 'CASH' | 'GCASH' | 'SPLIT', cashReceived?: number, gcashRef?: string, recalcTotal?: number, lateAmount?: number, lateLabel?: string, receipt?: { items: CartItem[]; specialDiscount?: number }): Promise<Transaction | undefined> => {
     const booking = hotelBookings.find(b => b.id === bookingId);
-    if (!booking) return;
+    if (!booking) return undefined;
     // Build addon items for receipt
     const addonProducts = (booking.addon_ids || []).map(addonId => products.find(p => p.id === addonId)).filter(Boolean) as any[];
     const room = hotelRooms.find(r => r.id === booking.room_id);
@@ -1470,16 +1470,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const lateItem = (lateAmount && lateAmount > 0 && lateLabel)
       ? [{ id: 'hotel-late-' + bookingId, name: lateLabel, price: lateAmount, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] }]
       : [];
-    const allItems = [nightlyItem, ...addonItems, ...lateItem];
+    // Itemized receipt from the checkout modal (stay per pet, extras, late fee) takes priority,
+    // so the saved transaction is exactly what gets printed
+    const allItems = receipt ? receipt.items : [nightlyItem, ...addonItems, ...lateItem];
     const subtotal = allItems.reduce((s, i) => s + i.price * i.quantity, 0);
+    const discount = receipt ? Math.min(receipt.specialDiscount || 0, subtotal) : 0;
     // VAT is only applied to hotel stays if explicitly enabled in Settings > Hotel VAT
     const vatRate = storeSettings.hotelVatEnabled ? (storeSettings.vatRate || 0) : 0;
-    const vat = parseFloat((subtotal * vatRate / 100).toFixed(2));
-    const grossTotal = parseFloat((subtotal + vat).toFixed(2));
+    const vat = parseFloat(((subtotal - discount) * vatRate / 100).toFixed(2));
+    const grossTotal = parseFloat((subtotal - discount + vat).toFixed(2));
     // Deduct downpayment from gross total
     const downpayment = Math.min(booking.downpayment || 0, grossTotal);
     const total = parseFloat(Math.max(0, grossTotal - downpayment).toFixed(2));
-    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount: 0, downpayment: downpayment > 0 ? downpayment : undefined, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system' };
+    const tx: Transaction = { id: txId, items: allItems, subtotal, vat, total, discount, downpayment: downpayment > 0 ? downpayment : undefined, paymentMethod, gcashRef: gcashRef || '', cashReceived: cashReceived || total, date: new Date().toISOString(), cashierId: currentUser?.id || 'system', clientName: booking.owner_name };
     setTransactions(prev => [tx, ...prev]);
     const { error: txErr } = await upsertData('transactions', mapTransactionPayload(tx, true));
     if (txErr) {
@@ -1497,6 +1500,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const replace = (t: string = '') => Object.entries(vars).reduce((s, [k, v]) => s.replace(new RegExp(`{${k}}`, 'g'), v), t);
     if (storeSettings.smsEnabled && booking.contact_number) { checkAndIncrementSms() && sendSMS(storeSettings, [booking.contact_number], replace(storeSettings.smsTemplateHotelCheckout)); }
     if (storeSettings.emailEnabled && booking.email) { sendEmail(storeSettings, booking.email, replace(storeSettings.emailSubjectHotelCheckout), replace(storeSettings.emailBodyHotelCheckout), 'Checked Out'); }
+    return tx;
   };
 
   // ── Recover lost transactions — two-phase sweep ─────────────────
