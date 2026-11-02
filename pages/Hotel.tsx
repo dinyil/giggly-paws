@@ -294,7 +294,7 @@ const BookingForm: React.FC<{
   onSave: (bookings: HotelBooking[]) => void;
   onClose: () => void;
 }> = ({ booking, preselectedRoomId, preselectedDate, onSave, onClose }) => {
-  const { hotelRooms, hotelBookings, clients, currentUser, addClient, storeSettings } = useStore();
+  const { hotelRooms, hotelBookings, clients, currentUser, addClient, updateClient, storeSettings } = useStore();
   const today = getPhToday();
   const activeRooms = hotelRooms.filter(r => r.is_active);
 
@@ -470,7 +470,25 @@ const BookingForm: React.FC<{
   const activePet = allPets[currentPetIdx] || selectedPet;
   const activePetName = activePet?.name || petName;
   const activePetId = activePet?.id || petId;
-  const activePetSzKey = (getSizeFromWeight(activePet?.weightSize || '') || petSize) as PetSizeKey;
+  // Size comes from the pet's weight on file (or a staff override via Change).
+  // No weight on file → weight in kg is required here and gets saved to the client's pet record.
+  const [manualSize, setManualSize] = useState<PetSizeKey | null>(null);
+  const [showSizePicker, setShowSizePicker] = useState(false);
+  const [enteredWeights, setEnteredWeights] = useState<Record<string, string>>({}); // pet id → kg typed in this form
+  useEffect(() => { setManualSize(null); setShowSizePicker(false); }, [currentPetIdx, activePet?.id]);
+  const weightSize = getSizeFromWeight(activePet?.weightSize || '');
+  const needsWeight = !weightSize;
+  const petWeightKey = activePet?.id || `pet-${currentPetIdx}`;
+  const enteredWeight = enteredWeights[petWeightKey] || '';
+  const enteredKg = parseFloat(enteredWeight);
+  const enteredSize = !isNaN(enteredKg) && enteredKg > 0 ? getSizeFromWeight(String(enteredKg)) : null;
+  const resolvedSize = manualSize || weightSize || enteredSize;
+  const sizeMissing = !resolvedSize;
+  const sizeSource = manualSize
+    ? (weightSize && weightSize !== manualSize ? `set manually (weight on file suggests ${weightSize})` : 'set manually')
+    : weightSize ? `auto from weight on file: ${activePet?.weightSize}${/^[0-9.]+$/.test((activePet?.weightSize || '').trim()) ? 'kg' : ''}`
+    : '';
+  const activePetSzKey = (resolvedSize || 'S') as PetSizeKey;
   const stayPricing = computeStayPricing(activeRates, bookingType === 'DAYCARE', activePetSzKey, nights);
   const activePetRate = stayPricing.total;
 
@@ -491,7 +509,50 @@ const BookingForm: React.FC<{
   const overCapacity = !!roomId && (existingInRoom + 1 > roomCap);
   const conflict = overCapacity || inSessionConflict;
 
-  const canSave = ownerName && activePetName && roomId && !conflict;
+  const canSave = ownerName && activePetName && roomId && !conflict && !sizeMissing;
+
+  // Pet size — automatic from weight on file; weight input when the pet has none; chips only via Change.
+  // Drives package, extra-day and late rates.
+  const sizePicker = needsWeight && !manualSize ? (
+    <div>
+      <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Pet Weight (kg) *</label>
+      <div className="flex items-center gap-3">
+        <input type="number" inputMode="decimal" min="0" step="0.1" value={enteredWeight} placeholder="4.5"
+          onChange={e => setEnteredWeights(prev => ({ ...prev, [petWeightKey]: e.target.value }))}
+          className={`flex-1 border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none ${sizeMissing ? 'border-amber-300 bg-amber-50' : 'border-zinc-200'}`} />
+        <div className="text-sm flex-shrink-0">
+          <span className="text-xs font-bold text-zinc-500 uppercase mr-1">Size</span>
+          <span className="font-black text-purple-700">{enteredSize || '—'}</span>
+        </div>
+      </div>
+      <p className={`text-xs mt-1.5 ${sizeMissing ? 'font-bold text-amber-700' : 'text-zinc-400'}`}>
+        {sizeMissing
+          ? `⚠️ No weight on file for ${activePetName || 'this pet'} — enter the weight to compute the rate.`
+          : `Will be saved to ${activePetName || 'the pet'}'s client record.`}
+      </p>
+    </div>
+  ) : showSizePicker ? (
+    <div>
+      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Pet Size *</label>
+      <div className="grid grid-cols-6 gap-1.5">
+        {PET_SIZES.map(s => (
+          <button key={s} type="button" onClick={() => { setManualSize(s); setShowSizePicker(false); }}
+            className={`py-2 rounded-xl border text-sm font-bold transition-all ${activePetSzKey === s ? 'bg-purple-700 text-white border-purple-700' : 'border-zinc-200 text-zinc-600 hover:border-purple-300 hover:bg-purple-50'}`}>
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-center justify-between gap-3 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5">
+      <div className="text-sm">
+        <span className="text-xs font-bold text-zinc-500 uppercase mr-2">Pet Size</span>
+        <span className="font-black text-purple-700">{activePetSzKey}</span>
+        <span className="text-xs text-zinc-400 ml-2">{sizeSource}</span>
+      </div>
+      <button type="button" onClick={() => setShowSizePicker(true)} className="text-xs font-bold text-purple-600 hover:text-purple-800 flex-shrink-0">Change</button>
+    </div>
+  );
 
   const handleSave = () => {
     if (!canSave) return;
@@ -499,6 +560,9 @@ const BookingForm: React.FC<{
     let finalClientId = savedPetBookings.length > 0
       ? savedPetBookings[0].client_id
       : clientId;
+    // Weight typed here for a pet with none on file → save it on the client's pet record
+    const newWeight = needsWeight && !manualSize && enteredSize ? String(enteredKg) : '';
+    const withWeight = (pets: Pet[]) => pets.map(p => p.id === activePetId ? { ...p, weightSize: newWeight } : p);
     if (clientMode === 'NEW' && ncName && savedPetBookings.length === 0) {
       const newClient: Client = {
         id: Date.now().toString(),
@@ -508,10 +572,13 @@ const BookingForm: React.FC<{
         address: ncAddress,
         notes: ncNotes,
         firstSeen: new Date().toISOString(),
-        pets: ncPets.length > 0 ? ncPets : [],
+        pets: ncPets.length > 0 ? (newWeight ? withWeight(ncPets) : ncPets) : [],
       };
       addClient(newClient);
       finalClientId = newClient.id;
+    } else if (newWeight && finalClientId) {
+      const c = clients.find(x => x.id === finalClientId);
+      if (c && c.pets.some(p => p.id === activePetId)) updateClient({ ...c, pets: withWeight(c.pets) });
     }
     const currentBooking: HotelBooking = {
       id: currentPetIdx === 0 && booking ? booking.id : crypto.randomUUID(),
@@ -592,7 +659,7 @@ const BookingForm: React.FC<{
                 <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-2xl flex-shrink-0">{selectedPet?.species === 'CAT' ? '🐱' : '🐶'}</div>
                 <div>
                   <p className="font-black text-xl leading-tight">{petName || '—'}</p>
-                  <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{petSize}</strong></p>
+                  <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{sizeMissing ? '?' : activePetSzKey}</strong></p>
                 </div>
               </div>
             </div>
@@ -609,19 +676,20 @@ const BookingForm: React.FC<{
                 ))}
               </div>
             </div>
+            {sizePicker}
             {/* Rate */}
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-purple-900">{activeLabels[stayPricing.baseType]}</p>
-                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{sizeMissing ? '?' : activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-purple-700">₱{stayPricing.total.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-purple-700">{sizeMissing ? '—' : `₱${activePetRate.toLocaleString()}`}</p>
                   <p className="text-xs text-purple-400">{stayPricing.extraDays > 0 ? 'stay total' : 'package rate'}</p>
                 </div>
               </div>
-              {stayPricing.extraDays > 0 && (
+              {!sizeMissing && stayPricing.extraDays > 0 && (
                 <StayBreakdown pricing={stayPricing} labels={activeLabels} className="mt-3 pt-3 border-t border-purple-100 text-purple-700" />
               )}
             </div>
@@ -1081,7 +1149,7 @@ const BookingForm: React.FC<{
                   </div>
                   <div>
                     <p className="font-black text-xl leading-tight">{activePetName || '—'}</p>
-                    <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{activePetSzKey}</strong></p>
+                    <p className="text-purple-200 text-sm">{ownerName} · Size <strong className="text-white bg-white/20 px-2 py-0.5 rounded-lg">{sizeMissing ? '?' : activePetSzKey}</strong></p>
                   </div>
                 </div>
               </div>
@@ -1098,19 +1166,20 @@ const BookingForm: React.FC<{
                   ))}
                 </div>
               </div>
+              {sizePicker}
               {/* Rate */}
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-purple-900">{activeLabels[stayPricing.baseType]}</p>
-                    <p className="text-xs text-purple-500 mt-0.5">🐾 {activePetName} · Size <strong>{activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-purple-500 mt-0.5">🐾 {activePetName} · Size <strong>{sizeMissing ? '?' : activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black text-purple-700">₱{activePetRate.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-purple-700">{sizeMissing ? '—' : `₱${activePetRate.toLocaleString()}`}</p>
                     <p className="text-xs text-purple-400">{stayPricing.extraDays > 0 ? 'stay total' : 'package rate'}</p>
                   </div>
                 </div>
-                {stayPricing.extraDays > 0 && (
+                {!sizeMissing && stayPricing.extraDays > 0 && (
                   <StayBreakdown pricing={stayPricing} labels={activeLabels} className="mt-3 pt-3 border-t border-purple-100 text-purple-700" />
                 )}
               </div>
@@ -1530,10 +1599,6 @@ const CheckoutModal: React.FC<{
 
   // Combined package rate across all pets
   const packageRate = bookings.reduce((s, b) => s + b.daily_rate, 0);
-  // Use primary pet for late checkout size calculation
-  const bookingType = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
-  const petSize = (booking.pet_size as PetSizeKey) || 'S';
-  const isSmallSize = ['XS','S','M'].includes(petSize);
 
   // Extras from ALL bookings
   const bookingExtras = bookings.flatMap(b =>
@@ -1545,14 +1610,21 @@ const CheckoutModal: React.FC<{
   const extrasTotal = bookingExtras.reduce((sum, e) => sum + e.price * e.qty, 0);
 
   // Late checkout add-on
+  const [isLate, setIsLate] = useState<boolean | null>(null); // must be answered before checkout
   const [lateCheckout, setLateCheckout] = useState<number | null>(null); // index of LATE_CHECKOUT_RATES
-  const daycareRate = activeRates['DAYCARE'][petSize];
-  const getLateRate = (idx: number) => {
+  const lateAnswered = isLate === false || (isLate === true && lateCheckout !== null);
+  // Late fee is charged per pet, using each pet's own size (XS/S/M vs L/XL/XXL, daycare rate by size)
+  const getPetLateRate = (idx: number, b: HotelBooking) => {
     const slot = LATE_CHECKOUT_RATES[idx];
-    const raw = isSmallSize ? slot.small : slot.large;
-    return raw === 'daycare' ? daycareRate : raw;
+    const size = (b.pet_size as PetSizeKey) || 'S';
+    const raw = ['XS','S','M'].includes(size) ? slot.small : slot.large;
+    return raw === 'daycare' ? (activeRates['DAYCARE']?.[size] || 0) : raw;
   };
+  const getLateRate = (idx: number) => bookings.reduce((s, b) => s + getPetLateRate(idx, b), 0);
   const lateAmount = lateCheckout !== null ? getLateRate(lateCheckout) : 0;
+  const lateLabel = lateCheckout !== null
+    ? `${LATE_CHECKOUT_RATES[lateCheckout].label}${bookings.length > 1 ? ` (${bookings.length} pets)` : ''}`
+    : '';
 
   const grandTotal = packageRate + extrasTotal + lateAmount;
   const dpAmount = Math.min(booking.downpayment || 0, grandTotal);
@@ -1618,10 +1690,18 @@ const CheckoutModal: React.FC<{
               );
             })}
             {lateAmount > 0 && (
-              <div className="flex justify-between text-amber-700">
-                <span>{LATE_CHECKOUT_RATES[lateCheckout!].label}</span>
-                <span>+₱{lateAmount.toLocaleString()}</span>
-              </div>
+              <>
+                <div className="flex justify-between text-amber-700">
+                  <span>{lateLabel}</span>
+                  <span>+₱{lateAmount.toLocaleString()}</span>
+                </div>
+                {bookings.length > 1 && bookings.map(b => (
+                  <div key={b.id} className="flex justify-between text-xs text-amber-600 pl-3">
+                    <span>{b.pet_name} · {b.pet_size || 'S'}</span>
+                    <span>₱{getPetLateRate(lateCheckout!, b).toLocaleString()}</span>
+                  </div>
+                ))}
+              </>
             )}
             {appliedSpecialDiscount > 0 && (
               <div className="flex justify-between text-amber-600 font-bold">
@@ -1647,22 +1727,38 @@ const CheckoutModal: React.FC<{
             )}
           </div>
 
-          {/* Late Checkout */}
+          {/* Late Checkout — required Yes/No, then how late */}
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Late Check-Out Fee (optional)</label>
-            <div className="space-y-2">
-              {LATE_CHECKOUT_RATES.map((slot, idx) => {
-                const fee = getLateRate(idx);
-                const active = lateCheckout === idx;
-                return (
-                  <button key={idx} type="button" onClick={() => setLateCheckout(active ? null : idx)}
-                    className={`w-full flex justify-between items-center px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${active ? 'bg-amber-500 text-white border-amber-500' : 'border-zinc-200 hover:border-amber-300'}`}>
-                    <span>{slot.label}</span>
-                    <span className={active ? 'text-white font-bold' : 'text-zinc-500'}>+₱{fee.toLocaleString()}</span>
-                  </button>
-                );
-              })}
+            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Late Check-Out? *</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setIsLate(false); setLateCheckout(null); }}
+                className={`py-2.5 rounded-xl border text-sm font-bold transition-colors ${isLate === false ? 'bg-green-600 text-white border-green-600' : 'border-zinc-200 text-zinc-600 hover:border-green-300'}`}>
+                No, on time
+              </button>
+              <button type="button" onClick={() => setIsLate(true)}
+                className={`py-2.5 rounded-xl border text-sm font-bold transition-colors ${isLate === true ? 'bg-amber-500 text-white border-amber-500' : 'border-zinc-200 text-zinc-600 hover:border-amber-300'}`}>
+                Yes, late
+              </button>
             </div>
+            {!lateAnswered && (
+              <p className="text-xs font-bold text-amber-700 mt-1.5">{isLate ? 'Pick how late to continue.' : 'Answer this to confirm checkout.'}</p>
+            )}
+            {isLate && (
+              <div className="space-y-2 mt-2">
+                <p className="text-xs text-zinc-400">How late?{bookings.length > 1 ? ` Fee is per pet × ${bookings.length}, by each pet's size.` : ''}</p>
+                {LATE_CHECKOUT_RATES.map((slot, idx) => {
+                  const fee = getLateRate(idx);
+                  const active = lateCheckout === idx;
+                  return (
+                    <button key={idx} type="button" onClick={() => setLateCheckout(idx)}
+                      className={`w-full flex justify-between items-center px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${active ? 'bg-amber-500 text-white border-amber-500' : 'border-zinc-200 hover:border-amber-300'}`}>
+                      <span>{slot.label}</span>
+                      <span className={active ? 'text-white font-bold' : 'text-zinc-500'}>+₱{fee.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
@@ -1719,7 +1815,7 @@ const CheckoutModal: React.FC<{
         </div>
         <div className="p-6 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-zinc-200 text-zinc-700 py-3 rounded-xl font-semibold hover:bg-zinc-50">Cancel</button>
-          <button onClick={() => onConfirm(method, cash, ref, effectiveGrandTotal, lateAmount, lateAmount > 0 ? LATE_CHECKOUT_RATES[lateCheckout!].label : '', appliedSpecialDiscount > 0 ? appliedSpecialDiscount : undefined)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+          <button disabled={!lateAnswered} title={!lateAnswered ? 'Answer Late Check-Out first' : undefined} onClick={() => onConfirm(method, cash, ref, effectiveGrandTotal, lateAmount, lateAmount > 0 ? lateLabel : '', appliedSpecialDiscount > 0 ? appliedSpecialDiscount : undefined)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             <CheckCircle className="w-5 h-5" />Confirm Checkout
           </button>
         </div>
