@@ -76,6 +76,70 @@ export const HOTEL_EXTRAS = [
   { id: 'special-instruction', label: 'Special Instruction (per overnight stay)', price: 250 },
 ];
 
+// ─── Date-based stay pricing ─────────────────────────────────────────────────
+// Stay length is counted in days (check-out − check-in), same unit as BOOKING_TYPE_NIGHTS.
+// Non-daycare stays use the biggest package that fits, plus the Overnight rate for each
+// extra day (e.g. 2 days = Overnight + 1, 5 days = 4D3N + 1, 8 days = Vacation + 1).
+// Daycare is charged per day.
+
+export interface StayPricing {
+  days: number;
+  baseType: BookingTypeKey;
+  baseRate: number;
+  extraDays: number;
+  extraType: BookingTypeKey; // OVERNIGHT, or DAYCARE for multi-day daycare
+  extraRate: number;
+  total: number;
+}
+
+const STAY_PACKAGES: BookingTypeKey[] = ['VACATION', 'STAYCATION_4D3N', 'STAYCATION_3D2N', 'OVERNIGHT'];
+
+export const computeStayPricing = (
+  rates: Record<BookingTypeKey, Record<PetSizeKey, number>>,
+  isDaycare: boolean,
+  size: PetSizeKey,
+  days: number,
+): StayPricing => {
+  const d = Math.max(1, days);
+  const baseType: BookingTypeKey = isDaycare ? 'DAYCARE' : (STAY_PACKAGES.find(t => BOOKING_TYPE_NIGHTS[t] <= d) || 'OVERNIGHT');
+  const extraType: BookingTypeKey = isDaycare ? 'DAYCARE' : 'OVERNIGHT';
+  const baseRate = rates[baseType]?.[size] || 0;
+  const extraRate = rates[extraType]?.[size] || 0;
+  const extraDays = Math.max(0, d - BOOKING_TYPE_NIGHTS[baseType]);
+  return { days: d, baseType, baseRate, extraDays, extraType, extraRate, total: baseRate + extraDays * extraRate };
+};
+
+// Breakdown for a saved booking. Null when its stored price doesn't match the current rates
+// (bookings saved before date-based pricing, or the rate table changed since), so callers
+// fall back to the single stored price and never change what the booking was quoted.
+export const getBookingStayPricing = (
+  b: HotelBooking,
+  rates: Record<BookingTypeKey, Record<PetSizeKey, number>>,
+): StayPricing | null => {
+  if (!b.booking_type || !b.pet_size || !b.check_in || !b.check_out) return null;
+  const p = computeStayPricing(rates, b.booking_type === 'DAYCARE', b.pet_size as PetSizeKey, diffDays(b.check_in, b.check_out));
+  return p.baseType === b.booking_type && p.total === b.daily_rate ? p : null;
+};
+
+const extraDaysLabel = (p: StayPricing) =>
+  `+${p.extraDays} extra ${p.extraType === 'DAYCARE' ? 'Daycare' : 'Overnight'} day${p.extraDays !== 1 ? 's' : ''}`;
+
+// Package + extra-day lines, shown under a pet's stay price
+const StayBreakdown: React.FC<{ pricing: StayPricing; labels: Record<BookingTypeKey, string>; className?: string }> = ({ pricing, labels, className = '' }) => (
+  <div className={`text-xs space-y-0.5 ${className}`}>
+    <div className="flex justify-between gap-2">
+      <span>{labels[pricing.baseType] || pricing.baseType}</span>
+      <span className="font-semibold">₱{pricing.baseRate.toLocaleString()}</span>
+    </div>
+    {pricing.extraDays > 0 && (
+      <div className="flex justify-between gap-2">
+        <span>{extraDaysLabel(pricing)} × ₱{pricing.extraRate.toLocaleString()}</span>
+        <span className="font-semibold">₱{(pricing.extraDays * pricing.extraRate).toLocaleString()}</span>
+      </div>
+    )}
+  </div>
+);
+
 type HotelTab = 'UPCOMING' | 'ARRIVING' | 'OCCUPIED' | 'COMPLETED';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -262,9 +326,18 @@ const BookingForm: React.FC<{
   const [checkIn, setCheckIn] = useState(defaultCheckIn);
   const [checkOut, setCheckOut] = useState(defaultCheckOut);
 
-  useEffect(() => {
-    setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[bookingType]));
-  }, [bookingType]);
+  // Picking a package sets its standard length; check-out can then be moved freely
+  // and the price follows the dates (see computeStayPricing)
+  const selectBookingType = (type: BookingTypeKey) => {
+    setBookingType(type);
+    setCheckOut(addDays(checkIn, BOOKING_TYPE_NIGHTS[type]));
+  };
+  // Moving check-in keeps the same number of days
+  const changeCheckIn = (value: string) => {
+    const days = diffDays(checkIn, checkOut);
+    setCheckIn(value);
+    setCheckOut(addDays(value, days));
+  };
 
   // ── Client mode ──
   const [clientMode, setClientMode] = useState<'EXISTING' | 'NEW'>(booking?.client_id ? 'EXISTING' : 'EXISTING');
@@ -355,7 +428,6 @@ const BookingForm: React.FC<{
   }, [ncPetWeight]);
 
   // ── Derived ──
-  const rate = activeRates[bookingType][petSize];
   const nights = diffDays(checkIn, checkOut);
   const ownerName = clientMode === 'EXISTING' ? (selectedClient?.name || '') : ncName;
   const contactNumber = clientMode === 'EXISTING' ? (selectedClient?.contactNumber || '') : ncContact;
@@ -399,7 +471,8 @@ const BookingForm: React.FC<{
   const activePetName = activePet?.name || petName;
   const activePetId = activePet?.id || petId;
   const activePetSzKey = (getSizeFromWeight(activePet?.weightSize || '') || petSize) as PetSizeKey;
-  const activePetRate = activeRates[bookingType][activePetSzKey];
+  const stayPricing = computeStayPricing(activeRates, bookingType === 'DAYCARE', activePetSzKey, nights);
+  const activePetRate = stayPricing.total;
 
   // Count pets already booked in the selected room for these dates
   const existingInRoom = roomId ? hotelBookings.filter(b => {
@@ -462,7 +535,7 @@ const BookingForm: React.FC<{
       notes: notes,
       staff_id: currentUser?.id || '',
       transaction_id: currentPetIdx === 0 ? (booking?.transaction_id || '') : '',
-      booking_type: bookingType,
+      booking_type: stayPricing.baseType,
       pet_size: activePetSzKey,
       downpayment: downpayment || 0,
     };
@@ -528,8 +601,8 @@ const BookingForm: React.FC<{
               <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
               <div className="grid grid-cols-1 gap-2">
                 {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
-                  <button key={type} type="button" onClick={() => setBookingType(type)}
-                    className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
+                  <button key={type} type="button" onClick={() => selectBookingType(type)}
+                    className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${stayPricing.baseType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
                     <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
                     {activeLabels[type]}
                   </button>
@@ -540,14 +613,17 @@ const BookingForm: React.FC<{
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
-                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{petSize}</strong> · {checkIn} → {checkOut}</p>
+                  <p className="text-sm font-bold text-purple-900">{activeLabels[stayPricing.baseType]}</p>
+                  <p className="text-xs text-purple-500 mt-0.5">🐾 {petName} · Size <strong>{activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-purple-700">₱{rate.toLocaleString()}</p>
-                  <p className="text-xs text-purple-400">package rate</p>
+                  <p className="text-2xl font-black text-purple-700">₱{stayPricing.total.toLocaleString()}</p>
+                  <p className="text-xs text-purple-400">{stayPricing.extraDays > 0 ? 'stay total' : 'package rate'}</p>
                 </div>
               </div>
+              {stayPricing.extraDays > 0 && (
+                <StayBreakdown pricing={stayPricing} labels={activeLabels} className="mt-3 pt-3 border-t border-purple-100 text-purple-700" />
+              )}
             </div>
             {/* Add-ons & Services (Optional) */}
             <div>
@@ -589,7 +665,7 @@ const BookingForm: React.FC<{
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
-                <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+                <input type="date" value={checkIn} min={today} onChange={e => changeCheckIn(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
               </div>
               <div>
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
@@ -1014,8 +1090,8 @@ const BookingForm: React.FC<{
                 <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Booking Type *</label>
                 <div className="grid grid-cols-1 gap-2">
                   {(Object.keys(BOOKING_TYPE_LABELS) as BookingTypeKey[]).map(type => (
-                    <button key={type} type="button" onClick={() => setBookingType(type)}
-                      className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${bookingType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
+                    <button key={type} type="button" onClick={() => selectBookingType(type)}
+                      className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${stayPricing.baseType === type ? 'bg-purple-700 text-white border-purple-700 shadow-lg' : 'border-zinc-200 hover:border-purple-300 hover:bg-purple-50'}`}>
                       <span className="font-bold">{type === 'DAYCARE' ? '☀️' : type === 'OVERNIGHT' ? '🌙' : type === 'STAYCATION_3D2N' ? '🏠' : type === 'STAYCATION_4D3N' ? '🏡' : '🌴'} </span>
                       {activeLabels[type]}
                     </button>
@@ -1026,14 +1102,17 @@ const BookingForm: React.FC<{
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-bold text-purple-900">{activeLabels[bookingType]}</p>
-                    <p className="text-xs text-purple-500 mt-0.5">🐾 {activePetName} · Size <strong>{activePetSzKey}</strong> · {checkIn} → {checkOut}</p>
+                    <p className="text-sm font-bold text-purple-900">{activeLabels[stayPricing.baseType]}</p>
+                    <p className="text-xs text-purple-500 mt-0.5">🐾 {activePetName} · Size <strong>{activePetSzKey}</strong> · {checkIn} → {checkOut} · {nights} day{nights !== 1 ? 's' : ''}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black text-purple-700">₱{activePetRate.toLocaleString()}</p>
-                    <p className="text-xs text-purple-400">package rate</p>
+                    <p className="text-xs text-purple-400">{stayPricing.extraDays > 0 ? 'stay total' : 'package rate'}</p>
                   </div>
                 </div>
+                {stayPricing.extraDays > 0 && (
+                  <StayBreakdown pricing={stayPricing} labels={activeLabels} className="mt-3 pt-3 border-t border-purple-100 text-purple-700" />
+                )}
               </div>
               {/* Already-configured pets in this booking session */}
               {savedPetBookings.length > 0 && (
@@ -1058,7 +1137,7 @@ const BookingForm: React.FC<{
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-In</label>
-                  <input type="date" value={checkIn} min={today} onChange={e => { setCheckIn(e.target.value); if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, BOOKING_TYPE_NIGHTS[bookingType])); }} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
+                  <input type="date" value={checkIn} min={today} onChange={e => changeCheckIn(e.target.value)} className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-black outline-none" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Check-Out</label>
@@ -1225,8 +1304,13 @@ const BookingConfirmationModal: React.FC<{
     ...BOOKING_TYPE_LABELS,
     ...(storeSettings.hotelBookingTypeLabels as Record<BookingTypeKey, string> | undefined),
   } as Record<BookingTypeKey, string>;
+  const activeRates: Record<BookingTypeKey, Record<PetSizeKey, number>> = {
+    ...HOTEL_RATES,
+    ...(storeSettings.hotelRates as Record<BookingTypeKey, Record<PetSizeKey, number>> | undefined),
+  } as Record<BookingTypeKey, Record<PetSizeKey, number>>;
   const btype = (booking.booking_type as BookingTypeKey) || 'OVERNIGHT';
   const psize = (booking.pet_size as PetSizeKey) || 'S';
+  const stayPricing = getBookingStayPricing(booking, activeRates);
   const emoji = ['XS','S','M'].includes(psize) ? '🐶' : psize === 'L' ? '🐕' : '🐺';
   const speciesEmoji = booking.pet_name ? emoji : '🐾';
   const totalRate = bookings.reduce((s, b) => s + b.daily_rate, 0);
@@ -1386,12 +1470,17 @@ const BookingConfirmationModal: React.FC<{
               </div>
             </div>
           ) : (
-            <div className="mt-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-purple-500 font-semibold uppercase tracking-wide">Package Rate</p>
-                <p className="text-xs text-zinc-400 mt-0.5">{activeLabels[btype]}</p>
+            <div className="mt-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-purple-500 font-semibold uppercase tracking-wide">{stayPricing && stayPricing.extraDays > 0 ? 'Stay Total' : 'Package Rate'}</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">{activeLabels[btype]}</p>
+                </div>
+                <p className="text-3xl font-black text-purple-700">₱{(booking.daily_rate || 0).toLocaleString()}</p>
               </div>
-              <p className="text-3xl font-black text-purple-700">₱{(booking.daily_rate || 0).toLocaleString()}</p>
+              {stayPricing && stayPricing.extraDays > 0 && (
+                <StayBreakdown pricing={stayPricing} labels={activeLabels} className="mt-3 pt-3 border-t border-purple-100 text-purple-700" />
+              )}
             </div>
           )}
 
@@ -1512,9 +1601,13 @@ const CheckoutModal: React.FC<{
                     <span className="text-zinc-500">{bRoom ? `Room ${bRoom.room_number}` : 'Hotel'}</span>
                   </div>
                   <div className="flex justify-between text-zinc-600">
-                    <span>{activeLabels[bType] || bType} · <strong>{bSz}</strong></span>
+                    <span>{activeLabels[bType] || bType} · <strong>{bSz}</strong> · {diffDays(b.check_in, b.check_out)} day{diffDays(b.check_in, b.check_out) !== 1 ? 's' : ''}</span>
                     <span className="font-bold">₱{b.daily_rate.toLocaleString()}</span>
                   </div>
+                  {(() => {
+                    const p = getBookingStayPricing(b, activeRates);
+                    return p && p.extraDays > 0 ? <StayBreakdown pricing={p} labels={activeLabels} className="pl-3 text-zinc-400" /> : null;
+                  })()}
                   {bExtras.map(e => (
                     <div key={e.id} className="flex justify-between text-green-700">
                       <span>🍗 {e.label}{e.qty > 1 ? ` ×${e.qty}` : ''}</span>
@@ -2060,6 +2153,12 @@ const Hotel: React.FC = () => {
                           <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded-lg">
                             {booking.booking_type === 'DAYCARE' ? '☀️ Daycare' : booking.booking_type === 'OVERNIGHT' ? '🌙 Overnight' : booking.booking_type === 'STAYCATION_3D2N' ? '🏠 Staycation 3D2N' : booking.booking_type === 'STAYCATION_4D3N' ? '🏡 Staycation 4D3N' : '🌴 Vacation'}
                           </span>
+                          {(() => {
+                            const p = getBookingStayPricing(booking, activeRates);
+                            return p && p.extraDays > 0
+                              ? <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-lg">{extraDaysLabel(p)}</span>
+                              : null;
+                          })()}
                           {!isMulti && booking.pet_size && <span className="text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg">{booking.pet_size}</span>}
                         </div>
                       )}
@@ -2257,7 +2356,14 @@ const Hotel: React.FC = () => {
               const bkType = b.booking_type as BookingTypeKey | undefined;
               const bkSize = b.pet_size || '';
               const stayLabel = bkType ? `${activeLabels[bkType] || bkType} · ${b.pet_name} · ${bkSize}${bRoom ? ` (${bRoom.room_number})` : ''}` : `Hotel Stay · ${b.pet_name}`;
-              allItems.push({ id: `hotel-stay-${b.id}`, name: stayLabel, price: b.daily_rate, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] });
+              // Split package + extra days when the stored price matches the date-based breakdown
+              const stayPricing = getBookingStayPricing(b, activeRates);
+              if (stayPricing && stayPricing.extraDays > 0) {
+                allItems.push({ id: `hotel-stay-${b.id}`, name: stayLabel, price: stayPricing.baseRate, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] });
+                allItems.push({ id: `hotel-extraday-${b.id}`, name: `Extra ${stayPricing.extraType === 'DAYCARE' ? 'Daycare' : 'Overnight'} Day · ${b.pet_name}`, price: stayPricing.extraRate, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: stayPricing.extraDays, appliedDiscounts: [] });
+              } else {
+                allItems.push({ id: `hotel-stay-${b.id}`, name: stayLabel, price: b.daily_rate, cost: 0, stock: 1, category: 'HOTEL', isService: true, quantity: 1, appliedDiscounts: [] });
+              }
               (b.hotel_extras || []).forEach(e => {
                 const extraDef = extrasLookup.find(x => x.id === e.id);
                 if (extraDef && e.qty > 0) {
